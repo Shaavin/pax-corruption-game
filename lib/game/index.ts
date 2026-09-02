@@ -4,3 +4,4 @@ export * from "./zones.ts";
 export * from "./setup.ts";
 export * from "./engine.ts";
 export * from "./influence.ts";
+export * from "./income.ts";

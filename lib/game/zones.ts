@@ -41,3 +41,14 @@ export function sameIdSet(a: readonly string[], b: readonly string[]): boolean {
   const other = new Set(b);
   return a.every((id) => other.has(id));
 }
+
+export function takeInstance(
+  cards: CardInstance[],
+  instanceId: string,
+): CardInstance {
+  const index = cards.findIndex((card) => card.instanceId === instanceId);
+  if (index < 0) {
+    throw new Error(`Card ${instanceId} is not in this zone`);
+  }
+  return cards.splice(index, 1)[0]!;
+}

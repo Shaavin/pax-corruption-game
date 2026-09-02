@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { DistrictHub } from "./DistrictHub";
 import { ExecutiveSlot } from "./ExecutiveSlot";
@@ -24,6 +24,18 @@ const LANE_TINT: Record<DistrictId, string> = {
   smarbbit: "bg-[var(--smarbbit)]/12",
 };
 
+export type TableInteraction = {
+  playableHandIds: ReadonlySet<string>;
+  selectedHandId: string | null;
+  onSelectHand: (instanceId: string) => void;
+  targetDistrict: DistrictId | null;
+  onSelectDistrict: (district: DistrictId) => void;
+  takeableMarketIds: ReadonlySet<string>;
+  onTakeMarket: (instanceId: string) => void;
+  prompt: string;
+  extraAction?: { label: string; onClick: () => void };
+};
+
 type TableProps = {
   model: TableModel;
   seed: number;
@@ -31,6 +43,7 @@ type TableProps = {
   showTour: boolean;
   veiled: boolean;
   hotseat: PlayerId;
+  interaction?: TableInteraction | null;
   children?: ReactNode;
 };
 
@@ -41,21 +54,21 @@ export function Table({
   showTour,
   veiled,
   hotseat,
+  interaction,
   children,
 }: TableProps) {
   const [peek, setPeek] = useState<PeekCard | null>(null);
   const [tourOpen, setTourOpen] = useState(false);
   const opponent = otherPlayer(hotseat);
+  if (veiled && peek !== null) {
+    setPeek(null);
+  }
   const setPeekSafe = useCallback(
     (card: PeekCard | null) => {
       if (!tourOpen && !veiled) setPeek(card);
     },
     [tourOpen, veiled],
   );
-
-  useEffect(() => {
-    if (veiled) setPeek(null);
-  }, [veiled]);
 
   return (
     <PeekContext.Provider value={{ setPeek: setPeekSafe }}>
@@ -102,7 +115,7 @@ export function Table({
               {playerLabel(opponent)}
             </span>
           </span>
-          <Hand cards={model.opponent.hand} faceUp={false} align="start" />
+          <Hand cards={model.opponent.hand} faceUp align="start" />
           <ExecutiveSlot side={model.opponent.executive} align="start" />
           <PlayerChrome
             partyId={model.opponent.partyId}
@@ -152,8 +165,26 @@ export function Table({
           {model.districtOrder.map((district) => (
             <div
               key={`you-${district}`}
-              className={`min-h-0 border-x border-white/6 ${LANE_TINT[district]}`}
+              className={[
+                "relative min-h-0 border-x border-white/6",
+                LANE_TINT[district],
+                interaction?.targetDistrict === district
+                  ? "ring-2 ring-inset ring-[var(--brass)]"
+                  : "",
+              ].join(" ")}
             >
+              {interaction?.targetDistrict === district ? (
+                <button
+                  type="button"
+                  className="absolute inset-0 z-20 cursor-pointer bg-[var(--brass)]/10"
+                  aria-label={`Play into ${district}`}
+                  onClick={() => interaction.onSelectDistrict(district)}
+                >
+                  <span className="pointer-events-none absolute inset-x-1 bottom-1 rounded-sm bg-black/55 px-1 py-0.5 text-center text-[0.55rem] font-semibold tracking-[0.14em] text-[var(--brass)] uppercase">
+                    Play here
+                  </span>
+                </button>
+              ) : null}
               <Tableau
                 cards={model.you.tableau[district]}
                 anchor="bottom"
@@ -167,7 +198,26 @@ export function Table({
           market={model.market}
           monuments={model.availableMonuments}
           deckCount={model.deckCount}
+          takeableIds={interaction?.takeableMarketIds}
+          onTake={interaction?.onTakeMarket}
         />
+
+        {interaction ? (
+          <div className="flex shrink-0 items-center justify-center gap-3 px-3 py-1">
+            <p className="text-center text-[0.7rem] tracking-wide text-stone-300">
+              {interaction.prompt}
+            </p>
+            {interaction.extraAction ? (
+              <button
+                type="button"
+                className="cursor-pointer rounded-full bg-[var(--brass)] px-3 py-1 text-[0.7rem] font-semibold text-stone-950 hover:bg-[#d4b57c]"
+                onClick={interaction.extraAction.onClick}
+              >
+                {interaction.extraAction.label}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
 
         <div className="hand-rail hand-rail-you flex shrink-0 items-center gap-3 px-3 py-2">
           <span className="w-[4.4rem] shrink-0 leading-tight">
@@ -178,7 +228,15 @@ export function Table({
               {playerLabel(hotseat)}
             </span>
           </span>
-          <Hand cards={model.you.hand} faceUp align="end" tourId="your-hand" />
+          <Hand
+            cards={model.you.hand}
+            faceUp
+            align="end"
+            tourId="your-hand"
+            playableIds={interaction?.playableHandIds}
+            selectedId={interaction?.selectedHandId}
+            onSelect={interaction?.onSelectHand}
+          />
           <ExecutiveSlot side={model.you.executive} align="end" />
           <PlayerChrome
             partyId={model.you.partyId}

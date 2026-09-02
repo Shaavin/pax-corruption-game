@@ -33,6 +33,7 @@ export type SetupStepId = (typeof SetupStep)[keyof typeof SetupStep];
 export type CardInstance = {
   instanceId: string;
   cardId: string;
+  /** Public knowledge. A face-up hand card (market take) stays visible to the opponent. */
   faceUp: boolean;
   occupiedDistrict?: DistrictId;
 };
@@ -104,7 +105,30 @@ export type ChooseStartingHandAction = {
   instanceIds: string[];
 };
 
-export type Action = ChoosePartyAction | ChooseStartingHandAction;
+export type PlayCivilAction = {
+  type: "playCivil";
+  player: PlayerId;
+  instanceId: string;
+};
+
+/** Legal during the action step only when no civil card can be played (Phase 3 dummy turns). */
+export type EndActionAction = {
+  type: "endAction";
+  player: PlayerId;
+};
+
+export type TakeMarketAction = {
+  type: "takeMarket";
+  player: PlayerId;
+  instanceId: string;
+};
+
+export type Action =
+  | ChoosePartyAction
+  | ChooseStartingHandAction
+  | PlayCivilAction
+  | EndActionAction
+  | TakeMarketAction;
 
 export type GameEvent =
   | { type: "districtsShuffled"; order: DistrictId[] }
@@ -127,7 +151,25 @@ export type GameEvent =
     }
   | { type: "marketDealt"; cardIds: string[] }
   | { type: "deckBuilt"; size: number }
-  | { type: "setupComplete"; firstPlayer: PlayerId };
+  | { type: "setupComplete"; firstPlayer: PlayerId }
+  | {
+      type: "civilPlayed";
+      player: PlayerId;
+      instanceId: string;
+      cardId: string;
+      district: DistrictId;
+    }
+  | { type: "incomeStarted"; player: PlayerId }
+  | {
+      type: "marketTaken";
+      player: PlayerId;
+      instanceId: string;
+      cardId: string;
+    }
+  | { type: "cardDrawn"; player: PlayerId; cardId: string }
+  | { type: "marketReplenished"; cardIds: string[] }
+  | { type: "electionSetAside"; cardId: string }
+  | { type: "turnEnded"; nextPlayer: PlayerId };
 
 export type ApplyResult = {
   state: GameState;

@@ -52,6 +52,7 @@ type CardViewProps = {
   className?: string;
   selected?: boolean;
   dimmed?: boolean;
+  playable?: boolean;
   selectLabel?: string;
   onSelect?: () => void;
   cardId?: string;
@@ -70,6 +71,7 @@ export function CardView({
   className = "",
   selected = false,
   dimmed = false,
+  playable = false,
   selectLabel,
   onSelect,
   cardId,
@@ -99,6 +101,9 @@ export function CardView({
     canPeek && !onSelect ? "cursor-zoom-in" : "",
     selected && !dimmed
       ? "ring-2 ring-[var(--brass)] ring-offset-2 ring-offset-[#16120e]"
+      : "",
+    playable && !selected
+      ? "ring-2 ring-[var(--brass)]/70"
       : "",
     className,
   ].join(" ");

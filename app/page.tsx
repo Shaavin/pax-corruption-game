@@ -27,7 +27,7 @@ export default function Home() {
           New local game
         </Link>
         <p className="text-sm text-stone-500">
-          Standard · pass the device for party choice and starting hands
+          Standard · play civil, draw, pass the device
         </p>
       </main>
     </div>

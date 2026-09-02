@@ -56,8 +56,8 @@ function playerView(
     : seat.partyId;
   return {
     hand: isYou
-      ? seat.hand
-      : seat.hand.map((card) => ({ ...card, faceUp: false })),
+      ? seat.hand.map((card) => ({ ...card, faceUp: true }))
+      : seat.hand,
     tableau: seat.tableau,
     support: Object.fromEntries(
       DISTRICTS.map((district) => [district, seat.support[district].length]),

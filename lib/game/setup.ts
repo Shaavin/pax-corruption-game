@@ -176,7 +176,7 @@ export function takeStartingHand(
   const hand = setup.startingOffers[player].filter((card) =>
     chosen.has(card.instanceId),
   );
-  state.players[player].hand = hand.map((card) => ({ ...card, faceUp: true }));
+  state.players[player].hand = hand.map((card) => ({ ...card, faceUp: false }));
   setup.nonElectionPool = setup.nonElectionPool.filter(
     (card) => !chosen.has(card.instanceId),
   );

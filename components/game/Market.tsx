@@ -8,9 +8,17 @@ type MarketProps = {
   market: FixtureCard[];
   monuments: FixtureCard[];
   deckCount: number;
+  takeableIds?: ReadonlySet<string>;
+  onTake?: (instanceId: string) => void;
 };
 
-export function Market({ market, monuments, deckCount }: MarketProps) {
+export function Market({
+  market,
+  monuments,
+  deckCount,
+  takeableIds,
+  onTake,
+}: MarketProps) {
   return (
     <section
       data-tour="market"
@@ -38,6 +46,7 @@ export function Market({ market, monuments, deckCount }: MarketProps) {
       <Rail label="Market">
         {market.map((entry) => {
           const catalog = resolveCard(entry.cardId);
+          const takeable = takeableIds?.has(entry.instanceId) ?? false;
           return (
             <CardView
               key={entry.instanceId}
@@ -45,6 +54,9 @@ export function Market({ market, monuments, deckCount }: MarketProps) {
               art={catalog.art}
               faceUp={entry.faceUp}
               size="market"
+              playable={takeable}
+              selectLabel={takeable ? `Take ${catalog.name}` : undefined}
+              onSelect={takeable && onTake ? () => onTake(entry.instanceId) : undefined}
             />
           );
         })}

@@ -1,11 +1,18 @@
-import type { PartyIdValue } from "../cards/schema.ts";
+import { getCard } from "../cards/catalog.ts";
+import { CardKind, type PartyIdValue } from "../cards/schema.ts";
+import {
+  afterMainAction,
+  beginIncome,
+  takeMarketCard,
+  underHandLimit,
+} from "./income.ts";
+import type { Rng } from "./rng.ts";
 import {
   dealStartingOffer,
   finishSetup,
   revealParties,
   takeStartingHand,
 } from "./setup.ts";
-import type { Rng } from "./rng.ts";
 import {
   Phase,
   SetupStep,
@@ -13,11 +20,14 @@ import {
   type ApplyResult,
   type ChoosePartyAction,
   type ChooseStartingHandAction,
+  type EndActionAction,
   type GameEvent,
   type GameState,
+  type PlayCivilAction,
   type PlayerId,
+  type TakeMarketAction,
 } from "./types.ts";
-import { cloneState, sameIdSet } from "./zones.ts";
+import { cloneState, sameIdSet, takeInstance } from "./zones.ts";
 
 export class IllegalActionError extends Error {
   constructor(message: string) {
@@ -36,6 +46,12 @@ export function apply(state: GameState, action: Action, rng: Rng): ApplyResult {
         state: next,
         events: applyChooseStartingHand(next, action),
       };
+    case "playCivil":
+      return { state: next, events: applyPlayCivil(next, action) };
+    case "endAction":
+      return { state: next, events: applyEndAction(next, action) };
+    case "takeMarket":
+      return { state: next, events: applyTakeMarket(next, action) };
     default: {
       const never: never = action;
       throw new IllegalActionError(`Unknown action ${(never as Action).type}`);
@@ -45,29 +61,50 @@ export function apply(state: GameState, action: Action, rng: Rng): ApplyResult {
 
 export function legalActions(state: GameState, viewer: PlayerId): Action[] {
   if (state.activePlayer !== viewer) return [];
-  if (state.phase !== Phase.Setup || !state.setup) return [];
 
-  if (state.setup.step === SetupStep.ChooseParty) {
-    return state.setup.dealtParties[viewer].map((partyId) => ({
-      type: "chooseParty" as const,
+  if (state.phase === Phase.Setup && state.setup) {
+    if (state.setup.step === SetupStep.ChooseParty) {
+      return state.setup.dealtParties[viewer].map((partyId) => ({
+        type: "chooseParty" as const,
+        player: viewer,
+        partyId,
+      }));
+    }
+
+    const offer = state.setup.startingOffers[viewer];
+    return offer.map((_, omit) => ({
+      type: "chooseStartingHand" as const,
       player: viewer,
-      partyId,
+      instanceIds: offer
+        .filter((_, index) => index !== omit)
+        .map((card) => card.instanceId),
     }));
   }
 
-  const offer = state.setup.startingOffers[viewer];
-  return offer.map((_, omit) => ({
-    type: "chooseStartingHand" as const,
-    player: viewer,
-    instanceIds: offer
-      .filter((_, index) => index !== omit)
-      .map((card) => card.instanceId),
-  }));
+  if (state.phase === Phase.Action) {
+    const civils = civilInHand(state, viewer);
+    if (civils.length > 0) {
+      return civils.map((card) => ({
+        type: "playCivil" as const,
+        player: viewer,
+        instanceId: card.instanceId,
+      }));
+    }
+    return [{ type: "endAction" as const, player: viewer }];
+  }
+
+  if (state.phase === Phase.Income) {
+    return state.market.map((card) => ({
+      type: "takeMarket" as const,
+      player: viewer,
+      instanceId: card.instanceId,
+    }));
+  }
+
+  return [];
 }
 
-export function checkVictory(_state: GameState): PlayerId | null {
-  return null;
-}
+export const checkVictory: (state: GameState) => PlayerId | null = () => null;
 
 function applyChooseParty(
   state: GameState,
@@ -160,6 +197,83 @@ export function isLegalAction(state: GameState, action: Action, viewer: PlayerId
   return legalActions(state, viewer).some((legal) => actionsEqual(legal, action));
 }
 
+function applyPlayCivil(state: GameState, action: PlayCivilAction): GameEvent[] {
+  requirePhase(state, Phase.Action);
+  requireActor(state, action.player);
+  const seat = state.players[action.player];
+  const inHand = seat.hand.some((card) => card.instanceId === action.instanceId);
+  if (!inHand) {
+    throw new IllegalActionError("That card is not in your hand");
+  }
+  const card = takeInstance(seat.hand, action.instanceId);
+  const def = getCard(card.cardId);
+  if (def.kind !== CardKind.Civil) {
+    seat.hand.push(card);
+    throw new IllegalActionError("Only civil cards can be played this way");
+  }
+
+  const played = {
+    ...card,
+    faceUp: true,
+    occupiedDistrict: def.district,
+  };
+  seat.tableau[def.district].push(played);
+  const events: GameEvent[] = [
+    {
+      type: "civilPlayed",
+      player: action.player,
+      instanceId: played.instanceId,
+      cardId: played.cardId,
+      district: def.district,
+    },
+  ];
+  afterMainAction(state, events);
+  return events;
+}
+
+function applyEndAction(state: GameState, action: EndActionAction): GameEvent[] {
+  requirePhase(state, Phase.Action);
+  requireActor(state, action.player);
+  if (civilInHand(state, action.player).length > 0) {
+    throw new IllegalActionError("Play a civil card before ending the action step");
+  }
+  const events: GameEvent[] = [];
+  beginIncome(state, events);
+  return events;
+}
+
+function applyTakeMarket(state: GameState, action: TakeMarketAction): GameEvent[] {
+  requirePhase(state, Phase.Income);
+  requireActor(state, action.player);
+  if (!underHandLimit(state, action.player)) {
+    throw new IllegalActionError("Hand is at the limit; you cannot take a market card");
+  }
+  if (!state.market.some((card) => card.instanceId === action.instanceId)) {
+    throw new IllegalActionError("That card is not in the market");
+  }
+  const events: GameEvent[] = [];
+  takeMarketCard(state, action.instanceId, events);
+  return events;
+}
+
+function civilInHand(state: GameState, player: PlayerId) {
+  return state.players[player].hand.filter(
+    (card) => getCard(card.cardId).kind === CardKind.Civil,
+  );
+}
+
+function requirePhase(state: GameState, phase: typeof Phase[keyof typeof Phase]) {
+  if (state.phase !== phase) {
+    throw new IllegalActionError(`Expected ${phase} phase, got ${state.phase}`);
+  }
+}
+
+function requireActor(state: GameState, player: PlayerId) {
+  if (player !== state.activePlayer) {
+    throw new IllegalActionError("It is not this player's turn");
+  }
+}
+
 function actionsEqual(a: Action, b: Action): boolean {
   if (a.type !== b.type || a.player !== b.player) return false;
   if (a.type === "chooseParty" && b.type === "chooseParty") {
@@ -167,6 +281,15 @@ function actionsEqual(a: Action, b: Action): boolean {
   }
   if (a.type === "chooseStartingHand" && b.type === "chooseStartingHand") {
     return sameIdSet(a.instanceIds, b.instanceIds);
+  }
+  if (a.type === "playCivil" && b.type === "playCivil") {
+    return a.instanceId === b.instanceId;
+  }
+  if (a.type === "takeMarket" && b.type === "takeMarket") {
+    return a.instanceId === b.instanceId;
+  }
+  if (a.type === "endAction" && b.type === "endAction") {
+    return true;
   }
   return false;
 }

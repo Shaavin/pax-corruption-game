@@ -104,6 +104,10 @@ function kindOf(cardId: string) {
   const second = state.players[otherPlayer(state.firstPlayer)];
   assert(seat0.hand.length === 3, `Player 1 hand ${seat0.hand.length}, want 3`);
   assert(seat1.hand.length === 4, `Player 2 hand ${seat1.hand.length}, want 4`);
+  assert(
+    [...seat0.hand, ...seat1.hand].every((card) => !card.faceUp),
+    "Starting hands are secret",
+  );
   assert(first.partyId !== null && second.partyId !== null, "Both parties chosen");
   assert(
     getParty(first.partyId).order < getParty(second.partyId).order,
