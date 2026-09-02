@@ -1,4 +1,4 @@
-import { EffectId } from "./effects";
+import { EffectId } from "./effects.ts";
 import {
   CardKind,
   District,
@@ -14,7 +14,7 @@ import {
   type MonumentCard,
   type PartyCard,
   type PolicyCard,
-} from "./schema";
+} from "./schema.ts";
 
 export const PARTIES: PartyCard[] = [
   {

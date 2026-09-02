@@ -1,6 +1,6 @@
-import { alliance, civil, conspiracy, election } from "./builders";
-import { EffectId } from "./effects";
-import { District, EffectType, TriggerWhen, type MainDeckCard } from "./schema";
+import { alliance, civil, conspiracy, election } from "./builders.ts";
+import { EffectId } from "./effects.ts";
+import { District, EffectType, TriggerWhen, type MainDeckCard } from "./schema.ts";
 
 const d = District.Dragonara;
 const h = District.Horsard;

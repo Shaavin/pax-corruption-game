@@ -1,3 +1,3 @@
-export * from "./schema";
-export * from "./effects";
-export * from "./catalog";
+export * from "./schema.ts";
+export * from "./effects.ts";
+export * from "./catalog.ts";

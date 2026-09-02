@@ -1,5 +1,5 @@
-import { MAIN_DECK } from "./deck";
-import { EXECUTIVE, MONUMENTS, PARTIES, POLICIES } from "./setup-cards";
+import { MAIN_DECK } from "./deck.ts";
+import { EXECUTIVE, MONUMENTS, PARTIES, POLICIES } from "./setup-cards.ts";
 import {
   CardKind,
   type CatalogCard,
@@ -8,7 +8,7 @@ import {
   type MonumentCard,
   type MonumentIdValue,
   type PartyCard,
-} from "./schema";
+} from "./schema.ts";
 
 export const CATALOG: CatalogCard[] = [
   ...MAIN_DECK,

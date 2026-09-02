@@ -1,4 +1,4 @@
-import { EffectId } from "./effects";
+import { EffectId } from "./effects.ts";
 import {
   CardKind,
   EffectType,
@@ -8,7 +8,7 @@ import {
   type DistrictId,
   type Effect,
   type ElectionCard,
-} from "./schema";
+} from "./schema.ts";
 
 export function civil(
   id: string,

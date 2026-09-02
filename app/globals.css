@@ -1,8 +1,13 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #16120e;
+  --foreground: #f5f0e8;
+  --dragonara: #e4d2a0;
+  --horsard: #b5cfe2;
+  --shavvinne: #b6d6c6;
+  --smarbbit: #e6b6c6;
+  --brass: #c6a56c;
 }
 
 @theme inline {
@@ -12,15 +17,94 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+html,
 body {
+  height: 100%;
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+.table-felt {
+  --card-hand: clamp(48px, 6.4vw, 88px);
+  --card-board: clamp(36px, 4.4vw, 64px);
+  --card-market: clamp(44px, 5vw, 72px);
+  --card-mini: clamp(32px, 3.6vw, 52px);
+  --card-zoom: clamp(168px, 22vw, 280px);
+  background:
+    radial-gradient(ellipse at 50% 32%, #2c241c 0%, #16120e 72%);
+}
+
+.hand-rail {
+  position: relative;
+  isolation: isolate;
+  background-color: #14110e;
+}
+
+.hand-rail::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: url("/art/box-cover.jpg");
+  background-size: cover;
+  background-repeat: no-repeat;
+  opacity: 0.42;
+}
+
+.hand-rail::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.46)),
+    linear-gradient(
+      90deg,
+      rgba(16, 14, 12, 0.18) 0%,
+      rgba(16, 14, 12, 0.62) 22%,
+      rgba(16, 14, 12, 0.72) 50%,
+      rgba(16, 14, 12, 0.62) 78%,
+      rgba(16, 14, 12, 0.18) 100%
+    );
+}
+
+.hand-rail > * {
+  position: relative;
+  z-index: 1;
+}
+
+.hand-rail-opponent {
+  border-bottom: 2px solid color-mix(in srgb, var(--brass) 40%, transparent);
+  box-shadow:
+    inset 0 -10px 18px rgba(0, 0, 0, 0.28),
+    0 6px 12px rgba(0, 0, 0, 0.25);
+}
+
+.hand-rail-opponent::before {
+  background-position: 32% 10%;
+}
+
+.hand-rail-you {
+  border-top: 2px solid color-mix(in srgb, var(--brass) 70%, transparent);
+  box-shadow:
+    inset 0 10px 18px rgba(0, 0, 0, 0.28),
+    0 -6px 12px rgba(0, 0, 0, 0.25);
+}
+
+.hand-rail-you::before {
+  background-position: 68% 90%;
+  opacity: 0.48;
+}
+
+@media (max-height: 800px) {
+  .table-felt {
+    --card-hand: clamp(42px, 5.6vw, 72px);
+    --card-board: clamp(32px, 3.8vw, 52px);
+    --card-market: clamp(38px, 4.4vw, 60px);
+    --card-mini: clamp(28px, 3.2vw, 44px);
+    --card-zoom: clamp(148px, 20vw, 240px);
+  }
 }

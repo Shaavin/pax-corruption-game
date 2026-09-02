@@ -1,4 +1,4 @@
-import type { EffectId } from "./effects";
+import type { EffectId } from "./effects.ts";
 
 export const District = {
   Dragonara: "dragonara",

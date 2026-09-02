@@ -1,10 +1,10 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { CATALOG, MAIN_DECK, partyStartingMatches } from "./catalog";
-import { EFFECT_IDS } from "./effects";
-import { CardKind, DISTRICTS } from "./schema";
-import { EXECUTIVE, MONUMENTS, PARTIES, POLICIES } from "./setup-cards";
+import { CATALOG, MAIN_DECK, partyStartingMatches } from "./catalog.ts";
+import { EFFECT_IDS } from "./effects.ts";
+import { CardKind, DISTRICTS } from "./schema.ts";
+import { EXECUTIVE, MONUMENTS, PARTIES, POLICIES } from "./setup-cards.ts";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const errors: string[] = [];
