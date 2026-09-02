@@ -31,7 +31,7 @@ export function PlayerChrome({
           art={party.art}
           back={CardBack.party}
           size="mini"
-          cardId={partyId}
+          cardId={partyId ?? undefined}
         />
       ) : (
         <div
