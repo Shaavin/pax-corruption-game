@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import Link from "next/link";
 import { DistrictHub } from "./DistrictHub";
+import { ExecutiveSlot } from "./ExecutiveSlot";
 import { Hand } from "./Hand";
 import { LAYOUT_FIXTURE } from "./layout-fixture";
 import { Market } from "./Market";
@@ -12,6 +13,7 @@ import { Tableau } from "./Tableau";
 import { TableTour } from "./TableTour";
 import { ZoomPreview } from "./ZoomPreview";
 import type { DistrictId } from "@/lib/cards/schema";
+import { districtInfluence } from "@/lib/game/influence";
 
 const LANE_TINT: Record<DistrictId, string> = {
   dragonara: "bg-[var(--dragonara)]/12",
@@ -60,11 +62,11 @@ export function Table() {
             Opponent
           </span>
           <Hand cards={fixture.opponent.hand} faceUp={false} align="start" />
+          <ExecutiveSlot side={fixture.opponent.executive} align="start" />
           <PlayerChrome
             partyId={fixture.opponent.partyId}
             monuments={fixture.opponent.monuments}
             partisans={fixture.opponent.partisans}
-            executive={fixture.opponent.executive}
             policySupporters={fixture.opponent.policySupporters}
             office={fixture.opponent.office}
           />
@@ -95,6 +97,14 @@ export function Table() {
                 policyId={fixture.policies[district]}
                 yourSupport={fixture.you.support[district]}
                 theirSupport={fixture.opponent.support[district]}
+                yourInfluence={districtInfluence(
+                  fixture.you.tableau[district],
+                  fixture.you.support[district],
+                )}
+                theirInfluence={districtInfluence(
+                  fixture.opponent.tableau[district],
+                  fixture.opponent.support[district],
+                )}
               />
             </div>
           ))}
@@ -126,11 +136,11 @@ export function Table() {
             You
           </span>
           <Hand cards={fixture.you.hand} faceUp align="end" tourId="your-hand" />
+          <ExecutiveSlot side={fixture.you.executive} align="end" />
           <PlayerChrome
             partyId={fixture.you.partyId}
             monuments={fixture.you.monuments}
             partisans={fixture.you.partisans}
-            executive={fixture.you.executive}
             policySupporters={fixture.you.policySupporters}
             office={fixture.you.office}
             tourTarget="partisans"

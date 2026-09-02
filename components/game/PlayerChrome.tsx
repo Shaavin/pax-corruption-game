@@ -3,7 +3,6 @@
 import { CardBack, CardView } from "./CardView";
 import { resolveCard, type FixtureCard } from "./layout-fixture";
 import {
-  type ExecutiveSideId,
   type MonumentIdValue,
   type PartyIdValue,
 } from "@/lib/cards/schema";
@@ -12,7 +11,6 @@ type PlayerChromeProps = {
   partyId: PartyIdValue;
   monuments: MonumentIdValue[];
   partisans: number;
-  executive: ExecutiveSideId | null;
   policySupporters: number;
   office?: FixtureCard[];
   tourTarget?: "partisans";
@@ -22,13 +20,11 @@ export function PlayerChrome({
   partyId,
   monuments,
   partisans,
-  executive,
   policySupporters,
   office = [],
   tourTarget,
 }: PlayerChromeProps) {
   const party = resolveCard(partyId);
-  const executiveCard = executive ? resolveCard(executive) : null;
 
   return (
     <div className="flex shrink-0 items-center gap-2 px-1">
@@ -71,13 +67,6 @@ export function PlayerChrome({
           />
         );
       })}
-      {executiveCard ? (
-        <CardView
-          name={executiveCard.name}
-          art={executiveCard.art}
-          size="mini"
-        />
-      ) : null}
       {office.map((entry) => {
         const catalog = resolveCard(entry.cardId);
         return (

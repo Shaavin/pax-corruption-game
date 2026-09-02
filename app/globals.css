@@ -31,6 +31,7 @@ body {
   --card-market: clamp(44px, 5vw, 72px);
   --card-mini: clamp(32px, 3.6vw, 52px);
   --card-zoom: clamp(168px, 22vw, 280px);
+  --card-choice: clamp(96px, 18vw, 168px);
   background:
     radial-gradient(ellipse at 50% 32%, #2c241c 0%, #16120e 72%);
 }
@@ -99,6 +100,43 @@ body {
   opacity: 0.48;
 }
 
+.exalted-frame {
+  position: relative;
+  padding: 3px;
+  border-radius: 0.42em;
+  background: linear-gradient(
+    125deg,
+    #f6e7b4 0%,
+    #c6a56c 28%,
+    #7c5ea8 52%,
+    #c6a56c 76%,
+    #f6e7b4 100%
+  );
+  background-size: 220% 220%;
+  animation: exalted-sheen 7s ease-in-out infinite;
+  box-shadow:
+    0 0 0 1px rgba(246, 231, 180, 0.35),
+    0 0 10px rgba(198, 165, 108, 0.45),
+    0 0 22px rgba(124, 94, 168, 0.22);
+}
+
+@keyframes exalted-sheen {
+  0%,
+  100% {
+    background-position: 0% 40%;
+  }
+  50% {
+    background-position: 100% 60%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .exalted-frame {
+    animation: none;
+    background-position: 50% 50%;
+  }
+}
+
 @media (max-height: 800px) {
   .table-felt {
     --card-hand: clamp(42px, 5.6vw, 72px);
@@ -106,5 +144,6 @@ body {
     --card-market: clamp(38px, 4.4vw, 60px);
     --card-mini: clamp(28px, 3.2vw, 44px);
     --card-zoom: clamp(148px, 20vw, 240px);
+    --card-choice: clamp(84px, 16vw, 148px);
   }
 }

@@ -10,7 +10,7 @@ export const CardBack = {
   district: "/cards/backs/district.png",
 } as const;
 
-export type CardSize = "hand" | "board" | "market" | "mini" | "zoom";
+export type CardSize = "hand" | "board" | "market" | "mini" | "zoom" | "choice";
 
 const WIDTH: Record<CardSize, string> = {
   hand: "w-[var(--card-hand)]",
@@ -18,6 +18,7 @@ const WIDTH: Record<CardSize, string> = {
   market: "w-[var(--card-market)]",
   mini: "w-[var(--card-mini)]",
   zoom: "w-[var(--card-zoom)]",
+  choice: "w-[var(--card-choice)]",
 };
 
 const SIZES: Record<CardSize, string> = {
@@ -26,6 +27,7 @@ const SIZES: Record<CardSize, string> = {
   market: "80px",
   mini: "56px",
   zoom: "280px",
+  choice: "168px",
 };
 
 type CardViewProps = {
@@ -35,6 +37,8 @@ type CardViewProps = {
   back?: string;
   size: CardSize;
   className?: string;
+  selected?: boolean;
+  onSelect?: () => void;
 };
 
 export function CardView({
@@ -44,6 +48,8 @@ export function CardView({
   back = CardBack.common,
   size,
   className = "",
+  selected = false,
+  onSelect,
 }: CardViewProps) {
   const { setPeek } = usePeek();
   const src = faceUp ? art : back;
@@ -53,9 +59,11 @@ export function CardView({
     "relative block shrink-0 overflow-hidden rounded-[0.22em] bg-stone-900 shadow-[0_2px_8px_rgba(0,0,0,0.45)] ring-1 ring-black/40",
     "aspect-[825/1125]",
     WIDTH[size],
-    canPeek
-      ? "cursor-zoom-in transition-transform duration-150 hover:-translate-y-1 hover:z-20 hover:shadow-[0_8px_20px_rgba(0,0,0,0.55)] focus-visible:z-20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brass)]"
+    canPeek || onSelect
+      ? "cursor-pointer transition-transform duration-150 hover:-translate-y-1 hover:z-20 hover:shadow-[0_8px_20px_rgba(0,0,0,0.55)] focus-visible:z-20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brass)]"
       : "",
+    canPeek && !onSelect ? "cursor-zoom-in" : "",
+    selected ? "ring-2 ring-[var(--brass)] ring-offset-2 ring-offset-[#16120e]" : "",
     className,
   ].join(" ");
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
-export const TABLE_TOUR_KEY = "pax-table-tour-v1";
+export const TABLE_TOUR_KEY = "pax-table-tour-v5";
 
 type TourStep = {
   id: string;
@@ -25,10 +25,16 @@ const STEPS: TourStep[] = [
     target: "support",
   },
   {
-    id: "delta",
-    title: "Support lead (Δ)",
-    body: "Δ is your pile minus theirs. If you ever lead by 9 or more in any one district, you win Popularity immediately.",
-    target: "delta",
+    id: "district-influence",
+    title: "District influence",
+    body: "Influence is yours minus theirs in this district: civil card values plus 1 per support-pile card. Elections compare these leads. Click the (i) for the raw totals.",
+    target: "district-influence",
+  },
+  {
+    id: "popularity",
+    title: "Popularity",
+    body: "Popularity is your support pile minus theirs — the Opp/You counts under the stacks. Lead by 9 in any one district to win immediately. Click the (i) for a reminder.",
+    target: "popularity",
   },
   {
     id: "electors",

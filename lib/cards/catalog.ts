@@ -8,6 +8,7 @@ import {
   type MonumentCard,
   type MonumentIdValue,
   type PartyCard,
+  type PartyIdValue,
 } from "./schema.ts";
 
 export const CATALOG: CatalogCard[] = [
@@ -48,6 +49,14 @@ export function findDeckCards(opts: {
 
 export function partyStartingMatches(party: PartyCard): MainDeckCard[][] {
   return party.startingCards.map((ref) => findDeckCards(ref));
+}
+
+export function getParty(id: PartyIdValue): PartyCard {
+  const card = getCard(id);
+  if (card.kind !== CardKind.Party) {
+    throw new Error(`${id} is not a party`);
+  }
+  return card;
 }
 
 export function monumentById(id: MonumentIdValue): MonumentCard {
