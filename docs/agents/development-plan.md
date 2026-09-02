@@ -17,19 +17,21 @@ One device, two players taking turns.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  Opponent hand (card backs)     party · monuments · partisans│
+│  Opponent hand (backs) · EP (held aside)   party · monuments · partisans│
 │  Opponent tableau:  [ D1 ] [ D2 ] [ D3 ] [ D4 ]              │
 │                                                              │
-│  District row: crests, active policy, support Δ, electors    │
+│  District row: policy, support piles, influence, popularity, electors│
 │  Shared: market (5 or 8) · available monuments · deck count  │
 │                                                              │
 │  Your tableau:      [ D1 ] [ D2 ] [ D3 ] [ D4 ]              │
-│  Your hand (faces)              party · monuments · EP       │
+│  Your hand (faces) · EP (held aside)       party · monuments · partisans│
 └─────────────────────────────────────────────────────────────┘
 ```
 
 - Four **vertical lanes**, not one shared row of minions. Each lane holds both tableaus, the policy, and both support piles.
 - Your cards face you at the bottom; opponent faces are hidden (backs) except public zones (tableau, market, monuments, support piles, party, partisan/EP).
+- District hub shows **signed leads** (yours minus theirs): **Influence** (civil values + support-pile cards; alliances do not count unless a card says so) and **Popularity** (support-pile counts only). Pile sizes stay on the stacks. Breakdowns live on the (i) tips, not on the table.
+- Executive power sits **beside the hand**, at hand size, in a distinct frame. It is public and playable, but it is **not** a hand card (hand limit, fans, and campaign tucks ignore it). Party, monuments, and partisans stay in the side chrome.
 - Click a hand card → legal targets highlight (lane, market, monument, discard-for-action).
 - After you end your turn, a full-screen **Pass to {other player}** gate hides the hand and tucked supporter identities until they confirm.
 
@@ -47,6 +49,7 @@ lib/
     types.ts                # state, zones, actions
     engine.ts               # apply / legalActions / checkVictory
     setup.ts                # modes, piles, starting hands
+    influence.ts            # civil + support district totals (no policies yet)
     zones.ts                # move helpers, discard-to-support
     election.ts
     referendum.ts
@@ -57,8 +60,9 @@ lib/
 components/
   game/
     Table.tsx
-    DistrictLane.tsx
+    DistrictHub.tsx
     Hand.tsx
+    ExecutiveSlot.tsx       # EP held beside the hand, not in the fan
     Market.tsx
     CardView.tsx
     PassDeviceGate.tsx
@@ -124,7 +128,7 @@ Exit: two humans can sit down and reach turn 1 with a legal Standard seed.
 - Play civil
 - Income (market take, deck draw, replenish)
 - End turn / pass gate
-- Support piles and influence readout (civil + support only)
+- Support piles and influence readout (civil + support only). Hub already shows signed Influence / Popularity leads from `lib/game/influence.ts`; hook them to live state when civil hits the tableau.
 
 Exit: a full dummy game of "only play civil and draw" runs.
 
