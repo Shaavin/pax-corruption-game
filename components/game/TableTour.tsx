@@ -256,7 +256,7 @@ export function TableTour({ onVisibilityChange }: TableTourProps) {
     <>
       <button
         type="button"
-        className="rounded px-2 py-0.5 tracking-[0.12em] uppercase hover:text-stone-300"
+        className="cursor-pointer rounded px-2 py-0.5 tracking-[0.12em] uppercase hover:text-stone-300"
         onClick={() => {
           setStep(0);
           setOpen(true);
@@ -305,7 +305,7 @@ export function TableTour({ onVisibilityChange }: TableTourProps) {
             <div className="mt-4 flex items-center justify-between gap-2">
               <button
                 type="button"
-                className="text-sm text-stone-400 hover:text-stone-200"
+                className="cursor-pointer text-sm text-stone-400 hover:text-stone-200"
                 onClick={finish}
               >
                 Skip
@@ -314,7 +314,7 @@ export function TableTour({ onVisibilityChange }: TableTourProps) {
                 {step > 0 ? (
                   <button
                     type="button"
-                    className="rounded-full px-3 py-1.5 text-sm text-stone-300 hover:bg-white/5"
+                    className="cursor-pointer rounded-full px-3 py-1.5 text-sm text-stone-300 hover:bg-white/5"
                     onClick={back}
                   >
                     Back
@@ -322,7 +322,7 @@ export function TableTour({ onVisibilityChange }: TableTourProps) {
                 ) : null}
                 <button
                   type="button"
-                  className="rounded-full bg-[var(--brass)] px-4 py-1.5 text-sm font-semibold text-stone-950 hover:bg-[#d4b57c]"
+                  className="cursor-pointer rounded-full bg-[var(--brass)] px-4 py-1.5 text-sm font-semibold text-stone-950 hover:bg-[#d4b57c]"
                   onClick={next}
                 >
                   {last ? "Done" : "Next"}
