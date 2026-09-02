@@ -1,19 +1,21 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { DistrictHub } from "./DistrictHub";
 import { ExecutiveSlot } from "./ExecutiveSlot";
 import { Hand } from "./Hand";
-import { LAYOUT_FIXTURE } from "./layout-fixture";
 import { Market } from "./Market";
 import { PeekContext, type PeekCard } from "./peek";
 import { PlayerChrome } from "./PlayerChrome";
 import { Tableau } from "./Tableau";
 import { TableTour } from "./TableTour";
 import { ZoomPreview } from "./ZoomPreview";
+import { playerLabel } from "./players";
+import type { TableModel } from "./table-model";
 import type { DistrictId } from "@/lib/cards/schema";
 import { districtInfluence } from "@/lib/game/influence";
+import { otherPlayer, type PlayerId } from "@/lib/game";
 
 const LANE_TINT: Record<DistrictId, string> = {
   dragonara: "bg-[var(--dragonara)]/12",
@@ -22,20 +24,42 @@ const LANE_TINT: Record<DistrictId, string> = {
   smarbbit: "bg-[var(--smarbbit)]/12",
 };
 
-export function Table() {
+type TableProps = {
+  model: TableModel;
+  seed: number;
+  status: string;
+  showTour: boolean;
+  veiled: boolean;
+  hotseat: PlayerId;
+  children?: ReactNode;
+};
+
+export function Table({
+  model,
+  seed,
+  status,
+  showTour,
+  veiled,
+  hotseat,
+  children,
+}: TableProps) {
   const [peek, setPeek] = useState<PeekCard | null>(null);
   const [tourOpen, setTourOpen] = useState(false);
-  const fixture = LAYOUT_FIXTURE;
+  const opponent = otherPlayer(hotseat);
   const setPeekSafe = useCallback(
     (card: PeekCard | null) => {
-      if (!tourOpen) setPeek(card);
+      if (!tourOpen && !veiled) setPeek(card);
     },
-    [tourOpen],
+    [tourOpen, veiled],
   );
+
+  useEffect(() => {
+    if (veiled) setPeek(null);
+  }, [veiled]);
 
   return (
     <PeekContext.Provider value={{ setPeek: setPeekSafe }}>
-      <div className="table-felt flex h-dvh w-full flex-col overflow-hidden text-stone-100">
+      <div className="table-felt relative flex h-dvh w-full flex-col overflow-hidden text-stone-100">
         <header className="flex shrink-0 items-center justify-between px-3 py-1 text-[0.65rem] text-stone-500">
           <Link
             href="/"
@@ -44,66 +68,80 @@ export function Table() {
             Pax Corruption
           </Link>
           <div className="flex items-center gap-3">
-            <TableTour
-              onVisibilityChange={(open) => {
-                setTourOpen(open);
-                if (open) setPeek(null);
-              }}
-            />
-            <span className="uppercase">
-              General election {fixture.electionsOut}/4
+            {showTour ? (
+              <TableTour
+                allowAutoOpen={showTour}
+                onVisibilityChange={(open) => {
+                  setTourOpen(open);
+                  if (open) setPeek(null);
+                }}
+              />
+            ) : null}
+            <span
+              className="rounded-full bg-[var(--brass)]/15 px-2.5 py-0.5 text-[0.65rem] font-semibold tracking-[0.14em] text-[var(--brass)] uppercase"
+              title="The player currently using this device"
+            >
+              {playerLabel(hotseat)} · hot seat
             </span>
-            <span>Layout fixture · no rules</span>
+            <span className="uppercase">
+              General election {model.electionsOut}/4
+            </span>
+            <span className="tabular-nums" title="Deterministic setup seed">
+              Seed {seed}
+            </span>
+            <span>{status}</span>
           </div>
         </header>
 
         <div className="hand-rail hand-rail-opponent flex shrink-0 items-center gap-3 px-3 py-2">
-          <span className="w-16 shrink-0 text-[0.6rem] font-semibold tracking-[0.16em] text-stone-500 uppercase">
-            Opponent
+          <span className="w-[4.4rem] shrink-0 leading-tight">
+            <span className="block text-[0.6rem] font-semibold tracking-[0.16em] text-stone-500 uppercase">
+              Opponent
+            </span>
+            <span className="block text-[0.55rem] tracking-[0.12em] text-stone-400 uppercase">
+              {playerLabel(opponent)}
+            </span>
           </span>
-          <Hand cards={fixture.opponent.hand} faceUp={false} align="start" />
-          <ExecutiveSlot side={fixture.opponent.executive} align="start" />
+          <Hand cards={model.opponent.hand} faceUp={false} align="start" />
+          <ExecutiveSlot side={model.opponent.executive} align="start" />
           <PlayerChrome
-            partyId={fixture.opponent.partyId}
-            monuments={fixture.opponent.monuments}
-            partisans={fixture.opponent.partisans}
-            policySupporters={fixture.opponent.policySupporters}
-            office={fixture.opponent.office}
+            partyId={model.opponent.partyId}
+            monuments={model.opponent.monuments}
+            partisans={model.opponent.partisans}
+            policySupporters={model.opponent.policySupporters}
+            office={model.opponent.office}
           />
         </div>
 
         <div className="grid min-h-0 flex-1 grid-cols-4">
-          {fixture.districtOrder.map((district) => (
+          {model.districtOrder.map((district) => (
             <div
               key={`opp-${district}`}
               className={`min-h-0 border-x border-white/6 ${LANE_TINT[district]}`}
             >
-              <Tableau
-                cards={fixture.opponent.tableau[district]}
-                anchor="top"
-              />
+              <Tableau cards={model.opponent.tableau[district]} anchor="top" />
             </div>
           ))}
         </div>
 
         <div className="grid shrink-0 grid-cols-4">
-          {fixture.districtOrder.map((district) => (
+          {model.districtOrder.map((district) => (
             <div
               key={`hub-${district}`}
               className={`border-x border-white/6 ${LANE_TINT[district]}`}
             >
               <DistrictHub
                 district={district}
-                policyId={fixture.policies[district]}
-                yourSupport={fixture.you.support[district]}
-                theirSupport={fixture.opponent.support[district]}
+                policyId={model.policies[district]}
+                yourSupport={model.you.support[district]}
+                theirSupport={model.opponent.support[district]}
                 yourInfluence={districtInfluence(
-                  fixture.you.tableau[district],
-                  fixture.you.support[district],
+                  model.you.tableau[district],
+                  model.you.support[district],
                 )}
                 theirInfluence={districtInfluence(
-                  fixture.opponent.tableau[district],
-                  fixture.opponent.support[district],
+                  model.opponent.tableau[district],
+                  model.opponent.support[district],
                 )}
               />
             </div>
@@ -111,43 +149,49 @@ export function Table() {
         </div>
 
         <div className="grid min-h-0 flex-1 grid-cols-4">
-          {fixture.districtOrder.map((district) => (
+          {model.districtOrder.map((district) => (
             <div
               key={`you-${district}`}
               className={`min-h-0 border-x border-white/6 ${LANE_TINT[district]}`}
             >
               <Tableau
-                cards={fixture.you.tableau[district]}
+                cards={model.you.tableau[district]}
                 anchor="bottom"
-                tourId={district === "dragonara" ? "your-tableau" : undefined}
+                tourId={district === model.districtOrder[0] ? "your-tableau" : undefined}
               />
             </div>
           ))}
         </div>
 
         <Market
-          market={fixture.market}
-          monuments={fixture.availableMonuments}
-          deckCount={fixture.deckCount}
+          market={model.market}
+          monuments={model.availableMonuments}
+          deckCount={model.deckCount}
         />
 
         <div className="hand-rail hand-rail-you flex shrink-0 items-center gap-3 px-3 py-2">
-          <span className="w-16 shrink-0 text-[0.6rem] font-semibold tracking-[0.16em] text-[var(--brass)] uppercase">
-            You
+          <span className="w-[4.4rem] shrink-0 leading-tight">
+            <span className="block text-[0.6rem] font-semibold tracking-[0.16em] text-[var(--brass)] uppercase">
+              You
+            </span>
+            <span className="block text-[0.55rem] tracking-[0.12em] text-[var(--brass)] uppercase">
+              {playerLabel(hotseat)}
+            </span>
           </span>
-          <Hand cards={fixture.you.hand} faceUp align="end" tourId="your-hand" />
-          <ExecutiveSlot side={fixture.you.executive} align="end" />
+          <Hand cards={model.you.hand} faceUp align="end" tourId="your-hand" />
+          <ExecutiveSlot side={model.you.executive} align="end" />
           <PlayerChrome
-            partyId={fixture.you.partyId}
-            monuments={fixture.you.monuments}
-            partisans={fixture.you.partisans}
-            policySupporters={fixture.you.policySupporters}
-            office={fixture.you.office}
+            partyId={model.you.partyId}
+            monuments={model.you.monuments}
+            partisans={model.you.partisans}
+            policySupporters={model.you.policySupporters}
+            office={model.you.office}
             tourTarget="partisans"
           />
         </div>
 
-        {tourOpen ? null : <ZoomPreview card={peek} />}
+        {children}
+        {tourOpen || veiled ? null : <ZoomPreview card={peek} />}
       </div>
     </PeekContext.Provider>
   );

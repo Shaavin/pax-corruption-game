@@ -21,11 +21,14 @@ export default function Home() {
         </div>
         <Link
           href="/play"
+          prefetch={false}
           className="rounded-full bg-[var(--brass,#c6a56c)] px-6 py-3 text-sm font-semibold tracking-wide text-stone-950 transition-colors hover:bg-[#d4b57c]"
         >
           New local game
         </Link>
-        <p className="text-sm text-stone-500">Standard · layout fixture</p>
+        <p className="text-sm text-stone-500">
+          Standard · pass the device for party choice and starting hands
+        </p>
       </main>
     </div>
   );

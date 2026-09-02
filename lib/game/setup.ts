@@ -118,14 +118,6 @@ export function revealParties(state: GameState): GameEvent[] {
   const order1 = getParty(party1).order;
   state.firstPlayer = order0 < order1 ? 0 : 1;
 
-  const reserved = new Set<string>();
-  setup.startingOffers = {
-    0: resolveStartingOffer(party0, setup.nonElectionPool, reserved),
-    1: resolveStartingOffer(party1, setup.nonElectionPool, reserved),
-  };
-  setup.step = SetupStep.ChooseStartingHand;
-  state.activePlayer = state.firstPlayer;
-
   return [
     {
       type: "partiesRevealed",
@@ -133,6 +125,22 @@ export function revealParties(state: GameState): GameEvent[] {
       firstPlayer: state.firstPlayer,
     },
   ];
+}
+
+export function dealStartingOffer(state: GameState, player: PlayerId): CardInstance[] {
+  const setup = state.setup;
+  if (!setup) throw new Error("dealStartingOffer requires setup state");
+  const partyId = setup.chosenParty[player];
+  if (!partyId) {
+    throw new Error("A party must be chosen before starting cards");
+  }
+  const reserved = new Set<string>();
+  for (const seat of state.players) {
+    for (const card of seat.hand) reserved.add(card.instanceId);
+  }
+  const offer = resolveStartingOffer(partyId, setup.nonElectionPool, reserved);
+  setup.startingOffers[player] = offer;
+  return offer;
 }
 
 export function resolveStartingOffer(
@@ -187,6 +195,8 @@ export function finishSetup(state: GameState, rng: Rng): GameEvent[] {
   }
 
   const events: GameEvent[] = [];
+  events.push(...dealMonuments(state, rng));
+
   const remaining = rng.shuffle(setup.nonElectionPool);
   if (remaining.length !== 97) {
     throw new Error(`Expected 97 non-election cards after starting hands, got ${remaining.length}`);
@@ -205,9 +215,6 @@ export function finishSetup(state: GameState, rng: Rng): GameEvent[] {
     cardIds: market.map((card) => card.cardId),
   });
   events.push({ type: "deckBuilt", size: state.deck.length });
-
-  const monumentEvents = dealMonuments(state, rng);
-  events.push(...monumentEvents);
 
   state.phase = Phase.Action;
   state.activePlayer = firstPlayer;
@@ -262,7 +269,7 @@ export function buildStandardDrawDeck(
   }
 
   let cards = [...pileCards];
-  let ges = [...elections];
+  let ges = rng.shuffle(elections);
   const take = (n: number) => {
     const chunk = cards.slice(0, n);
     cards = cards.slice(n);

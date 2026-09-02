@@ -2,14 +2,11 @@
 
 import { CardBack, CardView } from "./CardView";
 import { resolveCard, type FixtureCard } from "./layout-fixture";
-import {
-  type MonumentIdValue,
-  type PartyIdValue,
-} from "@/lib/cards/schema";
+import type { PartyIdValue } from "@/lib/cards/schema";
 
 type PlayerChromeProps = {
-  partyId: PartyIdValue;
-  monuments: MonumentIdValue[];
+  partyId: PartyIdValue | null;
+  monuments: readonly string[];
   partisans: number;
   policySupporters: number;
   office?: FixtureCard[];
@@ -24,16 +21,26 @@ export function PlayerChrome({
   office = [],
   tourTarget,
 }: PlayerChromeProps) {
-  const party = resolveCard(partyId);
+  const party = partyId ? resolveCard(partyId) : null;
 
   return (
     <div className="flex shrink-0 items-center gap-2 px-1">
-      <CardView
-        name={party.name}
-        art={party.art}
-        back={CardBack.party}
-        size="mini"
-      />
+      {party ? (
+        <CardView
+          name={party.name}
+          art={party.art}
+          back={CardBack.party}
+          size="mini"
+          cardId={partyId}
+        />
+      ) : (
+        <div
+          aria-label="No party yet"
+          className="flex aspect-[825/1125] w-[var(--card-mini)] items-center justify-center rounded-[0.22em] border border-dashed border-white/20 bg-black/20 text-center text-[0.45rem] font-semibold tracking-[0.12em] text-stone-500 uppercase"
+        >
+          Party
+        </div>
+      )}
       <div
         className="flex flex-col items-center gap-0.5"
         data-tour="supporters"

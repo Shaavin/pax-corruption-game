@@ -59,6 +59,25 @@ export function getParty(id: PartyIdValue): PartyCard {
   return card;
 }
 
+export function partyRelatedCards(party: PartyCard): {
+  starting: MainDeckCard[];
+  monument: MonumentCard;
+} {
+  const starting = party.startingCards.map((ref) => {
+    const matches = findDeckCards(ref);
+    if (matches.length === 0) {
+      throw new Error(
+        `Cannot resolve ${party.name} starting card ${ref.name} (${ref.district})`,
+      );
+    }
+    return matches[0]!;
+  });
+  return {
+    starting,
+    monument: monumentById(party.guaranteedMonumentId),
+  };
+}
+
 export function monumentById(id: MonumentIdValue): MonumentCard {
   const card = getCard(id);
   if (card.kind !== CardKind.Monument) {

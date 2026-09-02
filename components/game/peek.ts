@@ -5,6 +5,7 @@ import { createContext, useContext } from "react";
 export type PeekCard = {
   name: string;
   art: string;
+  cardId?: string;
 };
 
 type PeekContextValue = {

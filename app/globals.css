@@ -32,6 +32,8 @@ body {
   --card-mini: clamp(32px, 3.6vw, 52px);
   --card-zoom: clamp(168px, 22vw, 280px);
   --card-choice: clamp(96px, 18vw, 168px);
+  --card-related: clamp(88px, 11vw, 140px);
+  --card-related-monument: calc(var(--card-related) * 2 + 0.375rem);
   background:
     radial-gradient(ellipse at 50% 32%, #2c241c 0%, #16120e 72%);
 }
@@ -145,5 +147,6 @@ body {
     --card-mini: clamp(28px, 3.2vw, 44px);
     --card-zoom: clamp(148px, 20vw, 240px);
     --card-choice: clamp(84px, 16vw, 148px);
+    --card-related: clamp(72px, 9vw, 116px);
   }
 }

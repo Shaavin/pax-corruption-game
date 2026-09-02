@@ -1,5 +1,6 @@
 import type { PartyIdValue } from "../cards/schema.ts";
 import {
+  dealStartingOffer,
   finishSetup,
   revealParties,
   takeStartingHand,
@@ -16,7 +17,7 @@ import {
   type GameState,
   type PlayerId,
 } from "./types.ts";
-import { cloneState, otherPlayer, sameIdSet } from "./zones.ts";
+import { cloneState, sameIdSet } from "./zones.ts";
 
 export class IllegalActionError extends Error {
   constructor(message: string) {
@@ -29,11 +30,11 @@ export function apply(state: GameState, action: Action, rng: Rng): ApplyResult {
   const next = cloneState(state);
   switch (action.type) {
     case "chooseParty":
-      return { state: next, events: applyChooseParty(next, action) };
+      return { state: next, events: applyChooseParty(next, action, rng) };
     case "chooseStartingHand":
       return {
         state: next,
-        events: applyChooseStartingHand(next, action, rng),
+        events: applyChooseStartingHand(next, action),
       };
     default: {
       const never: never = action;
@@ -55,30 +56,24 @@ export function legalActions(state: GameState, viewer: PlayerId): Action[] {
   }
 
   const offer = state.setup.startingOffers[viewer];
-  if (viewer === state.firstPlayer) {
-    return offer.map((_, omit) => ({
-      type: "chooseStartingHand" as const,
-      player: viewer,
-      instanceIds: offer
-        .filter((_, index) => index !== omit)
-        .map((card) => card.instanceId),
-    }));
-  }
-
-  return [
-    {
-      type: "chooseStartingHand",
-      player: viewer,
-      instanceIds: offer.map((card) => card.instanceId),
-    },
-  ];
+  return offer.map((_, omit) => ({
+    type: "chooseStartingHand" as const,
+    player: viewer,
+    instanceIds: offer
+      .filter((_, index) => index !== omit)
+      .map((card) => card.instanceId),
+  }));
 }
 
 export function checkVictory(_state: GameState): PlayerId | null {
   return null;
 }
 
-function applyChooseParty(state: GameState, action: ChoosePartyAction): GameEvent[] {
+function applyChooseParty(
+  state: GameState,
+  action: ChoosePartyAction,
+  rng: Rng,
+): GameEvent[] {
   const setup = requireSetup(state, SetupStep.ChooseParty);
   if (action.player !== state.activePlayer) {
     throw new IllegalActionError("It is not this player's turn to choose a party");
@@ -96,26 +91,36 @@ function applyChooseParty(state: GameState, action: ChoosePartyAction): GameEven
   ];
 
   if (action.player === 0) {
-    state.activePlayer = 1;
+    dealStartingOffer(state, 0);
+    setup.step = SetupStep.ChooseStartingHand;
     return events;
   }
 
+  dealStartingOffer(state, 1);
+  events.push(
+    takeStartingHand(
+      state,
+      1,
+      setup.startingOffers[1].map((card) => card.instanceId),
+    ),
+  );
   events.push(...revealParties(state));
+  events.push(...finishSetup(state, rng));
   return events;
 }
 
 function applyChooseStartingHand(
   state: GameState,
   action: ChooseStartingHandAction,
-  rng: Rng,
 ): GameEvent[] {
   const setup = requireSetup(state, SetupStep.ChooseStartingHand);
   if (action.player !== state.activePlayer) {
     throw new IllegalActionError("It is not this player's turn to take a starting hand");
   }
-  const firstPlayer = state.firstPlayer;
-  if (firstPlayer === null) {
-    throw new IllegalActionError("Starting hands require a first player");
+  if (action.player !== 0) {
+    throw new IllegalActionError(
+      "Player 2 is dealt all 4 listed starting cards automatically",
+    );
   }
 
   const offer = setup.startingOffers[action.player];
@@ -127,30 +132,17 @@ function applyChooseStartingHand(
   if (action.instanceIds.some((id) => !offerIds.includes(id))) {
     throw new IllegalActionError("Starting-hand pick is not one of the listed cards");
   }
-
-  const isFirst = action.player === firstPlayer;
-  const expected = isFirst ? 3 : 4;
-  if (action.instanceIds.length !== expected) {
+  if (action.instanceIds.length !== 3) {
     throw new IllegalActionError(
-      isFirst
-        ? "First player must take 3 of the 4 listed starting cards"
-        : "Second player must take all 4 listed starting cards",
+      "Player 1 must take 3 of the 4 listed starting cards",
     );
-  }
-  if (!isFirst && !sameIdSet(action.instanceIds, offerIds)) {
-    throw new IllegalActionError("Second player must take all 4 listed starting cards");
   }
 
   const events: GameEvent[] = [
     takeStartingHand(state, action.player, action.instanceIds),
   ];
-
-  if (isFirst) {
-    state.activePlayer = otherPlayer(action.player);
-    return events;
-  }
-
-  events.push(...finishSetup(state, rng));
+  setup.step = SetupStep.ChooseParty;
+  state.activePlayer = 1;
   return events;
 }
 

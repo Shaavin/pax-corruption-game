@@ -71,6 +71,7 @@ type Highlight = {
 
 type TableTourProps = {
   onVisibilityChange?: (open: boolean) => void;
+  allowAutoOpen?: boolean;
 };
 
 const GAP = 14;
@@ -154,7 +155,10 @@ function placeTooltip(
   };
 }
 
-export function TableTour({ onVisibilityChange }: TableTourProps) {
+export function TableTour({
+  onVisibilityChange,
+  allowAutoOpen = true,
+}: TableTourProps) {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
   const [highlight, setHighlight] = useState<Highlight | null>(null);
@@ -162,12 +166,13 @@ export function TableTour({ onVisibilityChange }: TableTourProps) {
   const tooltipRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (!allowAutoOpen) return;
     try {
       if (!localStorage.getItem(TABLE_TOUR_KEY)) setOpen(true);
     } catch {
       setOpen(true);
     }
-  }, []);
+  }, [allowAutoOpen]);
 
   useEffect(() => {
     onVisibilityChange?.(open);
