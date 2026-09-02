@@ -1,0 +1,41 @@
+/** Registered ability ids. Handlers live in `lib/game/abilities` later. */
+export const EffectId = {
+  DistrictWipe: "district-wipe",
+  CivilPlusOneBlockConspiracy: "civil-plus-one-block-conspiracy",
+  DrawToHandLimitSkipIncome: "draw-to-hand-limit-skip-income",
+  DistrictGovernor: "district-governor",
+  SwapCivilAfterPlay: "swap-civil-after-play",
+  TreatMarketAsHand: "treat-market-as-hand",
+  DiscardDistrictThenDraw: "discard-district-then-draw",
+  ReplaceAllianceUnmatched: "replace-alliance-unmatched",
+  CountsAsTwoAlliances: "counts-as-two-alliances",
+  ConstructMonumentFourSameColor: "construct-monument-four-same-color",
+  RecruitPartisansFree: "recruit-partisans-free",
+  AlwaysHigherInfluenceDiscardCivilAfterElection:
+    "always-higher-influence-discard-civil-after-election",
+  WinByPolicySupport: "win-by-policy-support",
+  CallReferendumIgnoreRequirement: "call-referendum-ignore-requirement",
+  DrawFromOwnSupportPile: "draw-from-own-support-pile",
+  ConspiracyKeepsYourCivil: "conspiracy-keeps-your-civil",
+  InspectTopFiveMoveOneToTop: "inspect-top-five-move-one-to-top",
+  PlusTwoHandLimitDrawAtFour: "plus-two-hand-limit-draw-at-four",
+  PlanetNextElectionDiscard: "planet-next-election-discard",
+  SpaceAgencyRerouteDiscards: "space-agency-reroute-discards",
+  AlwaysWinCivil: "always-win-civil",
+  OpponentNeedsMoreCivilToWin: "opponent-needs-more-civil-to-win",
+  AllianceLimitTwo: "alliance-limit-two",
+  SmartDoctrineReferendumOrder: "smart-doctrine-referendum-order",
+  CurrencyBallots: "currency-ballots",
+  PopulistForum: "populist-forum",
+  EconomicReform: "economic-reform",
+  MarketRegulation: "market-regulation",
+  MartialLaw: "martial-law",
+  Secularism: "secularism",
+  UnitedFront: "united-front",
+  ConsultativeOffice: "consultative-office",
+  EmergencyState: "emergency-state",
+  LegalReview: "legal-review",
+} as const;
+
+export type EffectId = (typeof EffectId)[keyof typeof EffectId];
+export const EFFECT_IDS = Object.values(EffectId);

@@ -72,24 +72,7 @@ Sources: party (owner only), constructed monument (owner only), active district 
 
 Implement catalog entries as typed objects, not free-form strings the UI parses.
 
-```ts
-type DistrictId = "dragonara" | "horsard" | "shavvinne" | "smarbbit";
-type SymbolId = "atom" | "chart" | "crown" | "scales";
-type CardKind =
-  | "civil"
-  | "alliance"
-  | "conspiracy"
-  | "election"
-  | "party"
-  | "monument"
-  | "policy"
-  | "executive";
-
-type Effect =
-  | { type: "static"; id: string; params?: Record<string, unknown> }
-  | { type: "freeAction"; id: string; params?: Record<string, unknown> }
-  | { type: "triggered"; id: string; when: string; params?: Record<string, unknown> };
-```
+Closed sets live as const objects in `lib/cards/schema.ts` and `lib/cards/effects.ts` (`District`, `Symbol`, `CardKind`, `EffectId`, `TriggerWhen`, …). Use those at call sites so the editor can complete them. Do not use TypeScript `enum`. Main-deck instance ids (`dragonara-a-1`) stay strings — they are filenames, not a closed design set.
 
 Every main-deck card needs at least: `id`, `kind`, `district` (except election), `name`, `art`, `copies` (usually 1; civil values repeat as distinct names).
 
@@ -165,9 +148,10 @@ Rulebook phrasing ("added support") is looser than the card. **Card text wins:**
 
 ## Catalog checklist (phase 0)
 
-- [ ] Copy (or downscale) art into `public/cards`
-- [ ] Placeholder for 4 general election faces
-- [ ] JSON/TS catalog for all 104 deck cards, 8 parties, 8 monuments, 8 policy faces, 2 executive faces
-- [ ] Each unique ability mapped to an engine `Effect.id`
-- [ ] Tests that starting-hand names resolve to catalog ids
-- [ ] Tests that guaranteed monuments match the party table above
+- [x] Copy art into `public/cards`
+- [x] Placeholder for 4 general election faces (`public/cards/deck/election-1.svg` … `4`)
+- [x] Typed catalog in `lib/cards/` (108 main-deck incl. elections, 8 parties, 8 monuments, 8 policies, 2 executive faces)
+- [x] Each unique ability mapped to an `Effect.id` in `lib/cards/effects.ts` (handlers still unimplemented)
+- [x] `npm test` checks starting-hand names, monument links, counts, and art files
+
+Art layout matches the tree above. Duplicate printed alliances (two District Governors in Dragonara, two Order of Knights in Horsard, two Foreign Inc. in Smarbbit) are separate catalog rows with the same `name`.
