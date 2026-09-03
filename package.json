@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsc --noEmit && node --experimental-strip-types --no-warnings lib/cards/verify-catalog.ts && node --experimental-strip-types --no-warnings lib/game/setup.test.ts && node --experimental-strip-types --no-warnings lib/game/influence.test.ts && node --experimental-strip-types --no-warnings lib/game/turn.test.ts"
+    "test": "tsc --noEmit && node --experimental-strip-types --no-warnings lib/cards/verify-catalog.ts && node --experimental-strip-types --no-warnings lib/game/setup.test.ts && node --experimental-strip-types --no-warnings lib/game/influence.test.ts && node --experimental-strip-types --no-warnings lib/game/turn.test.ts && node --experimental-strip-types --no-warnings lib/game/actions.test.ts"
   },
   "dependencies": {
     "next": "16.3.4",

@@ -5,3 +5,6 @@ export * from "./setup.ts";
 export * from "./engine.ts";
 export * from "./influence.ts";
 export * from "./income.ts";
+export * from "./victory.ts";
+export * from "./main.ts";
+export * from "./referendum.ts";

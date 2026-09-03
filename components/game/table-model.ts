@@ -13,6 +13,7 @@ export type TablePlayerView = {
   tableau: PlayerState["tableau"];
   support: Record<DistrictId, number>;
   policySupporters: number;
+  policySupporterCards: CardInstance[];
   office: CardInstance[];
   partyId: PartyIdValue | null;
   monuments: string[];
@@ -63,6 +64,7 @@ function playerView(
       DISTRICTS.map((district) => [district, seat.support[district].length]),
     ) as Record<DistrictId, number>,
     policySupporters: seat.policySupporters.length,
+    policySupporterCards: isYou ? seat.policySupporters : [],
     office: seat.consultativeOffice,
     partyId,
     monuments: seat.monuments.map((card) => card.cardId),

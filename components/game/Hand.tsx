@@ -10,7 +10,8 @@ type HandProps = {
   align?: "start" | "end";
   tourId?: string;
   playableIds?: ReadonlySet<string>;
-  selectedId?: string | null;
+  selectableIds?: ReadonlySet<string>;
+  selectedIds?: ReadonlySet<string>;
   onSelect?: (instanceId: string) => void;
 };
 
@@ -20,7 +21,8 @@ export function Hand({
   align = "end",
   tourId,
   playableIds,
-  selectedId,
+  selectableIds,
+  selectedIds,
   onSelect,
 }: HandProps) {
   const [hover, setHover] = useState<number | null>(null);
@@ -36,6 +38,9 @@ export function Hand({
       {cards.map((entry, index) => {
         const catalog = resolveCard(entry.cardId);
         const playable = playableIds?.has(entry.instanceId) ?? false;
+        const selectable =
+          selectableIds?.has(entry.instanceId) ?? playable;
+        const selected = selectedIds?.has(entry.instanceId) ?? false;
         return (
           <li
             key={entry.instanceId}
@@ -52,17 +57,18 @@ export function Hand({
               art={catalog.art}
               faceUp={faceUp && entry.faceUp}
               size="hand"
-              playable={playable}
-              selected={selectedId === entry.instanceId}
+              playable={playable || selectable}
+              selected={selected}
+              dimmed={Boolean(selectableIds) && !selectable}
               selectLabel={
-                playable
-                  ? selectedId === entry.instanceId
+                selectable
+                  ? selected
                     ? `Deselect ${catalog.name}`
-                    : `Play ${catalog.name}`
+                    : `Choose ${catalog.name}`
                   : undefined
               }
               onSelect={
-                playable && onSelect
+                selectable && onSelect
                   ? () => onSelect(entry.instanceId)
                   : undefined
               }

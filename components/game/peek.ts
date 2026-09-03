@@ -2,10 +2,18 @@
 
 import { createContext, useContext } from "react";
 
+export type PeekRelatedCard = {
+  name: string;
+  art: string;
+  cardId?: string;
+};
+
 export type PeekCard = {
   name: string;
   art: string;
   cardId?: string;
+  contents?: PeekRelatedCard[];
+  contentsLabel?: string;
 };
 
 type PeekContextValue = {

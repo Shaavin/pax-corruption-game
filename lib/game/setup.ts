@@ -94,7 +94,10 @@ export function createGame(rng: Rng, options: { seed: number }): GameState {
     unusedParties: [],
     executive: null,
     lastTurn: { discarded: false, addedSupport: false },
+    currentTurn: { discarded: false, addedSupport: false },
     flags: {},
+    referendum: null,
+    victory: null,
   };
 }
 

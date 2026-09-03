@@ -16,6 +16,7 @@ export const Symbol = {
   Scales: "scales",
 } as const;
 export type SymbolId = (typeof Symbol)[keyof typeof Symbol];
+export const SYMBOLS = Object.values(Symbol);
 
 export const CardKind = {
   Civil: "civil",

@@ -14,11 +14,27 @@ export function ZoomPreview({ card }: { card: PeekCard | null }) {
   if (!card) return null;
   const party = resolvePeekParty(card);
   const related = party ? partyRelatedCards(party) : null;
+  const contents = card.contents ?? [];
 
   return (
     <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="flex max-w-[min(96vw,68rem)] flex-wrap items-center justify-center gap-4 rounded-md bg-black/35 p-2 shadow-[0_20px_60px_rgba(0,0,0,0.65)] ring-1 ring-white/10 backdrop-blur-[2px]">
-        <CardView name={card.name} art={card.art} size="zoom" />
+        {contents.length === 0 ? (
+          <CardView name={card.name} art={card.art} size="zoom" cardId={card.cardId} />
+        ) : null}
+        {contents.length > 0 ? (
+          <RelatedGroup label={card.contentsLabel ?? card.name}>
+            {contents.map((entry, index) => (
+              <CardView
+                key={entry.cardId ?? `${entry.art}-${index}`}
+                name={entry.name}
+                art={entry.art}
+                size="related"
+                back={CardBack.common}
+              />
+            ))}
+          </RelatedGroup>
+        ) : null}
         {related ? (
           <div className="flex flex-wrap items-start justify-center gap-3">
             <RelatedGroup label="Starting cards" columns={2}>
@@ -61,7 +77,13 @@ function RelatedGroup({
       <div className="text-[0.6rem] font-semibold tracking-[0.14em] text-[var(--brass)] uppercase">
         {label}
       </div>
-      <div className={columns === 2 ? "grid grid-cols-2 gap-1.5" : "flex gap-1.5"}>
+      <div
+        className={
+          columns === 2
+            ? "grid grid-cols-2 gap-1.5"
+            : "flex flex-wrap justify-center gap-1.5"
+        }
+      >
         {children}
       </div>
     </div>

@@ -91,9 +91,13 @@ function playOneTurn(state: GameState, rng: Rng): GameState {
   const actions = legalActions(state, actor);
   const play =
     actions.find((action) => action.type === "playCivil") ??
+    actions.find((action) => action.type === "playAlliance") ??
     actions.find((action) => action.type === "endAction");
-  assert(play, `No playCivil/endAction for player ${actor}`);
+  assert(play, `No playCivil/playAlliance/endAction for player ${actor}`);
   let next = apply(state, play, rng).state;
+  if (next.phase === "politics") {
+    next = apply(next, { type: "endPolitics", player: actor }, rng).state;
+  }
   if (next.phase === "income") {
     assert(next.activePlayer === actor, "Income is still the acting player's turn");
     const marketActions = legalActions(next, actor);
@@ -119,6 +123,25 @@ function expectIllegal(run: () => unknown, label: string) {
       fail(`${label} threw ${error}`);
     }
   }
+}
+
+function finishTurnAfterMain(
+  state: GameState,
+  rng: Rng,
+  actor: PlayerId,
+): GameState {
+  let next = state;
+  if (next.phase === "politics") {
+    next = apply(next, { type: "endPolitics", player: actor }, rng).state;
+  }
+  if (next.phase === "income") {
+    next = apply(next, {
+      type: "takeMarket",
+      player: actor,
+      instanceId: next.market[0]!.instanceId,
+    }, rng).state;
+  }
+  return next;
 }
 
 {
@@ -205,11 +228,19 @@ function expectIllegal(run: () => unknown, label: string) {
     "Opponent playing during your action",
   );
 
+  assert(state.phase === "politics", "Main action is followed by politics");
+  assert(
+    legalActions(state, actor).some((action) => action.type === "endPolitics"),
+    "Politics can be skipped",
+  );
+  const beforeHand = state.players[actor].hand.length;
+  const beforeDeck = state.deck.length;
+  const marketId = state.market[0]!.instanceId;
+  const afterPolitics = apply(state, { type: "endPolitics", player: actor }, rng);
+  state = afterPolitics.state;
+
   if (state.phase === "income") {
     assert(state.activePlayer === actor, "Income belongs to the player who just acted");
-    const marketId = state.market[0]!.instanceId;
-    const beforeHand = state.players[actor].hand.length;
-    const beforeDeck = state.deck.length;
     const taken = apply(state, {
       type: "takeMarket",
       player: actor,
@@ -344,13 +375,7 @@ function expectIllegal(run: () => unknown, label: string) {
     player: actor,
     instanceId: civil.instanceId,
   }, rng).state;
-  if (state.phase === "income") {
-    state = apply(state, {
-      type: "takeMarket",
-      player: actor,
-      instanceId: state.market[0]!.instanceId,
-    }, rng).state;
-  }
+  state = finishTurnAfterMain(state, rng, actor);
   assert(
     state.electionsOut.some((card) => card.instanceId === ge.instanceId),
     "Drawn general election is set aside",
@@ -388,6 +413,8 @@ function expectIllegal(run: () => unknown, label: string) {
     player: actor,
     instanceId: civil.instanceId,
   }, rng).state;
+  assert(state.phase === "politics", "At 4 after play, politics comes before income");
+  state = apply(state, { type: "endPolitics", player: actor }, rng).state;
   assert(state.phase === "income", "At 4 after play, income still takes a market card");
   state = apply(state, {
     type: "takeMarket",
@@ -406,22 +433,14 @@ function expectIllegal(run: () => unknown, label: string) {
 {
   const { state: start, rng } = playToTurnOne(23);
   const actor = start.activePlayer;
-  start.players[actor].hand = start.players[actor].hand.filter(
-    (card) => getCard(card.cardId).kind !== CardKind.Civil,
-  );
+  start.players[actor].hand = [];
   const actions = legalActions(start, actor);
   assert(
     actions.length === 1 && actions[0]!.type === "endAction",
-    "No civil in hand → only endAction",
+    "Empty hand → only endAction",
   );
   let state = apply(start, { type: "endAction", player: actor }, rng).state;
-  if (state.phase === "income") {
-    state = apply(state, {
-      type: "takeMarket",
-      player: actor,
-      instanceId: state.market[0]!.instanceId,
-    }, rng).state;
-  }
+  state = finishTurnAfterMain(state, rng, actor);
   assert(state.phase === "action", "endAction still completes income");
   assert(state.activePlayer === otherPlayer(actor), "endAction passes the turn");
 }

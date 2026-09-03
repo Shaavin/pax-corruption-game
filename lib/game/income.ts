@@ -34,12 +34,15 @@ export function drawNonElection(
   return null;
 }
 
-/** Politics is skippable; campaign / EP arrive in later phases. */
+/** After the mandatory main action: Politics (skippable), then income. */
 export function afterMainAction(state: GameState, events: GameEvent[]): void {
-  beginIncome(state, events);
+  if (state.phase === Phase.GameOver) return;
+  state.phase = Phase.Politics;
+  events.push({ type: "politicsStarted", player: state.activePlayer });
 }
 
 export function beginIncome(state: GameState, events: GameEvent[]): void {
+  if (state.phase === Phase.GameOver) return;
   const player = state.activePlayer;
   if (underHandLimit(state, player) && state.market.length > 0) {
     state.phase = Phase.Income;
@@ -97,7 +100,8 @@ export function replenishMarket(state: GameState, events: GameEvent[]): void {
 }
 
 export function passTurn(state: GameState, events: GameEvent[]): void {
-  state.lastTurn = { discarded: false, addedSupport: false };
+  state.lastTurn = state.currentTurn;
+  state.currentTurn = { discarded: false, addedSupport: false };
   state.flags = {};
   state.activePlayer = otherPlayer(state.activePlayer);
   state.phase = Phase.Action;

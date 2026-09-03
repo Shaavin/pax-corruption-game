@@ -10,6 +10,8 @@ type MarketProps = {
   deckCount: number;
   takeableIds?: ReadonlySet<string>;
   onTake?: (instanceId: string) => void;
+  claimableIds?: ReadonlySet<string>;
+  onClaimMonument?: (instanceId: string) => void;
 };
 
 export function Market({
@@ -18,6 +20,8 @@ export function Market({
   deckCount,
   takeableIds,
   onTake,
+  claimableIds,
+  onClaimMonument,
 }: MarketProps) {
   return (
     <section
@@ -29,6 +33,7 @@ export function Market({
         <Rail label="Monuments">
           {monuments.map((entry) => {
             const catalog = resolveCard(entry.cardId);
+            const claimable = claimableIds?.has(entry.instanceId) ?? false;
             return (
               <CardView
                 key={entry.instanceId}
@@ -37,6 +42,13 @@ export function Market({
                 faceUp={entry.faceUp}
                 back={CardBack.monument}
                 size="mini"
+                playable={claimable}
+                selectLabel={claimable ? `Construct ${catalog.name}` : undefined}
+                onSelect={
+                  claimable && onClaimMonument
+                    ? () => onClaimMonument(entry.instanceId)
+                    : undefined
+                }
               />
             );
           })}

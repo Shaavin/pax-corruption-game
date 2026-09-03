@@ -26,14 +26,27 @@ const LANE_TINT: Record<DistrictId, string> = {
 
 export type TableInteraction = {
   playableHandIds: ReadonlySet<string>;
-  selectedHandId: string | null;
+  selectableHandIds?: ReadonlySet<string>;
+  selectedHandIds: ReadonlySet<string>;
   onSelectHand: (instanceId: string) => void;
   targetDistrict: DistrictId | null;
+  targetLabel: string;
   onSelectDistrict: (district: DistrictId) => void;
   takeableMarketIds: ReadonlySet<string>;
   onTakeMarket: (instanceId: string) => void;
+  claimableMonumentIds: ReadonlySet<string>;
+  onClaimMonument: (instanceId: string) => void;
+  campaignArmed: boolean;
+  onCampaign: () => void;
   prompt: string;
-  extraAction?: { label: string; onClick: () => void };
+  extraActions: ExtraAction[];
+};
+
+export type ExtraAction = {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  title?: string;
 };
 
 type TableProps = {
@@ -90,12 +103,6 @@ export function Table({
                 }}
               />
             ) : null}
-            <span
-              className="rounded-full bg-[var(--brass)]/15 px-2.5 py-0.5 text-[0.65rem] font-semibold tracking-[0.14em] text-[var(--brass)] uppercase"
-              title="The player currently using this device"
-            >
-              {playerLabel(hotseat)} · hot seat
-            </span>
             <span className="uppercase">
               General election {model.electionsOut}/4
             </span>
@@ -105,6 +112,18 @@ export function Table({
             <span>{status}</span>
           </div>
         </header>
+
+        {veiled ? null : (
+          <div
+            className="flex shrink-0 items-center justify-center gap-2 border-b border-[var(--brass)]/35 bg-black/40 px-3 py-1"
+            role="status"
+            aria-live="polite"
+          >
+            <span className="text-[0.7rem] font-semibold tracking-[0.16em] text-[var(--brass)] uppercase">
+              {playerLabel(hotseat)} has this device
+            </span>
+          </div>
+        )}
 
         <div className="hand-rail hand-rail-opponent flex shrink-0 items-center gap-3 px-3 py-2">
           <span className="w-[4.4rem] shrink-0 leading-tight">
@@ -177,11 +196,11 @@ export function Table({
                 <button
                   type="button"
                   className="absolute inset-0 z-20 cursor-pointer bg-[var(--brass)]/10"
-                  aria-label={`Play into ${district}`}
+                  aria-label={`${interaction.targetLabel} ${district}`}
                   onClick={() => interaction.onSelectDistrict(district)}
                 >
                   <span className="pointer-events-none absolute inset-x-1 bottom-1 rounded-sm bg-black/55 px-1 py-0.5 text-center text-[0.55rem] font-semibold tracking-[0.14em] text-[var(--brass)] uppercase">
-                    Play here
+                    {interaction.targetLabel}
                   </span>
                 </button>
               ) : null}
@@ -200,6 +219,8 @@ export function Table({
           deckCount={model.deckCount}
           takeableIds={interaction?.takeableMarketIds}
           onTake={interaction?.onTakeMarket}
+          claimableIds={interaction?.claimableMonumentIds}
+          onClaimMonument={interaction?.onClaimMonument}
         />
 
         {interaction ? (
@@ -207,15 +228,18 @@ export function Table({
             <p className="text-center text-[0.7rem] tracking-wide text-stone-300">
               {interaction.prompt}
             </p>
-            {interaction.extraAction ? (
+            {(interaction.extraActions ?? []).map((action) => (
               <button
+                key={action.label}
                 type="button"
-                className="cursor-pointer rounded-full bg-[var(--brass)] px-3 py-1 text-[0.7rem] font-semibold text-stone-950 hover:bg-[#d4b57c]"
-                onClick={interaction.extraAction.onClick}
+                title={action.title}
+                disabled={action.disabled}
+                className="cursor-pointer rounded-full bg-[var(--brass)] px-3 py-1 text-[0.7rem] font-semibold text-stone-950 hover:bg-[#d4b57c] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-[var(--brass)]"
+                onClick={action.onClick}
               >
-                {interaction.extraAction.label}
+                {action.label}
               </button>
-            ) : null}
+            ))}
           </div>
         ) : null}
 
@@ -234,7 +258,8 @@ export function Table({
             align="end"
             tourId="your-hand"
             playableIds={interaction?.playableHandIds}
-            selectedId={interaction?.selectedHandId}
+            selectableIds={interaction?.selectableHandIds}
+            selectedIds={interaction?.selectedHandIds}
             onSelect={interaction?.onSelectHand}
           />
           <ExecutiveSlot side={model.you.executive} align="end" />
@@ -243,8 +268,11 @@ export function Table({
             monuments={model.you.monuments}
             partisans={model.you.partisans}
             policySupporters={model.you.policySupporters}
+            supporterCards={model.you.policySupporterCards}
             office={model.you.office}
             tourTarget="partisans"
+            campaignArmed={interaction?.campaignArmed}
+            onCampaign={interaction?.onCampaign}
           />
         </div>
 

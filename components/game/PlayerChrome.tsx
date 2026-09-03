@@ -2,6 +2,7 @@
 
 import { CardBack, CardView } from "./CardView";
 import { resolveCard, type FixtureCard } from "./layout-fixture";
+import { usePeek } from "./peek";
 import type { PartyIdValue } from "@/lib/cards/schema";
 
 type PlayerChromeProps = {
@@ -9,8 +10,11 @@ type PlayerChromeProps = {
   monuments: readonly string[];
   partisans: number;
   policySupporters: number;
+  supporterCards?: FixtureCard[];
   office?: FixtureCard[];
   tourTarget?: "partisans";
+  campaignArmed?: boolean;
+  onCampaign?: () => void;
 };
 
 export function PlayerChrome({
@@ -18,10 +22,15 @@ export function PlayerChrome({
   monuments,
   partisans,
   policySupporters,
+  supporterCards = [],
   office = [],
   tourTarget,
+  campaignArmed = false,
+  onCampaign,
 }: PlayerChromeProps) {
+  const { setPeek } = usePeek();
   const party = partyId ? resolveCard(partyId) : null;
+  const canInspect = supporterCards.length > 0;
 
   return (
     <div className="flex shrink-0 items-center gap-2 px-1">
@@ -42,9 +51,29 @@ export function PlayerChrome({
         </div>
       )}
       <div
-        className="flex flex-col items-center gap-0.5"
+        className={[
+          "flex flex-col items-center gap-0.5",
+          canInspect && !campaignArmed ? "cursor-zoom-in" : "",
+        ].join(" ")}
         data-tour="supporters"
-        title="Policy supporters tucked under the party. Count is public; identities stay hidden until a referendum."
+        title={
+          canInspect
+            ? "Your policy supporters. Hover to inspect. The opponent only sees the count until a referendum."
+            : "Policy supporters tucked under the party. Count is public; identities stay hidden until a referendum."
+        }
+        onMouseEnter={() => {
+          if (!canInspect) return;
+          setPeek({
+            name: `${policySupporters} policy supporters`,
+            art: CardBack.common,
+            contentsLabel: "Your policy supporters",
+            contents: supporterCards.map((entry) => {
+              const catalog = resolveCard(entry.cardId);
+              return { name: catalog.name, art: catalog.art, cardId: entry.cardId };
+            }),
+          });
+        }}
+        onMouseLeave={() => setPeek(null)}
       >
         <div className="relative">
           <CardView
@@ -53,6 +82,15 @@ export function PlayerChrome({
             faceUp={false}
             back={CardBack.common}
             size="mini"
+            playable={campaignArmed}
+            selectLabel={
+              campaignArmed
+                ? "Tuck the selected card as a policy supporter"
+                : canInspect
+                  ? "Inspect your policy supporters"
+                  : undefined
+            }
+            onSelect={campaignArmed && onCampaign ? onCampaign : undefined}
           />
           <span className="absolute -right-1 -bottom-1 rounded bg-stone-900 px-1 text-[0.65rem] font-semibold tabular-nums ring-1 ring-white/20">
             {policySupporters}
