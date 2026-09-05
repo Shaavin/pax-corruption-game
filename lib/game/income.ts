@@ -1,9 +1,6 @@
-import { getCard } from "../cards/catalog.ts";
-import { CardKind } from "../cards/schema.ts";
-import { Phase, type CardInstance, type GameEvent, type GameState, type PlayerId } from "./types.ts";
-import { otherPlayer } from "./zones.ts";
-
-export const MARKET_SIZE = 5;
+import { drawNonElection, fillMarket, MARKET_SIZE, shouldSkipReplenish } from "./draw.ts";
+import { finishTurn } from "./election.ts";
+import { Phase, type GameEvent, type GameState, type PlayerId } from "./types.ts";
 
 export function handSize(state: GameState, player: PlayerId): number {
   return state.players[player].hand.length;
@@ -12,26 +9,6 @@ export function handSize(state: GameState, player: PlayerId): number {
 export function underHandLimit(state: GameState, player: PlayerId): boolean {
   const seat = state.players[player];
   return seat.hand.length < seat.handLimit;
-}
-
-/**
- * Next non-election card from the deck. General elections are set aside and
- * replaced. Election-phase trigger is Phase 5 — dummy turns keep going.
- */
-export function drawNonElection(
-  state: GameState,
-  events: GameEvent[],
-): CardInstance | null {
-  while (state.deck.length > 0) {
-    const card = state.deck.shift()!;
-    if (getCard(card.cardId).kind === CardKind.Election) {
-      state.electionsOut.push({ ...card, faceUp: true });
-      events.push({ type: "electionSetAside", cardId: card.cardId });
-      continue;
-    }
-    return { ...card, faceUp: true };
-  }
-  return null;
 }
 
 /** After the mandatory main action: Politics (skippable), then income. */
@@ -82,28 +59,12 @@ export function completeIncome(state: GameState, events: GameEvent[]): void {
       events.push({ type: "cardDrawn", player, cardId: drawn.cardId });
     }
   }
-  replenishMarket(state, events);
-  passTurn(state, events);
+  if (!shouldSkipReplenish(state)) {
+    fillMarket(state, MARKET_SIZE, events);
+  }
+  finishTurn(state, events);
 }
 
 export function replenishMarket(state: GameState, events: GameEvent[]): void {
-  const added: string[] = [];
-  while (state.market.length < MARKET_SIZE) {
-    const card = drawNonElection(state, events);
-    if (!card) break;
-    state.market.push(card);
-    added.push(card.cardId);
-  }
-  if (added.length > 0) {
-    events.push({ type: "marketReplenished", cardIds: added });
-  }
-}
-
-export function passTurn(state: GameState, events: GameEvent[]): void {
-  state.lastTurn = state.currentTurn;
-  state.currentTurn = { discarded: false, addedSupport: false };
-  state.flags = {};
-  state.activePlayer = otherPlayer(state.activePlayer);
-  state.phase = Phase.Action;
-  events.push({ type: "turnEnded", nextPlayer: state.activePlayer });
+  fillMarket(state, MARKET_SIZE, events);
 }

@@ -6,6 +6,7 @@ import {
   PARTIES,
 } from "../cards/catalog.ts";
 import { CardKind, DISTRICTS, type PartyIdValue } from "../cards/schema.ts";
+import { createEmptyElection } from "./election.ts";
 import type { Rng } from "./rng.ts";
 import {
   GameMode,
@@ -19,6 +20,7 @@ import {
 import {
   createEmptyPlayer,
   emptyByDistrict,
+  emptyTurn,
   instantiate,
   otherPlayer,
 } from "./zones.ts";
@@ -83,6 +85,7 @@ export function createGame(rng: Rng, options: { seed: number }): GameState {
     activePlayer: 0,
     firstPlayer: null,
     electionTriggerer: null,
+    election: createEmptyElection(),
     players: [createEmptyPlayer(), createEmptyPlayer()],
     districtOrder,
     policy: emptyByDistrict(() => null),
@@ -93,8 +96,8 @@ export function createGame(rng: Rng, options: { seed: number }): GameState {
     electionsOut: [],
     unusedParties: [],
     executive: null,
-    lastTurn: { discarded: false, addedSupport: false },
-    currentTurn: { discarded: false, addedSupport: false },
+    lastTurn: emptyTurn(),
+    currentTurn: emptyTurn(),
     flags: {},
     referendum: null,
     victory: null,

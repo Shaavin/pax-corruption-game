@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { ElectionChoice } from "./ElectionChoice";
 import { GameOverOverlay } from "./GameOverOverlay";
 import { PassDeviceGate } from "./PassDeviceGate";
 import { playerLabel } from "./players";
@@ -9,7 +10,7 @@ import { SetupOverlay } from "./SetupOverlay";
 import { Table, type ExtraAction } from "./Table";
 import { tableModel } from "./table-model";
 import { getCard } from "@/lib/cards/catalog";
-import { CardKind, type DistrictId } from "@/lib/cards/schema";
+import { CardKind, ExecutiveSide, type DistrictId } from "@/lib/cards/schema";
 import {
   apply,
   CONSTRUCT_COST,
@@ -17,7 +18,11 @@ import {
   createSeededRng,
   currentActor,
   FLAG_CAMPAIGNED,
+  canUseEmergencyState,
+  canUseLegalReview,
+  executiveBlockReason,
   legalActions,
+  legalReviewTargets,
   otherPlayer,
   Phase,
   playTargetDistrict,
@@ -60,6 +65,7 @@ export function HotseatSession({ seed }: { seed: number }) {
   const [seated, setSeated] = useState<PlayerId | null>(null);
   const [selectedHandIds, setSelectedHandIds] = useState<string[]>([]);
   const [spendKind, setSpendKind] = useState<SpendKind | null>(null);
+  const [legalReviewArmed, setLegalReviewArmed] = useState(false);
 
   const { state } = session;
   const actor = currentActor(state);
@@ -78,6 +84,7 @@ export function HotseatSession({ seed }: { seed: number }) {
       if (event.key !== "Escape") return;
       setSelectedHandIds([]);
       setSpendKind(null);
+      setLegalReviewArmed(false);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -87,6 +94,7 @@ export function HotseatSession({ seed }: { seed: number }) {
     const result = apply(session.state, action, session.rng);
     setSelectedHandIds([]);
     setSpendKind(null);
+    setLegalReviewArmed(false);
     setSession({
       ...session,
       state: result.state,
@@ -181,6 +189,9 @@ export function HotseatSession({ seed }: { seed: number }) {
     playableHandIds.has(selectedHandIds[0]!);
 
   const extraActions: ExtraAction[] = [];
+  const epReason = executiveBlockReason(state, viewer);
+  const holdsEp = state.executive?.owner === viewer;
+  const reviewTargets = legalReviewArmed ? legalReviewTargets(state) : [];
   if (spendKind) {
     extraActions.push({
       label: "Cancel",
@@ -205,6 +216,11 @@ export function HotseatSession({ seed }: { seed: number }) {
         },
       });
     }
+  } else if (legalReviewArmed) {
+    extraActions.push({
+      label: "Cancel",
+      onClick: () => setLegalReviewArmed(false),
+    });
   } else if (state.phase === Phase.Action && !state.referendum) {
     extraActions.push({
       label: "Recruit",
@@ -253,6 +269,24 @@ export function HotseatSession({ seed }: { seed: number }) {
         },
       });
     }
+    if (holdsEp && state.executive?.side === ExecutiveSide.EmergencyState) {
+      extraActions.push({
+        label: "Emergency State",
+        disabled: !canUseEmergencyState(state, viewer),
+        title:
+          epReason ??
+          "Enter the election phase. This turn’s income happens during the election.",
+        onClick: () => dispatch({ type: "useEmergencyState", player: viewer }),
+      });
+    }
+    if (holdsEp && state.executive?.side === ExecutiveSide.LegalReview) {
+      extraActions.push({
+        label: "Legal Review",
+        disabled: !canUseLegalReview(state, viewer),
+        title: epReason ?? "Set one district’s policy to Neutral",
+        onClick: () => setLegalReviewArmed(true),
+      });
+    }
     extraActions.push({
       label: "Skip politics",
       onClick: () => dispatch({ type: "endPolitics", player: viewer }),
@@ -263,9 +297,18 @@ export function HotseatSession({ seed }: { seed: number }) {
   const pendingDistrict = pendingReferendum
     ? state.districtOrder[pendingReferendum.districtIndex]
     : undefined;
+  const pendingElectionFirst = state.phase === Phase.ElectionStart;
+  const pendingExecutiveSide =
+    state.phase === Phase.ElectionEnd && !state.executive && !state.referendum;
 
   const interaction =
-    veiled || waitingFirstSeat || inSetup || state.victory || pendingReferendum
+    veiled ||
+    waitingFirstSeat ||
+    inSetup ||
+    state.victory ||
+    pendingReferendum ||
+    pendingElectionFirst ||
+    pendingExecutiveSide
       ? null
       : {
           playableHandIds: spendKind ? selectableHandIds : playableHandIds,
@@ -288,8 +331,13 @@ export function HotseatSession({ seed }: { seed: number }) {
             );
           },
           targetDistrict: playDistrict,
-          targetLabel,
+          targetDistricts: legalReviewArmed ? new Set(reviewTargets) : undefined,
+          targetLabel: legalReviewArmed ? "Set Neutral" : targetLabel,
           onSelectDistrict: (district: DistrictId) => {
+            if (legalReviewArmed) {
+              dispatch({ type: "useLegalReview", player: viewer, district });
+              return;
+            }
             if (state.phase !== Phase.Action) return;
             if (!selectedCard || playDistrict !== district) return;
             const kind = getCard(selectedCard.cardId).kind;
@@ -328,6 +376,20 @@ export function HotseatSession({ seed }: { seed: number }) {
             if (!id) return;
             dispatch({ type: "campaign", player: viewer, instanceId: id });
           },
+          executivePlayable:
+            canUseEmergencyState(state, viewer) || canUseLegalReview(state, viewer),
+          executiveArmed: legalReviewArmed,
+          executiveTitle:
+            epReason ??
+            (state.executive?.side === ExecutiveSide.LegalReview
+              ? "Legal Review · set one district’s policy to Neutral"
+              : "Emergency State · enter the election phase"),
+          onSelectExecutive:
+            canUseEmergencyState(state, viewer)
+              ? () => dispatch({ type: "useEmergencyState", player: viewer })
+              : canUseLegalReview(state, viewer)
+                ? () => setLegalReviewArmed((armed) => !armed)
+                : undefined,
           prompt: turnPrompt(state, {
             spendKind,
             selectedCount: selectedHandIds.length,
@@ -336,6 +398,7 @@ export function HotseatSession({ seed }: { seed: number }) {
             playDistrict,
             canEndAction,
             campaignArmed,
+            legalReviewArmed,
           }),
           extraActions,
         };
@@ -367,6 +430,32 @@ export function HotseatSession({ seed }: { seed: number }) {
               player: viewer,
               district,
               policyId,
+            })
+          }
+        />
+      ) : null}
+      {pendingElectionFirst && !veiled && !waitingFirstSeat ? (
+        <ElectionChoice
+          kind="firstPlayer"
+          chooserIsYou={viewer === actor}
+          onChoose={(firstPlayer) =>
+            dispatch({
+              type: "chooseElectionFirst",
+              player: viewer,
+              firstPlayer,
+            })
+          }
+        />
+      ) : null}
+      {pendingExecutiveSide && !veiled && !waitingFirstSeat ? (
+        <ElectionChoice
+          kind="executiveSide"
+          chooserIsYou={viewer === state.election.lastWinner}
+          onChoose={(side) =>
+            dispatch({
+              type: "chooseExecutiveSide",
+              player: viewer,
+              side,
             })
           }
         />
@@ -456,14 +545,26 @@ function turnPrompt(
     playDistrict: DistrictId | null;
     canEndAction: boolean;
     campaignArmed: boolean;
+    legalReviewArmed: boolean;
   },
 ): string {
   if (state.phase === Phase.Income) {
-    return "Income · take one market card";
+    return state.election.active
+      ? "Election income · take one market card (no refresh)"
+      : "Income · take one market card";
+  }
+  if (opts.legalReviewArmed) {
+    return "Legal Review · choose a district with a policy";
   }
   if (state.phase === Phase.Politics) {
     if (opts.campaignArmed) {
       return "Politics · tuck onto your supporters pile, or Tuck as campaign";
+    }
+    if (canUseEmergencyState(state, state.activePlayer)) {
+      return "Politics · campaign, click Emergency State, or skip";
+    }
+    if (canUseLegalReview(state, state.activePlayer)) {
+      return "Politics · campaign, click Legal Review, or skip";
     }
     return "Politics · tuck one card as a campaign, or skip";
   }
@@ -482,13 +583,14 @@ function turnPrompt(
       ? "Referendum · confirm 2 cards of the same district"
       : `Referendum · select ${opts.spendCost} cards of the same district (${opts.selectedCount}/${opts.spendCost})`;
   }
+  const election = state.election.active ? "Election · " : "";
   if (opts.canEndAction) {
-    return "Action · no legal main action";
+    return `${election}Action · no legal main action`;
   }
   if (opts.playDistrict) {
-    return "Action · play into the highlighted district";
+    return `${election}Action · play into the highlighted district`;
   }
-  return "Action · play a card, or choose recruit / construct / referendum";
+  return `${election}Action · play a card, or choose recruit / construct / referendum`;
 }
 
 function statusLine(state: GameState): string {
@@ -505,15 +607,26 @@ function statusLine(state: GameState): string {
   if (state.referendum?.awaitingChoice) {
     return "Referendum · choose policy";
   }
-  if (state.phase === Phase.Action) return "Action · your turn";
-  if (state.phase === Phase.Politics) return "Politics";
-  if (state.phase === Phase.Income) return "Income · take a market card";
+  if (state.phase === Phase.ElectionStart) return "Election · choose who goes first";
+  if (state.phase === Phase.ElectionEnd && !state.executive) {
+    return "Election · choose executive power";
+  }
+  const prefix = state.election.active ? "Election · " : "";
+  if (state.phase === Phase.Action) return `${prefix}Action · your turn`;
+  if (state.phase === Phase.Politics) return `${prefix}Politics`;
+  if (state.phase === Phase.Income) return `${prefix}Income · take a market card`;
   return state.phase;
 }
 
 function gateHint(state: GameState, events: GameEvent[]): string {
   if (state.referendum?.awaitingChoice) {
     return `${playerLabel(state.referendum.chooser)} chooses the new district policy. Hands stay hidden.`;
+  }
+  if (state.phase === Phase.ElectionStart) {
+    return `${playerLabel(state.activePlayer)} chooses who takes the first turn of this election.`;
+  }
+  if (state.phase === Phase.ElectionEnd && !state.executive) {
+    return `${playerLabel(state.activePlayer)} won the election and chooses a side of Executive Power.`;
   }
   if (state.phase === Phase.Setup && state.setup?.step === SetupStep.ChooseParty) {
     return state.activePlayer === 0
@@ -545,6 +658,11 @@ function gateHint(state: GameState, events: GameEvent[]): string {
     if (event.type === "marketTaken") bits.push(`Took ${getCard(event.cardId).name} from the market.`);
     if (event.type === "cardDrawn") bits.push("Drew from the deck.");
     if (event.type === "electionSetAside") bits.push("A general election was set aside.");
+    if (event.type === "electionTriggered") bits.push("An election will start after this turn.");
+    if (event.type === "electionStarted") bits.push("An election has begun.");
+    if (event.type === "electionWon") bits.push(`${playerLabel(event.player)} won the election.`);
+    if (event.type === "emergencyStateUsed") bits.push("Emergency State called an election.");
+    if (event.type === "legalReviewUsed") bits.push("Legal Review set a district to Neutral.");
   }
   bits.push("Your turn is over. Pass the device.");
   return bits.join(" ");

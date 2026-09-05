@@ -326,6 +326,7 @@ function finishTurnAfterMain(
 
 {
   const { state: start, rng } = playToTurnOne(42);
+  start.deck = start.deck.filter((card) => getCard(card.cardId).kind !== CardKind.Election);
   let state = start;
   for (let turn = 0; turn < 8; turn++) {
     const actor = state.activePlayer;
@@ -388,7 +389,8 @@ function finishTurnAfterMain(
     !state.market.some((card) => card.instanceId === ge.instanceId),
     "General election must not sit in the market",
   );
-  assert(state.phase === "action", "Dummy turns do not start an election phase");
+  assert(state.election.active, "A GE drawn during income starts an election after the turn");
+  assert(state.activePlayer === otherPlayer(actor), "First election: the non-triggerer goes first");
   assertUniqueIds(state, "after GE set-aside");
 }
 
@@ -450,4 +452,4 @@ if (errors.length > 0) {
   process.exit(1);
 }
 
-console.log("Turn ok: play civil, income (take / draw / replenish), pass, GE set aside.");
+console.log("Turn ok: play civil, income (take / draw / replenish), pass, GE starts election.");

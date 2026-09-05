@@ -2,10 +2,20 @@ import { getCard } from "../cards/catalog.ts";
 import {
   CardKind,
   DISTRICTS,
+  ExecutiveSide,
   type DistrictId,
   type PartyIdValue,
 } from "../cards/schema.ts";
 import { discardCards, discardOwn, gameIsOver } from "./discard.ts";
+import {
+  applyChooseElectionFirst,
+  applyChooseExecutiveSide,
+  applyEmergencyState,
+  applyLegalReview,
+  canUseEmergencyState,
+  canUseLegalReview,
+  legalReviewTargets,
+} from "./election.ts";
 import {
   afterMainAction,
   beginIncome,
@@ -34,11 +44,14 @@ import {
 } from "./setup.ts";
 import {
   Phase,
+  ReferendumSource,
   SetupStep,
   type Action,
   type ApplyResult,
   type CallReferendumAction,
   type CampaignAction,
+  type ChooseElectionFirstAction,
+  type ChooseExecutiveSideAction,
   type ChoosePartyAction,
   type ChoosePolicyAction,
   type ChooseStartingHandAction,
@@ -53,6 +66,8 @@ import {
   type PlayerId,
   type RecruitAction,
   type TakeMarketAction,
+  type UseEmergencyStateAction,
+  type UseLegalReviewAction,
 } from "./types.ts";
 import { resolveVictory } from "./victory.ts";
 import { cloneState, sameIdSet, takeInstance } from "./zones.ts";
@@ -100,6 +115,14 @@ export function apply(state: GameState, action: Action, rng: Rng): ApplyResult {
       return { state: next, events: applyCampaign(next, action) };
     case "endPolitics":
       return { state: next, events: applyEndPolitics(next, action) };
+    case "useEmergencyState":
+      return { state: next, events: applyUseEmergencyState(next, action) };
+    case "useLegalReview":
+      return { state: next, events: applyUseLegalReview(next, action) };
+    case "chooseElectionFirst":
+      return { state: next, events: applyChooseElectionFirstAction(next, action) };
+    case "chooseExecutiveSide":
+      return { state: next, events: applyChooseExecutiveSideAction(next, action) };
     case "endAction":
       return { state: next, events: applyEndAction(next, action) };
     case "takeMarket":
@@ -164,8 +187,39 @@ export function legalActions(state: GameState, viewer: PlayerId): Action[] {
         });
       }
     }
+    if (canUseEmergencyState(state, viewer)) {
+      actions.push({ type: "useEmergencyState", player: viewer });
+    }
+    if (canUseLegalReview(state, viewer)) {
+      for (const district of legalReviewTargets(state)) {
+        actions.push({ type: "useLegalReview", player: viewer, district });
+      }
+    }
     actions.push({ type: "endPolitics", player: viewer });
     return actions;
+  }
+
+  if (state.phase === Phase.ElectionStart) {
+    return ( [0, 1] as const ).map((firstPlayer) => ({
+      type: "chooseElectionFirst" as const,
+      player: viewer,
+      firstPlayer,
+    }));
+  }
+
+  if (state.phase === Phase.ElectionEnd && !state.executive && !state.referendum) {
+    return [
+      {
+        type: "chooseExecutiveSide" as const,
+        player: viewer,
+        side: ExecutiveSide.EmergencyState,
+      },
+      {
+        type: "chooseExecutiveSide" as const,
+        player: viewer,
+        side: ExecutiveSide.LegalReview,
+      },
+    ];
   }
 
   if (state.phase === Phase.Income) {
@@ -559,6 +613,7 @@ function applyCampaign(state: GameState, action: CampaignAction): GameEvent[] {
   const card = takeInstance(seat.hand, action.instanceId);
   seat.policySupporters.push({ ...card, faceUp: false });
   state.flags[FLAG_CAMPAIGNED] = true;
+  state.currentTurn.discarded = true;
   const events: GameEvent[] = [
     {
       type: "campaignTucked",
@@ -567,7 +622,7 @@ function applyCampaign(state: GameState, action: CampaignAction): GameEvent[] {
       cardId: card.cardId,
     },
   ];
-  // Campaign is once per turn. Executive power (Phase 5) can still share this step.
+  // Campaign is once per turn. Emergency State can still share this step.
   if (!furtherPoliticsAvailable(state, action.player)) {
     beginIncome(state, events);
   }
@@ -578,7 +633,7 @@ function furtherPoliticsAvailable(state: GameState, player: PlayerId): boolean {
   if (!state.flags[FLAG_CAMPAIGNED] && state.players[player].hand.length > 0) {
     return true;
   }
-  return false;
+  return canUseEmergencyState(state, player) || canUseLegalReview(state, player);
 }
 
 function applyEndPolitics(state: GameState, action: EndPoliticsAction): GameEvent[] {
@@ -586,6 +641,83 @@ function applyEndPolitics(state: GameState, action: EndPoliticsAction): GameEven
   requireActor(state, action.player);
   const events: GameEvent[] = [];
   beginIncome(state, events);
+  return events;
+}
+
+function applyUseEmergencyState(
+  state: GameState,
+  action: UseEmergencyStateAction,
+): GameEvent[] {
+  requirePhase(state, Phase.Politics);
+  requireActor(state, action.player);
+  const events: GameEvent[] = [];
+  try {
+    applyEmergencyState(state, action.player, events);
+  } catch (error) {
+    throw new IllegalActionError(
+      error instanceof Error ? error.message : "Emergency State is not legal",
+    );
+  }
+  if (!furtherPoliticsAvailable(state, action.player)) {
+    beginIncome(state, events);
+  }
+  return events;
+}
+
+function applyUseLegalReview(
+  state: GameState,
+  action: UseLegalReviewAction,
+): GameEvent[] {
+  requirePhase(state, Phase.Politics);
+  requireActor(state, action.player);
+  const events: GameEvent[] = [];
+  try {
+    applyLegalReview(state, action.player, action.district, events);
+  } catch (error) {
+    throw new IllegalActionError(
+      error instanceof Error ? error.message : "Legal Review is not legal",
+    );
+  }
+  if (!gameIsOver(state) && !furtherPoliticsAvailable(state, action.player)) {
+    beginIncome(state, events);
+  }
+  return events;
+}
+
+function applyChooseElectionFirstAction(
+  state: GameState,
+  action: ChooseElectionFirstAction,
+): GameEvent[] {
+  requirePhase(state, Phase.ElectionStart);
+  requireActor(state, action.player);
+  const events: GameEvent[] = [];
+  try {
+    applyChooseElectionFirst(state, action.player, action.firstPlayer, events);
+  } catch (error) {
+    throw new IllegalActionError(
+      error instanceof Error ? error.message : "Illegal election first-player choice",
+    );
+  }
+  return events;
+}
+
+function applyChooseExecutiveSideAction(
+  state: GameState,
+  action: ChooseExecutiveSideAction,
+): GameEvent[] {
+  requirePhase(state, Phase.ElectionEnd);
+  requireActor(state, action.player);
+  const events: GameEvent[] = [];
+  try {
+    applyChooseExecutiveSide(state, action.player, action.side, events);
+  } catch (error) {
+    throw new IllegalActionError(
+      error instanceof Error ? error.message : "Illegal executive-side choice",
+    );
+  }
+  if (!gameIsOver(state)) {
+    startReferendum(state, events, ReferendumSource.Election);
+  }
   return events;
 }
 
@@ -680,6 +812,16 @@ function actionsEqual(a: Action, b: Action): boolean {
   }
   if (a.type === "endAction" && b.type === "endAction") return true;
   if (a.type === "endPolitics" && b.type === "endPolitics") return true;
+  if (a.type === "useEmergencyState" && b.type === "useEmergencyState") return true;
+  if (a.type === "useLegalReview" && b.type === "useLegalReview") {
+    return a.district === b.district;
+  }
+  if (a.type === "chooseElectionFirst" && b.type === "chooseElectionFirst") {
+    return a.firstPlayer === b.firstPlayer;
+  }
+  if (a.type === "chooseExecutiveSide" && b.type === "chooseExecutiveSide") {
+    return a.side === b.side;
+  }
   return false;
 }
 

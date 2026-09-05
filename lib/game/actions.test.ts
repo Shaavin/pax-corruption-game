@@ -251,6 +251,7 @@ function takeFromDeck(
     );
     assert(supporter && !supporter.faceUp, "Campaign tucks face-down");
     assert(state.players[actor].policySupporters.length === 1, "Supporter count is 1");
+    assert(state.currentTurn.discarded, "A campaign tuck counts as discarding a card");
     assert(
       state.phase === "income" || state.phase === "action",
       "Campaign ends politics when nothing else is left",

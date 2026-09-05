@@ -1,8 +1,12 @@
 import { DISTRICTS, type DistrictId } from "../cards/schema.ts";
-import type { CardInstance, PlayerId, PlayerState } from "./types.ts";
+import type { CardInstance, LastTurn, PlayerId, PlayerState } from "./types.ts";
 
 export function otherPlayer(player: PlayerId): PlayerId {
   return player === 0 ? 1 : 0;
+}
+
+export function emptyTurn(): LastTurn {
+  return { discarded: false, addedSupport: false, player: null };
 }
 
 export function emptyByDistrict<T>(make: () => T): Record<DistrictId, T> {

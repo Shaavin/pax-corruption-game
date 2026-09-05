@@ -35,6 +35,8 @@ export const VictoryKind = {
   Military: "military",
   Popularity: "popularity",
   Ideological: "ideological",
+  Civil: "civil",
+  Political: "political",
 } as const;
 export type VictoryKindId = (typeof VictoryKind)[keyof typeof VictoryKind];
 
@@ -45,13 +47,39 @@ export type Victory = {
   symbol?: SymbolId;
 };
 
-/** In-progress Call Policy Referendum (and later, election-end referendums). */
+export const ReferendumSource = {
+  Action: "action",
+  Election: "election",
+} as const;
+export type ReferendumSourceId = (typeof ReferendumSource)[keyof typeof ReferendumSource];
+
+/** In-progress Call Policy Referendum or an election-end referendum. */
 export type ReferendumState = {
+  source: ReferendumSourceId;
   districtIndex: number;
   awaitingChoice: boolean;
   chooser: PlayerId;
   options: Array<PolicyIdValue | null>;
   support: [number, number];
+};
+
+export const ElectionTieBreak = {
+  Electorates: "electorates",
+  Electors: "electors",
+  Incumbent: "incumbent",
+  PartyOrder: "partyOrder",
+} as const;
+export type ElectionTieBreakId = (typeof ElectionTieBreak)[keyof typeof ElectionTieBreak];
+
+export type ElectionRuntime = {
+  /** True from start-of-phase (including fill-to-8) until end-of-phase scoring begins. */
+  active: boolean;
+  /** Triggering turn is done; run start-of-phase next. */
+  pendingStart: boolean;
+  /** Skip market replenish (Emergency State income before start-of-phase). */
+  skipReplenish: boolean;
+  lastWinner: PlayerId | null;
+  firstPlayer: PlayerId | null;
 };
 
 export type CardInstance = {
@@ -88,6 +116,8 @@ export type SetupState = {
 export type LastTurn = {
   discarded: boolean;
   addedSupport: boolean;
+  /** Who just finished the turn that `lastTurn` describes. */
+  player: PlayerId | null;
 };
 
 export type ExecutiveHolder = {
@@ -103,6 +133,7 @@ export type GameState = {
   activePlayer: PlayerId;
   firstPlayer: PlayerId | null;
   electionTriggerer: PlayerId | null;
+  election: ElectionRuntime;
   players: [PlayerState, PlayerState];
   districtOrder: DistrictId[];
   policy: Record<DistrictId, PolicyIdValue | null>;
@@ -188,6 +219,29 @@ export type EndPoliticsAction = {
   player: PlayerId;
 };
 
+export type UseEmergencyStateAction = {
+  type: "useEmergencyState";
+  player: PlayerId;
+};
+
+export type UseLegalReviewAction = {
+  type: "useLegalReview";
+  player: PlayerId;
+  district: DistrictId;
+};
+
+export type ChooseElectionFirstAction = {
+  type: "chooseElectionFirst";
+  player: PlayerId;
+  firstPlayer: PlayerId;
+};
+
+export type ChooseExecutiveSideAction = {
+  type: "chooseExecutiveSide";
+  player: PlayerId;
+  side: ExecutiveSideId;
+};
+
 /** Legal during the action step only when no main action is available. */
 export type EndActionAction = {
   type: "endAction";
@@ -212,6 +266,10 @@ export type Action =
   | ChoosePolicyAction
   | CampaignAction
   | EndPoliticsAction
+  | UseEmergencyStateAction
+  | UseLegalReviewAction
+  | ChooseElectionFirstAction
+  | ChooseExecutiveSideAction
   | EndActionAction
   | TakeMarketAction;
 
@@ -315,6 +373,22 @@ export type GameEvent =
   | { type: "cardDrawn"; player: PlayerId; cardId: string }
   | { type: "marketReplenished"; cardIds: string[] }
   | { type: "electionSetAside"; cardId: string }
+  | { type: "electionTriggered"; player: PlayerId }
+  | { type: "electionStarted"; triggerer: PlayerId }
+  | { type: "electionFirstPlayerNeeded"; player: PlayerId }
+  | { type: "electionTurnsStarted"; firstPlayer: PlayerId }
+  | {
+      type: "electionTallied";
+      electorates: [number, number];
+      electors: [number, number];
+      winner: PlayerId;
+      tieBreak: ElectionTieBreakId;
+    }
+  | { type: "electionWon"; player: PlayerId; consecutive: number }
+  | { type: "executiveTaken"; player: PlayerId; side: ExecutiveSideId }
+  | { type: "emergencyStateUsed"; player: PlayerId }
+  | { type: "legalReviewUsed"; player: PlayerId; district: DistrictId }
+  | { type: "electionEnded" }
   | { type: "turnEnded"; nextPlayer: PlayerId };
 
 export type ApplyResult = {

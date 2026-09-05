@@ -31,6 +31,7 @@ type DistrictHubProps = {
   theirSupport: number;
   yourInfluence: DistrictInfluence;
   theirInfluence: DistrictInfluence;
+  electors: number | null;
 };
 
 export function DistrictHub({
@@ -40,6 +41,7 @@ export function DistrictHub({
   theirSupport,
   yourInfluence,
   theirInfluence,
+  electors,
 }: DistrictHubProps) {
   const supportLead = yourSupport - theirSupport;
   const influenceLead = yourInfluence.total - theirInfluence.total;
@@ -144,7 +146,7 @@ export function DistrictHub({
         data-tour="electors"
         className="text-[0.55rem] tracking-[0.12em] text-stone-500 uppercase"
       >
-        Electors —
+        Electors {electors === null ? "—" : electors}
       </div>
     </section>
   );

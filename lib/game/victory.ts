@@ -35,7 +35,8 @@ export function symbolCounts(state: GameState, player: PlayerId): Record<SymbolI
 /**
  * Immediate victories only (Military, Popularity, Ideological).
  * Order when several trip on one action: Popularity (district order),
- * Ideological (symbol order), Military. Civil / Political wait for Phase 5.
+ * Ideological (symbol order), Military. Civil and Political are awarded
+ * from the election end-of-phase, not here.
  */
 export function checkVictory(state: GameState): Victory | null {
   for (const district of state.districtOrder) {

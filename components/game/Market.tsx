@@ -12,6 +12,7 @@ type MarketProps = {
   onTake?: (instanceId: string) => void;
   claimableIds?: ReadonlySet<string>;
   onClaimMonument?: (instanceId: string) => void;
+  electionActive?: boolean;
 };
 
 export function Market({
@@ -22,6 +23,7 @@ export function Market({
   onTake,
   claimableIds,
   onClaimMonument,
+  electionActive = false,
 }: MarketProps) {
   return (
     <section
@@ -55,23 +57,25 @@ export function Market({
         </Rail>
       </div>
 
-      <Rail label="Market">
-        {market.map((entry) => {
-          const catalog = resolveCard(entry.cardId);
-          const takeable = takeableIds?.has(entry.instanceId) ?? false;
-          return (
-            <CardView
-              key={entry.instanceId}
-              name={catalog.name}
-              art={catalog.art}
-              faceUp={entry.faceUp}
-              size="market"
-              playable={takeable}
-              selectLabel={takeable ? `Take ${catalog.name}` : undefined}
-              onSelect={takeable && onTake ? () => onTake(entry.instanceId) : undefined}
-            />
-          );
-        })}
+      <Rail label={electionActive ? "Market · no refresh" : "Market"}>
+        <div className="flex min-w-0 items-center gap-1.5 overflow-x-auto">
+          {market.map((entry) => {
+            const catalog = resolveCard(entry.cardId);
+            const takeable = takeableIds?.has(entry.instanceId) ?? false;
+            return (
+              <CardView
+                key={entry.instanceId}
+                name={catalog.name}
+                art={catalog.art}
+                faceUp={entry.faceUp}
+                size="market"
+                playable={takeable}
+                selectLabel={takeable ? `Take ${catalog.name}` : undefined}
+                onSelect={takeable && onTake ? () => onTake(entry.instanceId) : undefined}
+              />
+            );
+          })}
+        </div>
       </Rail>
 
       <div className="flex items-center justify-end gap-2">

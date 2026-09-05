@@ -8,6 +8,8 @@ const KIND_LABEL: Record<Victory["kind"], string> = {
   [VictoryKind.Military]: "Military Victory",
   [VictoryKind.Popularity]: "Popularity Victory",
   [VictoryKind.Ideological]: "Ideological Victory",
+  [VictoryKind.Civil]: "Civil Victory",
+  [VictoryKind.Political]: "Political Victory",
 };
 
 export function GameOverOverlay({ victory }: { victory: Victory }) {

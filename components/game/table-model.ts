@@ -18,6 +18,7 @@ export type TablePlayerView = {
   partyId: PartyIdValue | null;
   monuments: string[];
   partisans: number;
+  electionWins: number;
   executive: ExecutiveHolder["side"] | null;
 };
 
@@ -30,6 +31,7 @@ export type TableModel = {
   availableMonuments: CardInstance[];
   deckCount: number;
   electionsOut: number;
+  electionActive: boolean;
 };
 
 export function tableModel(state: GameState, viewer: PlayerId): TableModel {
@@ -43,6 +45,7 @@ export function tableModel(state: GameState, viewer: PlayerId): TableModel {
     availableMonuments: state.availableMonuments,
     deckCount: state.deck.length,
     electionsOut: state.electionsOut.length,
+    electionActive: state.election.active,
   };
 }
 
@@ -69,6 +72,7 @@ function playerView(
     partyId,
     monuments: seat.monuments.map((card) => card.cardId),
     partisans: seat.partisans,
+    electionWins: seat.electionWins,
     executive:
       state.executive?.owner === player ? state.executive.side : null,
   };

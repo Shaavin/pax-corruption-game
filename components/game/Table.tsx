@@ -14,6 +14,8 @@ import { ZoomPreview } from "./ZoomPreview";
 import { playerLabel } from "./players";
 import type { TableModel } from "./table-model";
 import type { DistrictId } from "@/lib/cards/schema";
+import { getCard } from "@/lib/cards/catalog";
+import { CardKind } from "@/lib/cards/schema";
 import { districtInfluence } from "@/lib/game/influence";
 import { otherPlayer, type PlayerId } from "@/lib/game";
 
@@ -30,6 +32,7 @@ export type TableInteraction = {
   selectedHandIds: ReadonlySet<string>;
   onSelectHand: (instanceId: string) => void;
   targetDistrict: DistrictId | null;
+  targetDistricts?: ReadonlySet<DistrictId>;
   targetLabel: string;
   onSelectDistrict: (district: DistrictId) => void;
   takeableMarketIds: ReadonlySet<string>;
@@ -38,6 +41,10 @@ export type TableInteraction = {
   onClaimMonument: (instanceId: string) => void;
   campaignArmed: boolean;
   onCampaign: () => void;
+  executivePlayable?: boolean;
+  executiveArmed?: boolean;
+  executiveTitle?: string;
+  onSelectExecutive?: () => void;
   prompt: string;
   extraActions: ExtraAction[];
 };
@@ -106,6 +113,14 @@ export function Table({
             <span className="uppercase">
               General election {model.electionsOut}/4
             </span>
+            <span className="uppercase">
+              Wins {model.you.electionWins}–{model.opponent.electionWins}
+            </span>
+            {model.electionActive ? (
+              <span className="font-semibold tracking-[0.14em] text-[var(--brass)] uppercase">
+                Election
+              </span>
+            ) : null}
             <span className="tabular-nums" title="Deterministic setup seed">
               Seed {seed}
             </span>
@@ -175,6 +190,12 @@ export function Table({
                   model.opponent.tableau[district],
                   model.opponent.support[district],
                 )}
+                electors={
+                  model.electionActive
+                    ? civilCount(model.you.tableau[district]) +
+                      civilCount(model.opponent.tableau[district])
+                    : null
+                }
               />
             </div>
           ))}
@@ -187,12 +208,14 @@ export function Table({
               className={[
                 "relative min-h-0 border-x border-white/6",
                 LANE_TINT[district],
-                interaction?.targetDistrict === district
+                interaction?.targetDistrict === district ||
+                interaction?.targetDistricts?.has(district)
                   ? "ring-2 ring-inset ring-[var(--brass)]"
                   : "",
               ].join(" ")}
             >
-              {interaction?.targetDistrict === district ? (
+              {interaction?.targetDistrict === district ||
+              interaction?.targetDistricts?.has(district) ? (
                 <button
                   type="button"
                   className="absolute inset-0 z-20 cursor-pointer bg-[var(--brass)]/10"
@@ -217,6 +240,7 @@ export function Table({
           market={model.market}
           monuments={model.availableMonuments}
           deckCount={model.deckCount}
+          electionActive={model.electionActive}
           takeableIds={interaction?.takeableMarketIds}
           onTake={interaction?.onTakeMarket}
           claimableIds={interaction?.claimableMonumentIds}
@@ -262,7 +286,14 @@ export function Table({
             selectedIds={interaction?.selectedHandIds}
             onSelect={interaction?.onSelectHand}
           />
-          <ExecutiveSlot side={model.you.executive} align="end" />
+          <ExecutiveSlot
+            side={model.you.executive}
+            align="end"
+            playable={interaction?.executivePlayable}
+            selected={interaction?.executiveArmed}
+            title={interaction?.executiveTitle}
+            onSelect={interaction?.onSelectExecutive}
+          />
           <PlayerChrome
             partyId={model.you.partyId}
             monuments={model.you.monuments}
@@ -281,4 +312,8 @@ export function Table({
       </div>
     </PeekContext.Provider>
   );
+}
+
+function civilCount(tableau: readonly { cardId: string }[]): number {
+  return tableau.filter((card) => getCard(card.cardId).kind === CardKind.Civil).length;
 }

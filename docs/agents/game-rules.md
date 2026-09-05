@@ -147,6 +147,7 @@ Skippable in whole or in part.
 You may use **both** of the following on the same turn (designer: they are both available in the Politics step, not instead of each other).
 
 1. **Executive power** (if you have it). You may use the face-up side only on the turn **immediately after** the opponent discarded **any** card. Printed text (authoritative):
+   - A campaign tuck counts (the card left their hand). The card is still a policy supporter, not a support-pile discard.
    - **Emergency State:** enter Election Phase now. If that happens, this turn's income occurs **during** the election phase.
    - **Legal Review:** set one district’s policy to Neutral. District Governor does **not** block this.
 2. **Political campaign.** Tuck one card from hand face-down under your party as a policy supporter (civil, alliance, or **conspiracy**). Count is public; identity is secret. Each supporter is worth 1 policy support in its printed district, or **2** if it is an alliance. This is not a main action and is not an Action-step free action.

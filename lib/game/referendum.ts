@@ -1,9 +1,18 @@
 import { POLICIES } from "../cards/catalog.ts";
 import { PolicySide, type DistrictId, type PolicyIdValue } from "../cards/schema.ts";
 import { discardOwn, gameIsOver } from "./discard.ts";
+import { afterElectionReferendum } from "./election.ts";
 import { afterMainAction } from "./income.ts";
 import { printedDistrict, policySupportValue } from "./main.ts";
-import { PLAYERS, type GameEvent, type GameState, type PlayerId } from "./types.ts";
+import { resolveVictory } from "./victory.ts";
+import {
+  PLAYERS,
+  ReferendumSource,
+  type GameEvent,
+  type GameState,
+  type PlayerId,
+  type ReferendumSourceId,
+} from "./types.ts";
 
 export function printedPolicies(district: DistrictId) {
   const a = POLICIES.find(
@@ -33,8 +42,13 @@ export function referendumPolicyOptions(
   return [other, null];
 }
 
-export function startReferendum(state: GameState, events: GameEvent[]): void {
+export function startReferendum(
+  state: GameState,
+  events: GameEvent[],
+  source: ReferendumSourceId = ReferendumSource.Action,
+): void {
   state.referendum = {
+    source,
     districtIndex: 0,
     awaitingChoice: false,
     chooser: state.activePlayer,
@@ -99,6 +113,7 @@ export function applyPolicyChoice(
 
   state.policy[district] = policyId;
   events.push({ type: "policyChanged", district, policyId, player });
+  resolveVictory(state, events);
   discardDistrictSupporters(state, district, events);
   pending.awaitingChoice = false;
   pending.districtIndex += 1;
@@ -144,9 +159,13 @@ function discardDistrictSupporters(
 }
 
 function finishReferendum(state: GameState, events: GameEvent[]): void {
+  const source = state.referendum?.source ?? ReferendumSource.Action;
   state.referendum = null;
   events.push({ type: "referendumEnded" });
-  if (!gameIsOver(state)) {
-    afterMainAction(state, events);
+  if (gameIsOver(state)) return;
+  if (source === ReferendumSource.Election) {
+    afterElectionReferendum(state, events);
+    return;
   }
+  afterMainAction(state, events);
 }
