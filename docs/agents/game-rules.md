@@ -10,7 +10,7 @@ Sources, in priority order:
 
 Anything the rulebook leaves unclear is listed in [open-questions.md](open-questions.md). Do not fill those gaps yourself.
 
-> **Rules changed in 2026-11.** Policy supporters, political campaigns, the Call Policy Referendum action, executive power (Emergency State / Legal Review), National Priorities, and "3 elections in a row" Political Victory **no longer exist**. They were replaced by the **Senate**, **Propose Policy**, and **decree objectives**. The engine in `lib/game` still implements the old loop. See the migration phase in [development-plan.md](development-plan.md).
+> **Rules changed in 2026-11.** Policy supporters, political campaigns, the Call Policy Referendum action, executive power (Emergency State / Legal Review), National Priorities, and "3 elections in a row" Political Victory **no longer exist**. They were replaced by the **Senate**, **Propose Policy**, and **decree objectives**. The engine in `lib/game` was migrated to these rules on 2026-11-11.
 
 Two players, about 30 minutes. Each leads a political party competing for the Vitalic Union. There are four districts (lanes) and five electorates: the four districts plus the Council of Lords.
 

@@ -2,20 +2,22 @@
 
 Local hotseat simulator first. The same rules engine should later run a networked match without a rewrite.
 
-## Where things stand (2026-11)
+## Where things stand (2026-11-11)
 
-Phases 0–5 below were built against the **old** rules (policy supporters, referendum, executive power). The rulebook has since changed (see [game-rules.md](game-rules.md)). Before any new feature work, do **Phase R — rules migration**. Code that implements removed mechanics is wrong, not just unfinished.
+**Phase R (rules migration) is done.** Engine, catalog, art, tests, and hotseat UI follow the current rulebook. Next up is **Phase 6 — card abilities**.
 
 | Area | State |
 | --- | --- |
-| Catalog + art (`lib/cards`, `public/cards`) | Civil, conspiracy, policy, overview data is current. Alliances, monuments, party-8, executive, aids, decrees need updating ([card-catalog.md](card-catalog.md#ingest-status)). |
-| Setup (`lib/game/setup.ts`) | Old deck math (92 pile cards, no Senate, no decrees). |
-| Turn, main actions (`main.ts`, `income.ts`, `draw.ts`) | Mostly valid. Remove Call Referendum; add the Recruit precondition; fix income order. |
-| Politics step | Implements campaign + executive power. Must become Influence Senate / Propose Policy / Declare Victory. |
-| Elections (`election.ts`) | Old start/end-of-phase flow (EP drop, opposition chooses first, end-of-phase referendum, consecutive wins). |
-| Victory (`victory.ts`) | Old Political and Ideological rules; victories checked instantly instead of declared. |
-| UI (`components/game`) | Built for the old loop: `ExecutiveSlot`, `PolicyChoice`, `ElectionChoice`, campaign tucks. |
-| Action log (uncommitted) | Keep. Event names will change with the migration. |
+| Catalog + art (`lib/cards`, `public/cards`) | Current. Re-ingest any time with `scripts/ingest-tts.py` ([card-catalog.md](card-catalog.md#ingest-status)). |
+| Setup (`lib/game/setup.ts`) | Senate 5 + Market 5, 87 pile cards (Standard only), decrees inactive, monuments with no district constraint. |
+| Turn, main actions (`main.ts`, `income.ts`, `draw.ts`) | 5 main actions, Recruit precondition, construct → Politics draw, income: Market take → refill to 5 → deck draw. |
+| Politics step (`senate.ts`, `engine.ts`) | Influence Senate / Propose Policy / Declare Victory / pass. |
+| Elections (`election.ts`, `draw.ts`) | GE opens the phase immediately (Market 8, count GEs), turn order unchanged, resolves when the Market is empty after a turn, tie-breaks, winner activates decrees (`decreeChoice` phase), final election → Civil. |
+| Victory (`victory.ts`, `decrees.ts`) | All victories declared in Politics except Civil at the final election. Political via decrees; new Ideological math; Roman Basilica and Smart Doctrine (victory-related) implemented. |
+| Abilities | Everything else from alliances, monuments, and policies is **not** implemented yet (Phase 6). Planet Next's bank zone exists in state and influence, but there's no action to bank cards yet. |
+| UI (`components/game`) | Senate + decree row (`SenateRow`), propose flow (reveal → policy → discard), Seat in the Senate, Declare buttons, `DecreeChoice` overlay. Executive, referendum, and first-player UI removed. |
+| Action log | Stashed (`git stash list`: "WIP: action log (pre-2026-11 rules)"). Re-apply and rename events to the new `GameEvent` types. |
+| Lint | Two pre-existing `react-hooks/set-state-in-effect` errors in `TableTour.tsx` (not from the migration). |
 
 ## Principles
 
@@ -102,20 +104,9 @@ Victories are **declared** (except Civil): `legalActions` offers `declareVictory
 
 ## Build order
 
-### Phase R — Rules migration (do this next)
+### Phase R — Rules migration (done 2026-11-11)
 
-Work in this order; keep `npm test` green at each step.
-
-1. **Catalog.** Re-ingest current faces and text per the [checklist](card-catalog.md#re-ingest-checklist). Add decree objectives. Remove executive power. Swap `policySupportValue` for `senateVotes`.
-2. **Setup.** Deal Senate (5) and Market (5); build piles from 87 cards with the new mode table; place decrees inactive; 2 guaranteed + 2 random monuments with no district constraint.
-3. **Actions.** Delete Call Referendum. Add the Recruit precondition. Income order: Market take → replenish → deck draw.
-4. **Politics step.** Delete campaign and executive power. Add the monument draw, then exactly one of Influence Senate / Propose Policy / Declare Victory.
-5. **Elections.** Turn order never changes; trigger fills Market to 8 and counts General Elections; resolve when Market is empty after a turn; tie-breaks (electorates → cards in won electorates → incumbent / first player); winner activates decrees; refill to 5. Remove EP drop, opposition-chooses-first, end-of-phase referendum, and consecutive-win Political Victory.
-6. **Victory.** Declared victories; Political via decrees; new Ideological math; Civil at final election.
-7. **UI.** Remove `ExecutiveSlot`, campaign tucks, referendum `PolicyChoice` flow, and `ElectionChoice` (first-player pick). Add Senate row, Propose Policy reveal flow, decree row, Declare Victory control.
-8. Delete dead code (`referendum.ts`, executive handlers) once nothing imports it.
-
-Exit: a full Standard game plays end to end under the current rulebook with generic (no-ability) alliances and monuments.
+Catalog and art re-ingested; setup, actions, Politics step, elections, decrees, and victories rewritten; `referendum.ts`, executive power, and their UI deleted; tests rewritten (`lib/game/*.test.ts`, shared helpers in `test-helpers.ts`).
 
 ### Phase 6 — Card abilities
 

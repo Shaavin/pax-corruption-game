@@ -31,20 +31,17 @@ When text in `lib/cards` disagrees with the TTS faces, the TTS faces win.
 
 ## Ingest status
 
-The **civil cards (72), conspiracies (8), policies, and overviews** in `lib/cards` and `public/cards` match the current faces. Verified 2026-11 by comparing every name and value.
+**Current as of 2026-11-11.** `scripts/ingest-tts.py` sliced the TTS sheets into `public/cards/` (main deck, monuments, parties, decrees, player aids, General Election), and `lib/cards` was re-transcribed:
 
-These are **out of date** and must be re-ingested (art) and re-transcribed (text):
+- 15 alliance faces with new text (✱ below); every alliance's `OR` line now reads "It counts 2x many votes in the Senate." `AllianceCard.senateVotes` replaces `policySupportValue`.
+- `horsard-a-5` renamed **Century Club → Century Inc.**
+- Planet Next, Roman Basilica, Model Society, Smart Doctrine: new text and effect ids.
+- Republican Party starting cards: Century Inc.; 8 – Civic Council; 6 – Monarch Family; **5 – Patrons of Art**.
+- Executive power removed (art and catalog).
+- Decree objectives added (`DECREES`, `public/cards/decrees/`; square 972×972 art).
+- One General Election face (`public/cards/deck/election.png`) replaces the placeholder SVGs.
 
-| Item | What changed |
-| --- | --- |
-| 15 of 24 alliance faces | New text. See [Alliances](#alliances-base-24). Every alliance's `OR` line now reads "It counts 2x many votes in the Senate." |
-| `horsard-a-5` | Renamed **Century Club → Century Inc.**, new text |
-| Monuments | Planet Next, Roman Basilica, Model Society, Smart Doctrine have new text |
-| Republican Party (party-8) | Starting cards are now Century Inc.; 8 – Civic Council; 6 – Monarch Family; **5 – Patrons of Art** (Emirates is no longer a starting card) |
-| Executive power | **Removed from the game.** Delete `public/cards/executive/` and the `EXECUTIVE` catalog entries. |
-| Decree objectives | **New.** 4 double-sided cards, not in the repo yet |
-| General Election | Real art exists now (TTS deck 3). Replace the placeholder SVGs. |
-| Player aids | New base aid. Victories: Civil / Political (2 active decrees) / Military / Popularity / Ideological. |
+Re-run the script whenever Joe updates the TTS save: `python scripts/ingest-tts.py` (needs Pillow). Then compare text against `lib/cards` by hand; the script only moves art. If the dev server shows stale card images afterwards, delete `.next/dev/cache/images`.
 
 ## Components
 
@@ -119,7 +116,7 @@ Guaranteed monuments that share a district: Progressive + Global (Dragonara), In
 
 ## Alliances (base, 24)
 
-Current printed text. Every alliance also prints `OR — It counts 2x many votes in the Senate.` (omitted below). ✱ = changed from what `lib/cards/deck.ts` has.
+Current printed text. Every alliance also prints `OR — It counts 2x many votes in the Senate.` (omitted below). ✱ = changed in the 2026-11 revision (now matched by `lib/cards/deck.ts`).
 
 | Id | Name | Text |
 | --- | --- | --- |
@@ -144,8 +141,6 @@ Current printed text. Every alliance also prints `OR — It counts 2x many votes
 | `smarbbit-a-4` | People's Press | When drawing from deck, you may now draw from your Smarbbit support pile instead. |
 | `smarbbit-a-5` | District Governor ✱ | (Smarbbit version) |
 | `smarbbit-a-6` | Project Habitat | Conspiracy no longer discards your already played civil cards in Smarbbit. |
-
-Effect ids to retire: anything referencing policy referendum, policy supporters, or the 3+ supporter requirement (old Capitol Inc., old District Governor wording).
 
 Rulings that still apply:
 
@@ -175,14 +170,3 @@ Unchanged. Each district has 18 civil cards valued 3–9. `lib/cards/deck.ts` (`
 ## Markers (UI only)
 
 Support markers (+1 / +3 sides, per district) and the partisans marker (×1 / ×2) are references for numbers the engine already tracks. Render badges; do not model them as cards.
-
-## Re-ingest checklist
-
-- [ ] Script that slices TTS sheets (decks 2–7, 17–21) into `public/cards/...` using the existing filenames
-- [ ] Replace alliance, monument, party-8, and player-aid art with the TTS faces
-- [ ] Add decree objective art (`public/cards/decrees/{id}-inactive.png`, `-active.png`)
-- [ ] Replace `deck/election-*.svg` with the TTS General Election face
-- [ ] Delete `public/cards/executive/` and executive catalog entries
-- [ ] Update `deck.ts` text and effect ids for the ✱ alliances; rename Century Club
-- [ ] Update `setup-cards.ts`: Republican starting cards, monument text/effects, decree objectives
-- [ ] `npm test` catalog checks: counts (108 / 15 / 24 / 4), starting-card lookups, art files exist

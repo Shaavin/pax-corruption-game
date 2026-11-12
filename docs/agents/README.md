@@ -11,7 +11,7 @@ The working brief for anyone (human or agent) building the simulator.
 
 ## Current status
 
-The game's rules were revised in 2026-11. The Senate, Propose Policy, and decree objectives replaced policy supporters, the referendum, and executive power. The engine and UI still implement the old rules. **Next work is Phase R (rules migration)** in [development-plan.md](development-plan.md).
+The game's rules were revised in 2026-11. The Senate, Propose Policy, and decree objectives replaced policy supporters, the referendum, and executive power. The engine, catalog, and hotseat UI were migrated on 2026-11-11 (Phase R). **Next work is Phase 6 — card abilities** in [development-plan.md](development-plan.md).
 
 ## Product intent
 

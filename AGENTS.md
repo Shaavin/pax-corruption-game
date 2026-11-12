@@ -20,7 +20,7 @@ Before changing game rules, engine code, or board UI, read:
 4. [docs/agents/development-plan.md](docs/agents/development-plan.md) — architecture and build order
 5. [docs/agents/open-questions.md](docs/agents/open-questions.md) — unresolved rules (do not invent answers)
 
-The rules were revised in 2026-11: the Senate and decree objectives replaced policy supporters, referendums, and executive power. The engine still implements the old rules, so the next work is **Phase R (rules migration)** in the development plan. Code for removed mechanics is wrong, not unfinished.
+The rules were revised in 2026-11: the Senate and decree objectives replaced policy supporters, referendums, and executive power. The engine and UI were migrated to these rules on 2026-11-11; the next work is **Phase 6 (card abilities)** in the development plan. Do not reintroduce removed mechanics.
 
 Source priority: current printed card text (the Tabletop Simulator save faces) > the current rulebook PDF > these docs > marketing copy. Paths are in [card-catalog.md](docs/agents/card-catalog.md#sources-of-truth).
 
