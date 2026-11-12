@@ -40,7 +40,7 @@ export function alliance(
     name,
     district,
     allianceSymbols,
-    policySupportValue: 2,
+    senateVotes: 2,
     text,
     effects,
     art: `/cards/deck/${id}.png`,
@@ -75,6 +75,6 @@ export function election(n: 1 | 2 | 3 | 4): ElectionCard {
     id: `election-${n}`,
     kind: CardKind.Election,
     name: "General Election",
-    art: `/cards/deck/election-${n}.svg`,
+    art: "/cards/deck/election.png",
   };
 }

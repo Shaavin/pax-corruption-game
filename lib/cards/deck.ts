@@ -25,14 +25,14 @@ export const MAIN_DECK: MainDeckCard[] = [
     "dragonara-a-2",
     "Kybernetik Inc.",
     d,
-    "As a free action, you may draw to hand limit. If you do, skip income step this turn.",
-    [{ type: EffectType.FreeAction, id: EffectId.DrawToHandLimitSkipIncome }],
+    "As a free action, you may draw to hand limit. If you do, end your action step and skip income step this turn.",
+    [{ type: EffectType.FreeAction, id: EffectId.DrawToHandLimitEndActionSkipIncome }],
   ),
   alliance(
     "dragonara-a-3",
     "District Governor",
     d,
-    "This card silences opponent's alliances in Dragonara. The policy in Dragonara cannot be changed via policy referendum.",
+    "This card silences opponent's alliances in Dragonara. The policy in Dragonara cannot be targeted by policy proposal.",
     [
       {
         type: EffectType.Static,
@@ -45,7 +45,7 @@ export const MAIN_DECK: MainDeckCard[] = [
     "dragonara-a-4",
     "District Governor",
     d,
-    "This card silences opponent's alliances in Dragonara. The policy in Dragonara cannot be changed via policy referendum.",
+    "This card silences opponent's alliances in Dragonara. The policy in Dragonara cannot be targeted by policy proposal.",
     [
       {
         type: EffectType.Static,
@@ -72,11 +72,11 @@ export const MAIN_DECK: MainDeckCard[] = [
     "dragonara-a-6",
     "State Enterprise",
     d,
-    "You treat Dragonara non-alliance cards in market as if they are in your hand when you do your main or free actions.",
+    "You treat Dragonara civil cards in market as if they are in your hand when you do your main or free actions.",
     [
       {
         type: EffectType.Static,
-        id: EffectId.TreatMarketAsHand,
+        id: EffectId.TreatMarketCivilAsHand,
         params: { district: d },
       },
     ],
@@ -132,11 +132,11 @@ export const MAIN_DECK: MainDeckCard[] = [
     "horsard-a-3",
     "Foreign Inc.",
     h,
-    "As a free action, you may discard a Horsard card from your hand, then draw a card.",
+    "As a free action, you may once influence Senate with Horsard card, then draw a card.",
     [
       {
         type: EffectType.FreeAction,
-        id: EffectId.DiscardDistrictThenDraw,
+        id: EffectId.InfluenceSenateThenDraw,
         params: { district: h },
       },
     ],
@@ -145,7 +145,7 @@ export const MAIN_DECK: MainDeckCard[] = [
     "horsard-a-4",
     "District Governor",
     h,
-    "This card silences opponent's alliances in Horsard. The policy in Horsard cannot be changed via policy referendum.",
+    "This card silences opponent's alliances in Horsard. The policy in Horsard cannot be targeted by policy proposal.",
     [
       {
         type: EffectType.Static,
@@ -156,10 +156,10 @@ export const MAIN_DECK: MainDeckCard[] = [
   ),
   alliance(
     "horsard-a-5",
-    "Century Club",
+    "Century Inc.",
     h,
-    "You can play an alliance card to replace your own or opponent's alliance, and its district can be unmatched.",
-    [{ type: EffectType.Static, id: EffectId.ReplaceAllianceUnmatched }],
+    "As a free action, play an alliance to replace your own or opponent's alliance, even when districts are unmatched.",
+    [{ type: EffectType.FreeAction, id: EffectId.ReplaceAllianceUnmatched }],
   ),
   alliance(
     "horsard-a-6",
@@ -207,18 +207,18 @@ export const MAIN_DECK: MainDeckCard[] = [
     "shavvinne-a-2",
     "Architecture Inc.",
     s,
-    "As a free action, you may construct ANY available monument with ANY 4 cards of the same color.",
-    [{ type: EffectType.FreeAction, id: EffectId.ConstructMonumentFourSameColor }],
+    "As a free action, you may construct a monument with only 4 cards of the same matching color.",
+    [{ type: EffectType.FreeAction, id: EffectId.ConstructMonumentFourMatching }],
   ),
   alliance(
     "shavvinne-a-3",
     "Foreign Inc.",
     s,
-    "As a free action, you may discard a Shavvinne card from your hand, then draw a card.",
+    "As a free action, you may once influence Senate with Shavvinne card, then draw a card.",
     [
       {
         type: EffectType.FreeAction,
-        id: EffectId.DiscardDistrictThenDraw,
+        id: EffectId.InfluenceSenateThenDraw,
         params: { district: s },
       },
     ],
@@ -247,11 +247,11 @@ export const MAIN_DECK: MainDeckCard[] = [
     "shavvinne-a-6",
     "Divine Inquisitors",
     s,
-    "Winning Shavvinne in elections is now determined by the amount of Shavvinne policy support instead.",
+    "You win Shavvinne during elections if this is the only alliance card in the district.",
     [
       {
         type: EffectType.Static,
-        id: EffectId.WinByPolicySupport,
+        id: EffectId.WinIfOnlyAlliance,
         params: { district: s },
       },
     ],
@@ -281,11 +281,11 @@ export const MAIN_DECK: MainDeckCard[] = [
     "smarbbit-a-1",
     "Foreign Inc.",
     m,
-    "As a free action, you may discard a Smarbbit card from your hand, then draw a card.",
+    "As a free action, you may once influence Senate with Smarbbit card, then draw a card.",
     [
       {
         type: EffectType.FreeAction,
-        id: EffectId.DiscardDistrictThenDraw,
+        id: EffectId.InfluenceSenateThenDraw,
         params: { district: m },
       },
     ],
@@ -294,18 +294,18 @@ export const MAIN_DECK: MainDeckCard[] = [
     "smarbbit-a-2",
     "Capitol Inc.",
     m,
-    "As a free action, you may call policy referendum, ignoring the requirement for 3+ policy sponsors.",
-    [{ type: EffectType.FreeAction, id: EffectId.CallReferendumIgnoreRequirement }],
+    "As a free action, you may propose new policy.",
+    [{ type: EffectType.FreeAction, id: EffectId.ProposePolicyFree }],
   ),
   alliance(
     "smarbbit-a-3",
     "Foreign Inc.",
     m,
-    "As a free action, you may discard a Smarbbit card from your hand, then draw a card.",
+    "As a free action, you may once influence Senate with Smarbbit card, then draw a card.",
     [
       {
         type: EffectType.FreeAction,
-        id: EffectId.DiscardDistrictThenDraw,
+        id: EffectId.InfluenceSenateThenDraw,
         params: { district: m },
       },
     ],
@@ -327,7 +327,7 @@ export const MAIN_DECK: MainDeckCard[] = [
     "smarbbit-a-5",
     "District Governor",
     m,
-    "This card silences opponent's alliances in Smarbbit. The policy in Smarbbit cannot be changed via policy referendum.",
+    "This card silences opponent's alliances in Smarbbit. The policy in Smarbbit cannot be targeted by policy proposal.",
     [
       {
         type: EffectType.Static,

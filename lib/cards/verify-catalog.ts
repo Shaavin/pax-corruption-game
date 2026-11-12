@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { CATALOG, MAIN_DECK, partyStartingMatches } from "./catalog.ts";
 import { EFFECT_IDS } from "./effects.ts";
 import { CardKind, DISTRICTS } from "./schema.ts";
-import { EXECUTIVE, MONUMENTS, PARTIES, POLICIES } from "./setup-cards.ts";
+import { DECREES, MONUMENTS, PARTIES, POLICIES } from "./setup-cards.ts";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const errors: string[] = [];
@@ -37,7 +37,7 @@ if (MAIN_DECK.length !== 108) fail(`Expected 108 main-deck cards, got ${MAIN_DEC
 if (PARTIES.length !== 8) fail(`Expected 8 parties, got ${PARTIES.length}`);
 if (MONUMENTS.length !== 8) fail(`Expected 8 monuments, got ${MONUMENTS.length}`);
 if (POLICIES.length !== 8) fail(`Expected 8 policies, got ${POLICIES.length}`);
-if (EXECUTIVE.length !== 2) fail(`Expected 2 executive faces, got ${EXECUTIVE.length}`);
+if (DECREES.length !== 4) fail(`Expected 4 decree objectives, got ${DECREES.length}`);
 
 for (const district of DISTRICTS) {
   const civil = MAIN_DECK.filter(
@@ -65,8 +65,11 @@ for (const card of CATALOG) {
 }
 
 for (const card of CATALOG) {
-  const file = path.join(root, "public", card.art.replace(/^\//, ""));
-  if (!existsSync(file)) fail(`Missing art for ${card.id}: ${card.art}`);
+  const arts = card.kind === CardKind.Decree ? [card.art, card.inactiveArt] : [card.art];
+  for (const art of arts) {
+    const file = path.join(root, "public", art.replace(/^\//, ""));
+    if (!existsSync(file)) fail(`Missing art for ${card.id}: ${art}`);
+  }
 }
 
 for (const party of PARTIES) {
@@ -91,5 +94,5 @@ if (errors.length > 0) {
 }
 
 console.log(
-  `Catalog ok: ${MAIN_DECK.length} main-deck, ${PARTIES.length} parties, ${MONUMENTS.length} monuments, ${POLICIES.length} policies.`,
+  `Catalog ok: ${MAIN_DECK.length} main-deck, ${PARTIES.length} parties, ${MONUMENTS.length} monuments, ${POLICIES.length} policies, ${DECREES.length} decrees.`,
 );

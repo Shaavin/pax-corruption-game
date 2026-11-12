@@ -1,5 +1,5 @@
 import { MAIN_DECK } from "./deck.ts";
-import { EXECUTIVE, MONUMENTS, PARTIES, POLICIES } from "./setup-cards.ts";
+import { DECREES, MONUMENTS, PARTIES, POLICIES } from "./setup-cards.ts";
 import {
   CardKind,
   type CatalogCard,
@@ -16,7 +16,7 @@ export const CATALOG: CatalogCard[] = [
   ...PARTIES,
   ...MONUMENTS,
   ...POLICIES,
-  ...EXECUTIVE,
+  ...DECREES,
 ];
 
 const byId = new Map(CATALOG.map((card) => [card.id, card]));
@@ -90,4 +90,4 @@ export function mainDeckWithoutElections(): MainDeckCard[] {
   return MAIN_DECK.filter((card) => card.kind !== CardKind.Election);
 }
 
-export { MAIN_DECK, PARTIES, MONUMENTS, POLICIES, EXECUTIVE };
+export { MAIN_DECK, PARTIES, MONUMENTS, POLICIES, DECREES };

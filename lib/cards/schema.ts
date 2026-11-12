@@ -26,7 +26,7 @@ export const CardKind = {
   Party: "party",
   Monument: "monument",
   Policy: "policy",
-  Executive: "executive",
+  Decree: "decree",
 } as const;
 export type CardKindId = (typeof CardKind)[keyof typeof CardKind];
 
@@ -39,10 +39,10 @@ export type EffectTypeId = (typeof EffectType)[keyof typeof EffectType];
 
 export const TriggerWhen = {
   PlayCivil: "play-civil",
+  PlayAlliance: "play-alliance",
   PlayInDistrict: "play-in-district",
-  BeforeElectionTally: "before-election-tally",
-  ElectionEndStart: "election-end-start",
-  Politics: "politics",
+  AfterElection: "after-election",
+  EndOfIncome: "end-of-income",
 } as const;
 export type TriggerWhenId = (typeof TriggerWhen)[keyof typeof TriggerWhen];
 
@@ -52,12 +52,13 @@ export const PolicySide = {
 } as const;
 export type PolicySideId = (typeof PolicySide)[keyof typeof PolicySide];
 
-export const ExecutiveSide = {
-  EmergencyState: "emergency-state",
-  LegalReview: "legal-review",
+export const DecreeId = {
+  Imperium: "decree-imperium",
+  Profectus: "decree-profectus",
+  Academia: "decree-academia",
+  DeJures: "decree-de-jures",
 } as const;
-export type ExecutiveSideId =
-  (typeof ExecutiveSide)[keyof typeof ExecutiveSide];
+export type DecreeIdValue = (typeof DecreeId)[keyof typeof DecreeId];
 
 export const PartyId = {
   Trinity: "party-1",
@@ -122,7 +123,8 @@ export type AllianceCard = CardBase & {
   kind: typeof CardKind.Alliance;
   district: DistrictId;
   allianceSymbols: number;
-  policySupportValue: 2;
+  /** Votes this card carries while seated in the Senate. */
+  senateVotes: 2;
   text: string;
   effects: Effect[];
 };
@@ -172,12 +174,17 @@ export type PolicyCard = CardBase & {
   effects: Effect[];
 };
 
-export type ExecutiveCard = CardBase & {
-  id: ExecutiveSideId;
-  kind: typeof CardKind.Executive;
-  side: ExecutiveSideId;
+/** Double-sided. Starts inactive; an election winner activates it. */
+export type DecreeCard = CardBase & {
+  id: DecreeIdValue;
+  kind: typeof CardKind.Decree;
+  /** Name on the grey inactive side. */
+  inactiveName: string;
+  symbol: SymbolId;
+  /** Condition printed on the active side. */
   text: string;
-  effects: Effect[];
+  /** Art for the inactive side; `art` is the active side. */
+  inactiveArt: string;
 };
 
 export type CatalogCard =
@@ -185,4 +192,4 @@ export type CatalogCard =
   | PartyCard
   | MonumentCard
   | PolicyCard
-  | ExecutiveCard;
+  | DecreeCard;

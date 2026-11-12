@@ -1,16 +1,16 @@
 import { EffectId } from "./effects.ts";
 import {
   CardKind,
+  DecreeId,
   District,
   EffectType,
-  ExecutiveSide,
   MonumentId,
   PartyId,
   PolicyId,
   PolicySide,
   Symbol,
   TriggerWhen,
-  type ExecutiveCard,
+  type DecreeCard,
   type MonumentCard,
   type PartyCard,
   type PolicyCard,
@@ -129,10 +129,10 @@ export const PARTIES: PartyCard[] = [
     order: 8,
     symbol: Symbol.Chart,
     startingCards: [
-      { name: "Century Club", district: District.Horsard },
+      { name: "Century Inc.", district: District.Horsard },
       { name: "Civic Council", district: District.Dragonara },
-      { name: "Emirates", district: District.Shavvinne },
       { name: "Monarch Family", district: District.Shavvinne },
+      { name: "Patrons of Art", district: District.Shavvinne },
     ],
     guaranteedMonumentId: MonumentId.CivilService,
     art: "/cards/parties/party-8.png",
@@ -173,14 +173,8 @@ export const MONUMENTS: MonumentCard[] = [
     name: "Planet Next",
     district: District.Horsard,
     symbols: [Symbol.Chart],
-    text: "Before election results, you may discard cards that each gives matching district +2 influence.",
-    effects: [
-      {
-        type: EffectType.Triggered,
-        id: EffectId.PlanetNextElectionDiscard,
-        when: TriggerWhen.BeforeElectionTally,
-      },
-    ],
+    text: "You may set aside faced-up Horsard cards. They don't count towards hand limit and give +1 influence each.",
+    effects: [{ type: EffectType.Static, id: EffectId.PlanetNextBank }],
     art: "/cards/monuments/planet-next.png",
   },
   {
@@ -201,8 +195,8 @@ export const MONUMENTS: MonumentCard[] = [
     name: "Roman Basilica",
     district: District.Shavvinne,
     symbols: [Symbol.Crown],
-    text: "You always win Civil Victory at the end of final election regardless of election wins.",
-    effects: [{ type: EffectType.Static, id: EffectId.AlwaysWinCivil }],
+    text: "You may declare Civil Victory either after 1) end of the final election, or 2) winning 3 elections cards.",
+    effects: [{ type: EffectType.Static, id: EffectId.CivilVictoryAfterThreeWins }],
     art: "/cards/monuments/roman-basilica.png",
   },
   {
@@ -223,8 +217,14 @@ export const MONUMENTS: MonumentCard[] = [
     name: "Model Society",
     district: District.Smarbbit,
     symbols: [Symbol.Scales],
-    text: "You can now have 2 alliances in a district.",
-    effects: [{ type: EffectType.Static, id: EffectId.AllianceLimitTwo }],
+    text: "You can now have 2 alliances in a district. Draw a card when you play an alliance.",
+    effects: [
+      {
+        type: EffectType.Triggered,
+        id: EffectId.AllianceLimitTwoDrawOnAlliance,
+        when: TriggerWhen.PlayAlliance,
+      },
+    ],
     art: "/cards/monuments/model-society.png",
   },
   {
@@ -232,15 +232,10 @@ export const MONUMENTS: MonumentCard[] = [
     kind: CardKind.Monument,
     name: "Smart Doctrine",
     district: District.Smarbbit,
-    symbols: [Symbol.Atom, Symbol.Chart, Symbol.Crown, Symbol.Scales],
-    text: "You may decide whether to host policy referendum before or after tallying for general election wins.",
-    effects: [
-      {
-        type: EffectType.Triggered,
-        id: EffectId.SmartDoctrineReferendumOrder,
-        when: TriggerWhen.ElectionEndStart,
-      },
-    ],
+    // No fixed symbol: one private copy per active decree's symbol (see victory.ts).
+    symbols: [],
+    text: "This monument provides a matching ideological symbol for each active decree currently.",
+    effects: [{ type: EffectType.Static, id: EffectId.SymbolPerActiveDecree }],
     art: "/cards/monuments/smart-doctrine.png",
   },
 ];
@@ -342,35 +337,45 @@ export const POLICIES: PolicyCard[] = [
   },
 ];
 
-export const EXECUTIVE: ExecutiveCard[] = [
+export const DECREES: DecreeCard[] = [
   {
-    id: ExecutiveSide.EmergencyState,
-    kind: CardKind.Executive,
-    name: "Emergency State",
-    side: ExecutiveSide.EmergencyState,
-    text: "Can only use in the immediate turn after your opponent discards ANY card. In politics step, use the power to enter Election Phase.",
-    effects: [
-      {
-        type: EffectType.FreeAction,
-        id: EffectId.EmergencyState,
-        when: TriggerWhen.Politics,
-      },
-    ],
-    art: "/cards/executive/emergency-state.png",
+    id: DecreeId.Imperium,
+    kind: CardKind.Decree,
+    name: "Imperium",
+    inactiveName: "Unruly Clans",
+    symbol: Symbol.Crown,
+    text: "Have more partisans than opponent does.",
+    art: "/cards/decrees/imperium.png",
+    inactiveArt: "/cards/decrees/unruly-clans.png",
   },
   {
-    id: ExecutiveSide.LegalReview,
-    kind: CardKind.Executive,
-    name: "Legal Review",
-    side: ExecutiveSide.LegalReview,
-    text: "Can only use in the immediate turn after your opponent discards ANY card. In politics step, use the power to remove any policy.",
-    effects: [
-      {
-        type: EffectType.FreeAction,
-        id: EffectId.LegalReview,
-        when: TriggerWhen.Politics,
-      },
-    ],
-    art: "/cards/executive/legal-review.png",
+    id: DecreeId.Profectus,
+    kind: CardKind.Decree,
+    name: "Profectus",
+    inactiveName: "Turmoil Land",
+    symbol: Symbol.Chart,
+    text: "Have 7+ more total support than opponent does.",
+    art: "/cards/decrees/profectus.png",
+    inactiveArt: "/cards/decrees/turmoil-land.png",
+  },
+  {
+    id: DecreeId.Academia,
+    kind: CardKind.Decree,
+    name: "Academia",
+    inactiveName: "Emigration",
+    symbol: Symbol.Atom,
+    text: "Have 20+ more influence than opponent in a district.",
+    art: "/cards/decrees/academia.png",
+    inactiveArt: "/cards/decrees/emigration.png",
+  },
+  {
+    id: DecreeId.DeJures,
+    kind: CardKind.Decree,
+    name: "De Jures",
+    inactiveName: "Class Schism",
+    symbol: Symbol.Scales,
+    text: "Have the lowest (or tie for lowest) civil card in all 4 districts.",
+    art: "/cards/decrees/de-jures.png",
+    inactiveArt: "/cards/decrees/class-schism.png",
   },
 ];
