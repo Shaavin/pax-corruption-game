@@ -58,6 +58,8 @@ type CardViewProps = {
   cardId?: string;
   /** Ms before the inspect zoom appears. Choice cards default to a short delay. */
   peekDelay?: number;
+  /** Square card (decree objectives) instead of the 825×1125 card shape. */
+  square?: boolean;
 };
 
 const CHOICE_PEEK_DELAY_MS = 1250;
@@ -76,6 +78,7 @@ export function CardView({
   onSelect,
   cardId,
   peekDelay,
+  square = false,
 }: CardViewProps) {
   const { setPeek } = usePeek();
   const peekTimer = useRef<number | null>(null);
@@ -88,7 +91,7 @@ export function CardView({
   const liftOnHover = size !== "choice";
   const frameClass = [
     "relative block shrink-0 overflow-hidden rounded-[0.22em] bg-stone-900 shadow-[0_2px_8px_rgba(0,0,0,0.45)] ring-1 ring-black/40",
-    "aspect-[825/1125]",
+    square ? "aspect-square" : "aspect-[825/1125]",
     WIDTH[size],
     interactive
       ? [

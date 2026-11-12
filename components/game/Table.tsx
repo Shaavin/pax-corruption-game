@@ -3,11 +3,11 @@
 import { useCallback, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { DistrictHub } from "./DistrictHub";
-import { ExecutiveSlot } from "./ExecutiveSlot";
 import { Hand } from "./Hand";
 import { Market } from "./Market";
 import { PeekContext, type PeekCard } from "./peek";
 import { PlayerChrome } from "./PlayerChrome";
+import { SenateRow } from "./SenateRow";
 import { Tableau } from "./Tableau";
 import { TableTour } from "./TableTour";
 import { ZoomPreview } from "./ZoomPreview";
@@ -39,12 +39,9 @@ export type TableInteraction = {
   onTakeMarket: (instanceId: string) => void;
   claimableMonumentIds: ReadonlySet<string>;
   onClaimMonument: (instanceId: string) => void;
-  campaignArmed: boolean;
-  onCampaign: () => void;
-  executivePlayable?: boolean;
-  executiveArmed?: boolean;
-  executiveTitle?: string;
-  onSelectExecutive?: () => void;
+  /** Propose Policy: Senators the current reveal convinces, and its vote total. */
+  convincedSenators?: ReadonlySet<number>;
+  revealVotes?: number | null;
   prompt: string;
   extraActions: ExtraAction[];
 };
@@ -150,13 +147,11 @@ export function Table({
             </span>
           </span>
           <Hand cards={model.opponent.hand} faceUp align="start" />
-          <ExecutiveSlot side={model.opponent.executive} align="start" />
           <PlayerChrome
             partyId={model.opponent.partyId}
             monuments={model.opponent.monuments}
             partisans={model.opponent.partisans}
-            policySupporters={model.opponent.policySupporters}
-            office={model.opponent.office}
+            setAside={model.opponent.setAside}
           />
         </div>
 
@@ -185,10 +180,12 @@ export function Table({
                 yourInfluence={districtInfluence(
                   model.you.tableau[district],
                   model.you.support[district],
+                  district === "horsard" ? model.you.bank : 0,
                 )}
                 theirInfluence={districtInfluence(
                   model.opponent.tableau[district],
                   model.opponent.support[district],
+                  district === "horsard" ? model.opponent.bank : 0,
                 )}
                 electors={
                   model.electionActive
@@ -235,6 +232,15 @@ export function Table({
             </div>
           ))}
         </div>
+
+        <SenateRow
+          senate={model.senate}
+          totalVotes={model.senateVotes}
+          votesNeeded={model.senateVotesNeeded}
+          convinced={interaction?.convincedSenators}
+          revealVotes={interaction?.revealVotes ?? null}
+          decrees={model.decrees}
+        />
 
         <Market
           market={model.market}
@@ -286,24 +292,12 @@ export function Table({
             selectedIds={interaction?.selectedHandIds}
             onSelect={interaction?.onSelectHand}
           />
-          <ExecutiveSlot
-            side={model.you.executive}
-            align="end"
-            playable={interaction?.executivePlayable}
-            selected={interaction?.executiveArmed}
-            title={interaction?.executiveTitle}
-            onSelect={interaction?.onSelectExecutive}
-          />
           <PlayerChrome
             partyId={model.you.partyId}
             monuments={model.you.monuments}
             partisans={model.you.partisans}
-            policySupporters={model.you.policySupporters}
-            supporterCards={model.you.policySupporterCards}
-            office={model.you.office}
+            setAside={model.you.setAside}
             tourTarget="partisans"
-            campaignArmed={interaction?.campaignArmed}
-            onCampaign={interaction?.onCampaign}
           />
         </div>
 

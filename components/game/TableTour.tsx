@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
-export const TABLE_TOUR_KEY = "pax-table-tour-v5";
+export const TABLE_TOUR_KEY = "pax-table-tour-v6";
 
 type TourStep = {
   id: string;
@@ -33,7 +33,7 @@ const STEPS: TourStep[] = [
   {
     id: "popularity",
     title: "Popularity",
-    body: "Popularity is your support pile minus theirs — the Opp/You counts under the stacks. Lead by 9 in any one district to win immediately. Click the (i) for a reminder.",
+    body: "Popularity is your support pile minus theirs — the Opp/You counts under the stacks. Lead by 9 in any one district and you may declare Popularity Victory in your Politics step. Click the (i) for a reminder.",
     target: "popularity",
   },
   {
@@ -51,13 +51,25 @@ const STEPS: TourStep[] = [
   {
     id: "partisans",
     title: "Partisans",
-    body: "How many times you have recruited. If you lead by 3 or more, you win Military Victory immediately.",
+    body: "How many times you have recruited. Lead by 3 or more and you may declare Military Victory in your Politics step.",
     target: "partisans",
+  },
+  {
+    id: "senate",
+    title: "The Senate",
+    body: "Five Senators: civil and conspiracy cards carry 1 vote, alliances 2. In Politics you may seat a card here (the rightmost Senator is discarded to your pile), or reveal cards that convince more than half the votes to change a district policy.",
+    target: "senate",
+  },
+  {
+    id: "decrees",
+    title: "Decree objectives",
+    body: "Election winners activate decrees. Active decrees add shared symbols, and meeting any two active decrees at once lets you declare Political Victory.",
+    target: "decrees",
   },
   {
     id: "deck",
     title: "Market and deck",
-    body: "Income lets you take one market card, then draw. The number is cards left in the draw deck — 92 after a Standard setup. Face-up monuments beside the market are what you can construct.",
+    body: "Income lets you take one market card; the market refills, then you draw if still under your hand limit. The number is cards left in the draw deck — 91 after a Standard setup (87 cards plus 4 General Elections). Face-up monuments beside the market are what you can construct.",
     target: "market",
   },
 ];

@@ -1,13 +1,11 @@
 import { getCard } from "@/lib/cards/catalog";
 import {
   District,
-  ExecutiveSide,
   MonumentId,
   PartyId,
   PolicyId,
   type CatalogCard,
   type DistrictId,
-  type ExecutiveSideId,
   type MonumentIdValue,
   type PartyIdValue,
   type PolicyIdValue,
@@ -23,12 +21,10 @@ export type PlayerLayout = {
   hand: FixtureCard[];
   tableau: Record<DistrictId, FixtureCard[]>;
   support: Record<DistrictId, number>;
-  policySupporters: number;
   office: FixtureCard[];
   partyId: PartyIdValue;
   monuments: MonumentIdValue[];
   partisans: number;
-  executive: ExecutiveSideId | null;
 };
 
 export type LayoutFixture = {
@@ -95,9 +91,7 @@ export const LAYOUT_FIXTURE: LayoutFixture = {
     partyId: PartyId.Progressive,
     monuments: [MonumentId.IntelNetwork],
     partisans: 1,
-    policySupporters: 3,
     office: [],
-    executive: null,
   },
   you: {
     hand: [
@@ -128,9 +122,7 @@ export const LAYOUT_FIXTURE: LayoutFixture = {
     partyId: PartyId.Trinity,
     monuments: [MonumentId.RomanBasilica],
     partisans: 0,
-    policySupporters: 2,
     office: [],
-    executive: ExecutiveSide.EmergencyState,
   },
   market: [
     card("dragonara-b-10"),
@@ -146,7 +138,7 @@ export const LAYOUT_FIXTURE: LayoutFixture = {
     card(MonumentId.SmartDoctrine),
   ],
   monumentDeckCount: 2,
-  deckCount: 92,
+  deckCount: 87,
   electionsOut: 0,
 };
 

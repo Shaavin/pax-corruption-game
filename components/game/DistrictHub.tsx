@@ -128,7 +128,8 @@ export function DistrictHub({
           </span>
           <InfoTip label="What popularity means">
             This is your support-pile count minus theirs. If you lead by 9 or
-            more in any one district, you win Popularity immediately. The Opp /
+            more in any one district, you may declare Popularity Victory in your
+            Politics step. The Opp /
             You numbers under the stacks are those pile sizes.
           </InfoTip>
         </div>

@@ -20,7 +20,13 @@ export function ZoomPreview({ card }: { card: PeekCard | null }) {
     <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="flex max-w-[min(96vw,68rem)] flex-wrap items-center justify-center gap-4 rounded-md bg-black/35 p-2 shadow-[0_20px_60px_rgba(0,0,0,0.65)] ring-1 ring-white/10 backdrop-blur-[2px]">
         {contents.length === 0 ? (
-          <CardView name={card.name} art={card.art} size="zoom" cardId={card.cardId} />
+          <CardView
+            name={card.name}
+            art={card.art}
+            size="zoom"
+            cardId={card.cardId}
+            square={isDecree(card)}
+          />
         ) : null}
         {contents.length > 0 ? (
           <RelatedGroup label={card.contentsLabel ?? card.name}>
@@ -88,6 +94,15 @@ function RelatedGroup({
       </div>
     </div>
   );
+}
+
+function isDecree(card: PeekCard): boolean {
+  if (!card.cardId) return false;
+  try {
+    return getCard(card.cardId).kind === CardKind.Decree;
+  } catch {
+    return false;
+  }
 }
 
 function resolvePeekParty(card: PeekCard): PartyCard | null {

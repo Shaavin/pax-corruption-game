@@ -1,44 +1,43 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ElectionChoice } from "./ElectionChoice";
+import { DecreeChoice } from "./DecreeChoice";
 import { GameOverOverlay } from "./GameOverOverlay";
 import { PassDeviceGate } from "./PassDeviceGate";
 import { playerLabel } from "./players";
-import { PolicyChoice } from "./PolicyChoice";
 import { SetupOverlay } from "./SetupOverlay";
 import { Table, type ExtraAction } from "./Table";
 import { tableModel } from "./table-model";
 import { getCard } from "@/lib/cards/catalog";
-import { CardKind, ExecutiveSide, type DistrictId } from "@/lib/cards/schema";
+import { CardKind, type DistrictId, type PolicyIdValue } from "@/lib/cards/schema";
 import {
   apply,
   CONSTRUCT_COST,
+  convincedSenators,
+  convincedVotes,
   createGame,
   createSeededRng,
   currentActor,
-  FLAG_CAMPAIGNED,
-  canUseEmergencyState,
-  canUseLegalReview,
-  executiveBlockReason,
+  declarableVictories,
+  inactiveDecrees,
   legalActions,
-  legalReviewTargets,
   otherPlayer,
   Phase,
   playTargetDistrict,
+  policyTargets,
   printedDistrict,
   recruitBlockReason,
   constructBlockReason,
-  referendumBlockReason,
+  revealPasses,
   RECRUIT_COST,
-  REFERENDUM_COST,
-  REFERENDUM_SUPPORTER_MIN,
   SetupStep,
+  VictoryKind,
   type Action,
   type GameEvent,
   type GameState,
   type PlayerId,
   type Rng,
+  type Victory,
 } from "@/lib/game";
 
 type Session = {
@@ -48,7 +47,9 @@ type Session = {
   lastEvents: GameEvent[];
 };
 
-type SpendKind = "recruit" | "construct" | "referendum";
+type SpendKind = "recruit" | "construct" | "propose";
+
+type PolicyTarget = { district: DistrictId; policyId: PolicyIdValue | null };
 
 const START_OF_TURN = new Set<Action["type"]>([
   "playCivil",
@@ -56,16 +57,22 @@ const START_OF_TURN = new Set<Action["type"]>([
   "playConspiracy",
   "recruit",
   "construct",
-  "callReferendum",
   "endAction",
 ]);
+
+const DISTRICT_NAME: Record<DistrictId, string> = {
+  dragonara: "Dragonara",
+  horsard: "Horsard",
+  shavvinne: "Shavvinne",
+  smarbbit: "Smarbbit",
+};
 
 export function HotseatSession({ seed }: { seed: number }) {
   const [session, setSession] = useState<Session>(() => startSession(seed));
   const [seated, setSeated] = useState<PlayerId | null>(null);
   const [selectedHandIds, setSelectedHandIds] = useState<string[]>([]);
   const [spendKind, setSpendKind] = useState<SpendKind | null>(null);
-  const [legalReviewArmed, setLegalReviewArmed] = useState(false);
+  const [proposeTarget, setProposeTarget] = useState<PolicyTarget | null>(null);
 
   const { state } = session;
   const actor = currentActor(state);
@@ -79,12 +86,18 @@ export function HotseatSession({ seed }: { seed: number }) {
     [state, veiled, waitingFirstSeat, viewer],
   );
 
+  function resetSelection() {
+    setSelectedHandIds([]);
+    setSpendKind(null);
+    setProposeTarget(null);
+  }
+
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       setSelectedHandIds([]);
       setSpendKind(null);
-      setLegalReviewArmed(false);
+      setProposeTarget(null);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -92,9 +105,7 @@ export function HotseatSession({ seed }: { seed: number }) {
 
   function dispatch(action: Action) {
     const result = apply(session.state, action, session.rng);
-    setSelectedHandIds([]);
-    setSpendKind(null);
-    setLegalReviewArmed(false);
+    resetSelection();
     setSession({
       ...session,
       state: result.state,
@@ -104,6 +115,10 @@ export function HotseatSession({ seed }: { seed: number }) {
     });
   }
 
+  const hand = state.players[viewer].hand;
+  const inPolitics = state.phase === Phase.Politics;
+  const inAction = state.phase === Phase.Action;
+
   const playableHandIds = useMemo(() => {
     const ids = new Set<string>();
     for (const action of legal) {
@@ -111,7 +126,7 @@ export function HotseatSession({ seed }: { seed: number }) {
         action.type === "playCivil" ||
         action.type === "playAlliance" ||
         action.type === "playConspiracy" ||
-        action.type === "campaign"
+        action.type === "influenceSenate"
       ) {
         ids.add(action.instanceId);
       }
@@ -127,35 +142,40 @@ export function HotseatSession({ seed }: { seed: number }) {
     return ids;
   }, [legal]);
 
-  const hand = state.players[viewer].hand;
+  // --- Spending (recruit / construct) ---------------------------------------------
   const spendCost =
-    spendKind === "recruit"
-      ? RECRUIT_COST
-      : spendKind === "construct"
-        ? CONSTRUCT_COST
-        : spendKind === "referendum"
-          ? REFERENDUM_COST
-          : 0;
+    spendKind === "recruit" ? RECRUIT_COST : spendKind === "construct" ? CONSTRUCT_COST : 0;
   const selectedDistrict = districtOfSelection(hand, selectedHandIds);
   const spendReady =
-    spendKind !== null &&
+    (spendKind === "recruit" || spendKind === "construct") &&
     selectedHandIds.length === spendCost &&
     selectedDistrict !== null;
 
+  // --- Propose Policy ----------------------------------------------------------------
+  const revealedCardIds = selectedHandIds
+    .map((id) => hand.find((card) => card.instanceId === id)?.cardId)
+    .filter((id): id is string => Boolean(id));
+  const proposing = spendKind === "propose";
+  const revealPassing = proposing && revealedCardIds.length > 0 && revealPasses(state, revealedCardIds);
+  const convinced = proposing ? new Set(convincedSenators(state, revealedCardIds)) : undefined;
+  const revealVotes = proposing ? convincedVotes(state, revealedCardIds) : null;
+  const wholeHandPasses = hand.length > 0 && revealPasses(state, hand.map((card) => card.cardId));
+
   const selectableHandIds = useMemo(() => {
-    if (spendKind) {
+    if (spendKind === "recruit" || spendKind === "construct") {
       return spendSelectable(hand, selectedHandIds, spendCost);
     }
-    if (state.phase === Phase.Politics) return playableHandIds;
-    if (state.phase === Phase.Action) return playableHandIds;
+    if (spendKind === "propose") {
+      return proposeTarget ? new Set(selectedHandIds) : new Set(hand.map((card) => card.instanceId));
+    }
+    if (inPolitics || inAction) return playableHandIds;
     return new Set<string>();
-  }, [spendKind, hand, selectedHandIds, spendCost, state.phase, playableHandIds]);
+  }, [spendKind, hand, selectedHandIds, spendCost, proposeTarget, inPolitics, inAction, playableHandIds]);
 
-  const selectedCard = selectedHandIds.length === 1 ? hand.find((card) => card.instanceId === selectedHandIds[0]) : undefined;
+  const selectedCard =
+    selectedHandIds.length === 1 ? hand.find((card) => card.instanceId === selectedHandIds[0]) : undefined;
   const playDistrict =
-    !spendKind &&
-    state.phase === Phase.Action &&
-    selectedCard
+    !spendKind && inAction && selectedCard
       ? playTargetDistrict(state, viewer, selectedCard.instanceId)
       : null;
   const targetLabel =
@@ -167,11 +187,7 @@ export function HotseatSession({ seed }: { seed: number }) {
     const ids = new Set<string>();
     if (spendKind !== "construct" || !spendReady || !selectedDistrict) return ids;
     for (const action of legal) {
-      if (
-        action.type === "construct" &&
-        action.monumentInstanceId &&
-        sameIds(action.instanceIds, selectedHandIds)
-      ) {
+      if (action.type === "construct" && sameIds(action.instanceIds, selectedHandIds)) {
         ids.add(action.monumentInstanceId);
       }
     }
@@ -181,47 +197,28 @@ export function HotseatSession({ seed }: { seed: number }) {
   const canEndAction = legal.some((action) => action.type === "endAction");
   const recruitReason = recruitBlockReason(state, viewer);
   const constructReason = constructBlockReason(state, viewer);
-  const referendumReason = referendumBlockReason(state, viewer);
-  const campaignArmed =
-    state.phase === Phase.Politics &&
-    !state.flags[FLAG_CAMPAIGNED] &&
-    selectedHandIds.length === 1 &&
-    playableHandIds.has(selectedHandIds[0]!);
+  const declarable = inPolitics ? declarableVictories(state, viewer) : [];
+  const seatArmed = inPolitics && !spendKind && selectedCard !== undefined;
 
   const extraActions: ExtraAction[] = [];
-  const epReason = executiveBlockReason(state, viewer);
-  const holdsEp = state.executive?.owner === viewer;
-  const reviewTargets = legalReviewArmed ? legalReviewTargets(state) : [];
   if (spendKind) {
-    extraActions.push({
-      label: "Cancel",
-      onClick: () => {
-        setSpendKind(null);
-        setSelectedHandIds([]);
-      },
-    });
-    if (spendKind !== "construct" && spendReady) {
+    extraActions.push({ label: "Cancel", onClick: resetSelection });
+    if (spendKind === "recruit" && spendReady) {
       extraActions.push({
-        label: spendKind === "recruit" ? "Recruit" : "Call referendum",
-        onClick: () => {
-          if (spendKind === "recruit") {
-            dispatch({ type: "recruit", player: viewer, instanceIds: selectedHandIds });
-          } else {
-            dispatch({
-              type: "callReferendum",
-              player: viewer,
-              instanceIds: selectedHandIds,
-            });
-          }
-        },
+        label: "Recruit",
+        onClick: () => dispatch({ type: "recruit", player: viewer, instanceIds: selectedHandIds }),
       });
     }
-  } else if (legalReviewArmed) {
-    extraActions.push({
-      label: "Cancel",
-      onClick: () => setLegalReviewArmed(false),
-    });
-  } else if (state.phase === Phase.Action && !state.referendum) {
+    if (spendKind === "propose" && revealPassing && !proposeTarget) {
+      for (const target of policyTargets(state)) {
+        extraActions.push({
+          label: `${DISTRICT_NAME[target.district]} → ${policyName(target.policyId)}`,
+          title: "Change this district's policy, then pick a revealed card to discard",
+          onClick: () => setProposeTarget(target),
+        });
+      }
+    }
+  } else if (inAction) {
     extraActions.push({
       label: "Recruit",
       disabled: recruitReason !== null,
@@ -240,51 +237,36 @@ export function HotseatSession({ seed }: { seed: number }) {
         setSelectedHandIds([]);
       },
     });
-    extraActions.push({
-      label:
-        state.players[viewer].policySupporters.length < REFERENDUM_SUPPORTER_MIN
-          ? `Call referendum · ${state.players[viewer].policySupporters.length}/${REFERENDUM_SUPPORTER_MIN}`
-          : "Call referendum",
-      disabled: referendumReason !== null,
-      title: referendumReason ?? "Discard 2 cards of the same district, then resolve policies",
-      onClick: () => {
-        setSpendKind("referendum");
-        setSelectedHandIds([]);
-      },
-    });
     if (canEndAction) {
       extraActions.push({
         label: "No main action — continue",
         onClick: () => dispatch({ type: "endAction", player: viewer }),
       });
     }
-  } else if (state.phase === Phase.Politics) {
-    if (campaignArmed) {
+  } else if (inPolitics) {
+    if (seatArmed) {
       extraActions.push({
-        label: "Tuck as campaign",
-        onClick: () => {
-          const id = selectedHandIds[0];
-          if (!id) return;
-          dispatch({ type: "campaign", player: viewer, instanceId: id });
-        },
+        label: "Seat in the Senate",
+        title: "The rightmost Senator is discarded to your support pile",
+        onClick: () =>
+          dispatch({ type: "influenceSenate", player: viewer, instanceId: selectedCard.instanceId }),
       });
     }
-    if (holdsEp && state.executive?.side === ExecutiveSide.EmergencyState) {
+    extraActions.push({
+      label: "Propose policy",
+      disabled: !wholeHandPasses,
+      title: wholeHandPasses
+        ? "Reveal cards that convince more than half of the Senate"
+        : "Your hand can't convince more than half of the Senate",
+      onClick: () => {
+        setSpendKind("propose");
+        setSelectedHandIds([]);
+      },
+    });
+    for (const victory of declarable) {
       extraActions.push({
-        label: "Emergency State",
-        disabled: !canUseEmergencyState(state, viewer),
-        title:
-          epReason ??
-          "Enter the election phase. This turn’s income happens during the election.",
-        onClick: () => dispatch({ type: "useEmergencyState", player: viewer }),
-      });
-    }
-    if (holdsEp && state.executive?.side === ExecutiveSide.LegalReview) {
-      extraActions.push({
-        label: "Legal Review",
-        disabled: !canUseLegalReview(state, viewer),
-        title: epReason ?? "Set one district’s policy to Neutral",
-        onClick: () => setLegalReviewArmed(true),
+        label: `Declare ${victoryLabel(victory)}`,
+        onClick: () => dispatch({ type: "declareVictory", player: viewer, victory }),
       });
     }
     extraActions.push({
@@ -293,37 +275,38 @@ export function HotseatSession({ seed }: { seed: number }) {
     });
   }
 
-  const pendingReferendum = state.referendum?.awaitingChoice ? state.referendum : null;
-  const pendingDistrict = pendingReferendum
-    ? state.districtOrder[pendingReferendum.districtIndex]
-    : undefined;
-  const pendingElectionFirst = state.phase === Phase.ElectionStart;
-  const pendingExecutiveSide =
-    state.phase === Phase.ElectionEnd && !state.executive && !state.referendum;
+  const pendingDecrees = state.phase === Phase.DecreeChoice ? state.pendingDecrees : null;
 
   const interaction =
-    veiled ||
-    waitingFirstSeat ||
-    inSetup ||
-    state.victory ||
-    pendingReferendum ||
-    pendingElectionFirst ||
-    pendingExecutiveSide
+    veiled || waitingFirstSeat || inSetup || state.victory || pendingDecrees
       ? null
       : {
           playableHandIds: spendKind ? selectableHandIds : playableHandIds,
-          selectableHandIds:
-            spendKind ||
-            state.phase === Phase.Action ||
-            state.phase === Phase.Politics
-              ? selectableHandIds
-              : undefined,
+          selectableHandIds: spendKind || inAction || inPolitics ? selectableHandIds : undefined,
           selectedHandIds: new Set(selectedHandIds),
           onSelectHand: (instanceId: string) => {
-            if (spendKind) {
+            if (spendKind === "propose") {
+              if (proposeTarget) {
+                if (!selectedHandIds.includes(instanceId)) return;
+                dispatch({
+                  type: "proposePolicy",
+                  player: viewer,
+                  revealIds: selectedHandIds,
+                  discardId: instanceId,
+                  district: proposeTarget.district,
+                  policyId: proposeTarget.policyId,
+                });
+                return;
+              }
               setSelectedHandIds((current) =>
-                toggleSpend(hand, current, instanceId, spendCost),
+                current.includes(instanceId)
+                  ? current.filter((id) => id !== instanceId)
+                  : [...current, instanceId],
               );
+              return;
+            }
+            if (spendKind) {
+              setSelectedHandIds((current) => toggleSpend(hand, current, instanceId, spendCost));
               return;
             }
             setSelectedHandIds((current) =>
@@ -331,65 +314,27 @@ export function HotseatSession({ seed }: { seed: number }) {
             );
           },
           targetDistrict: playDistrict,
-          targetDistricts: legalReviewArmed ? new Set(reviewTargets) : undefined,
-          targetLabel: legalReviewArmed ? "Set Neutral" : targetLabel,
+          targetLabel,
           onSelectDistrict: (district: DistrictId) => {
-            if (legalReviewArmed) {
-              dispatch({ type: "useLegalReview", player: viewer, district });
-              return;
-            }
-            if (state.phase !== Phase.Action) return;
-            if (!selectedCard || playDistrict !== district) return;
+            if (!inAction || !selectedCard || playDistrict !== district) return;
             const kind = getCard(selectedCard.cardId).kind;
-            if (kind === CardKind.Civil) {
-              dispatch({ type: "playCivil", player: viewer, instanceId: selectedCard.instanceId });
-            } else if (kind === CardKind.Alliance) {
-              dispatch({
-                type: "playAlliance",
-                player: viewer,
-                instanceId: selectedCard.instanceId,
-              });
-            } else if (kind === CardKind.Conspiracy) {
-              dispatch({
-                type: "playConspiracy",
-                player: viewer,
-                instanceId: selectedCard.instanceId,
-              });
-            }
+            const instanceId = selectedCard.instanceId;
+            if (kind === CardKind.Civil) dispatch({ type: "playCivil", player: viewer, instanceId });
+            else if (kind === CardKind.Alliance) dispatch({ type: "playAlliance", player: viewer, instanceId });
+            else if (kind === CardKind.Conspiracy) dispatch({ type: "playConspiracy", player: viewer, instanceId });
           },
           takeableMarketIds,
-          onTakeMarket: (instanceId: string) => {
-            dispatch({ type: "takeMarket", player: viewer, instanceId });
-          },
+          onTakeMarket: (instanceId: string) => dispatch({ type: "takeMarket", player: viewer, instanceId }),
           claimableMonumentIds,
-          onClaimMonument: (instanceId: string) => {
+          onClaimMonument: (instanceId: string) =>
             dispatch({
               type: "construct",
               player: viewer,
               instanceIds: selectedHandIds,
               monumentInstanceId: instanceId,
-            });
-          },
-          campaignArmed,
-          onCampaign: () => {
-            const id = selectedHandIds[0];
-            if (!id) return;
-            dispatch({ type: "campaign", player: viewer, instanceId: id });
-          },
-          executivePlayable:
-            canUseEmergencyState(state, viewer) || canUseLegalReview(state, viewer),
-          executiveArmed: legalReviewArmed,
-          executiveTitle:
-            epReason ??
-            (state.executive?.side === ExecutiveSide.LegalReview
-              ? "Legal Review · set one district’s policy to Neutral"
-              : "Emergency State · enter the election phase"),
-          onSelectExecutive:
-            canUseEmergencyState(state, viewer)
-              ? () => dispatch({ type: "useEmergencyState", player: viewer })
-              : canUseLegalReview(state, viewer)
-                ? () => setLegalReviewArmed((armed) => !armed)
-                : undefined,
+            }),
+          convincedSenators: convinced,
+          revealVotes,
           prompt: turnPrompt(state, {
             spendKind,
             selectedCount: selectedHandIds.length,
@@ -397,8 +342,10 @@ export function HotseatSession({ seed }: { seed: number }) {
             spendReady,
             playDistrict,
             canEndAction,
-            campaignArmed,
-            legalReviewArmed,
+            seatArmed,
+            revealPassing,
+            proposeTarget,
+            declarable: declarable.length,
           }),
           extraActions,
         };
@@ -418,46 +365,13 @@ export function HotseatSession({ seed }: { seed: number }) {
       {veiled || waitingFirstSeat ? null : (
         <SetupOverlay state={state} viewer={viewer} onAction={dispatch} />
       )}
-      {pendingDistrict && pendingReferendum && !veiled && !waitingFirstSeat ? (
-        <PolicyChoice
-          district={pendingDistrict}
-          support={pendingReferendum.support}
-          chooserIsYou={viewer === pendingReferendum.chooser}
-          options={pendingReferendum.options}
-          onChoose={({ district, policyId }) =>
-            dispatch({
-              type: "choosePolicy",
-              player: viewer,
-              district,
-              policyId,
-            })
-          }
-        />
-      ) : null}
-      {pendingElectionFirst && !veiled && !waitingFirstSeat ? (
-        <ElectionChoice
-          kind="firstPlayer"
-          chooserIsYou={viewer === actor}
-          onChoose={(firstPlayer) =>
-            dispatch({
-              type: "chooseElectionFirst",
-              player: viewer,
-              firstPlayer,
-            })
-          }
-        />
-      ) : null}
-      {pendingExecutiveSide && !veiled && !waitingFirstSeat ? (
-        <ElectionChoice
-          kind="executiveSide"
-          chooserIsYou={viewer === state.election.lastWinner}
-          onChoose={(side) =>
-            dispatch({
-              type: "chooseExecutiveSide",
-              player: viewer,
-              side,
-            })
-          }
+      {pendingDecrees && !veiled && !waitingFirstSeat ? (
+        <DecreeChoice
+          winner={pendingDecrees.player}
+          chooserIsYou={viewer === pendingDecrees.player}
+          remaining={pendingDecrees.remaining}
+          options={inactiveDecrees(state)}
+          onChoose={(decreeId) => dispatch({ type: "activateDecree", player: viewer, decreeId })}
         />
       ) : null}
       {state.victory ? <GameOverOverlay victory={state.victory} /> : null}
@@ -476,6 +390,25 @@ export function HotseatSession({ seed }: { seed: number }) {
 function startSession(seed: number): Session {
   const rng = createSeededRng(seed);
   return { seed, rng, state: createGame(rng, { seed }), lastEvents: [] };
+}
+
+function policyName(policyId: PolicyIdValue | null): string {
+  return policyId ? getCard(policyId).name : "Neutral";
+}
+
+function victoryLabel(victory: Victory): string {
+  switch (victory.kind) {
+    case VictoryKind.Civil:
+      return "Civil Victory";
+    case VictoryKind.Political:
+      return "Political Victory";
+    case VictoryKind.Military:
+      return "Military Victory";
+    case VictoryKind.Popularity:
+      return `Popularity Victory${victory.district ? ` (${DISTRICT_NAME[victory.district]})` : ""}`;
+    case VictoryKind.Ideological:
+      return `Ideological Victory${victory.symbol ? ` (${victory.symbol})` : ""}`;
+  }
 }
 
 function sameIds(a: readonly string[], b: readonly string[]): boolean {
@@ -544,29 +477,31 @@ function turnPrompt(
     spendReady: boolean;
     playDistrict: DistrictId | null;
     canEndAction: boolean;
-    campaignArmed: boolean;
-    legalReviewArmed: boolean;
+    seatArmed: boolean;
+    revealPassing: boolean;
+    proposeTarget: PolicyTarget | null;
+    declarable: number;
   },
 ): string {
+  const election = state.election.active ? "Election · " : "";
   if (state.phase === Phase.Income) {
     return state.election.active
-      ? "Election income · take one market card (no refresh)"
+      ? "Election income · take one market card (the market does not refill)"
       : "Income · take one market card";
   }
-  if (opts.legalReviewArmed) {
-    return "Legal Review · choose a district with a policy";
+  if (opts.spendKind === "propose") {
+    if (opts.proposeTarget) {
+      return `Propose · click one revealed card to discard (sets ${DISTRICT_NAME[opts.proposeTarget.district]} to ${policyName(opts.proposeTarget.policyId)})`;
+    }
+    if (opts.revealPassing) return "Propose · majority convinced. Choose the policy change";
+    return opts.selectedCount === 0
+      ? "Propose · select cards to reveal: a higher civil of a Senator's district, or an alliance of its district"
+      : "Propose · reveal more cards to convince more than half of the votes";
   }
   if (state.phase === Phase.Politics) {
-    if (opts.campaignArmed) {
-      return "Politics · tuck onto your supporters pile, or Tuck as campaign";
-    }
-    if (canUseEmergencyState(state, state.activePlayer)) {
-      return "Politics · campaign, click Emergency State, or skip";
-    }
-    if (canUseLegalReview(state, state.activePlayer)) {
-      return "Politics · campaign, click Legal Review, or skip";
-    }
-    return "Politics · tuck one card as a campaign, or skip";
+    if (opts.seatArmed) return "Politics · seat the selected card in the Senate, or pick another";
+    const declare = opts.declarable > 0 ? ", declare a victory" : "";
+    return `${election}Politics · select a card to seat in the Senate, propose a policy${declare}, or skip`;
   }
   if (opts.spendKind === "recruit") {
     return opts.spendReady
@@ -578,19 +513,9 @@ function turnPrompt(
       ? "Construct · choose a matching monument"
       : `Construct · select ${opts.spendCost} cards of the same district (${opts.selectedCount}/${opts.spendCost})`;
   }
-  if (opts.spendKind === "referendum") {
-    return opts.spendReady
-      ? "Referendum · confirm 2 cards of the same district"
-      : `Referendum · select ${opts.spendCost} cards of the same district (${opts.selectedCount}/${opts.spendCost})`;
-  }
-  const election = state.election.active ? "Election · " : "";
-  if (opts.canEndAction) {
-    return `${election}Action · no legal main action`;
-  }
-  if (opts.playDistrict) {
-    return `${election}Action · play into the highlighted district`;
-  }
-  return `${election}Action · play a card, or choose recruit / construct / referendum`;
+  if (opts.canEndAction) return `${election}Action · no legal main action`;
+  if (opts.playDistrict) return `${election}Action · play into the highlighted district`;
+  return `${election}Action · play a card, or choose recruit / construct`;
 }
 
 function statusLine(state: GameState): string {
@@ -598,19 +523,10 @@ function statusLine(state: GameState): string {
   if (state.phase === Phase.Setup && state.setup?.step === SetupStep.ChooseParty) {
     return "Setup · choose party";
   }
-  if (
-    state.phase === Phase.Setup &&
-    state.setup?.step === SetupStep.ChooseStartingHand
-  ) {
+  if (state.phase === Phase.Setup && state.setup?.step === SetupStep.ChooseStartingHand) {
     return "Setup · starting cards";
   }
-  if (state.referendum?.awaitingChoice) {
-    return "Referendum · choose policy";
-  }
-  if (state.phase === Phase.ElectionStart) return "Election · choose who goes first";
-  if (state.phase === Phase.ElectionEnd && !state.executive) {
-    return "Election · choose executive power";
-  }
+  if (state.phase === Phase.DecreeChoice) return "Election · winner activates decrees";
   const prefix = state.election.active ? "Election · " : "";
   if (state.phase === Phase.Action) return `${prefix}Action · your turn`;
   if (state.phase === Phase.Politics) return `${prefix}Politics`;
@@ -619,24 +535,15 @@ function statusLine(state: GameState): string {
 }
 
 function gateHint(state: GameState, events: GameEvent[]): string {
-  if (state.referendum?.awaitingChoice) {
-    return `${playerLabel(state.referendum.chooser)} chooses the new district policy. Hands stay hidden.`;
-  }
-  if (state.phase === Phase.ElectionStart) {
-    return `${playerLabel(state.activePlayer)} chooses who takes the first turn of this election.`;
-  }
-  if (state.phase === Phase.ElectionEnd && !state.executive) {
-    return `${playerLabel(state.activePlayer)} won the election and chooses a side of Executive Power.`;
+  if (state.phase === Phase.DecreeChoice && state.pendingDecrees) {
+    return `${playerLabel(state.pendingDecrees.player)} won the election and activates ${state.pendingDecrees.remaining === 1 ? "a decree" : `${state.pendingDecrees.remaining} decrees`}.`;
   }
   if (state.phase === Phase.Setup && state.setup?.step === SetupStep.ChooseParty) {
     return state.activePlayer === 0
       ? "Choose one of the two parties dealt to you, then your starting cards."
       : "Choose one of the two parties dealt to you. You get all 4 listed starting cards.";
   }
-  if (
-    state.phase === Phase.Setup &&
-    state.setup?.step === SetupStep.ChooseStartingHand
-  ) {
+  if (state.phase === Phase.Setup && state.setup?.step === SetupStep.ChooseStartingHand) {
     return `${playerLabel(state.activePlayer)} takes 3 of 4 starting cards. ${playerLabel(otherPlayer(state.activePlayer))} gets all 4.`;
   }
 
@@ -647,22 +554,17 @@ function gateHint(state: GameState, events: GameEvent[]): string {
     if (event.type === "conspiracyPlayed") bits.push(`Played conspiracy ${getCard(event.cardId).name}.`);
     if (event.type === "partisansRecruited") bits.push("Recruited a partisan.");
     if (event.type === "monumentConstructed") bits.push(`Constructed ${getCard(event.cardId).name}.`);
-    if (event.type === "campaignTucked") bits.push("Tucked a policy supporter.");
-    if (event.type === "policyChanged") {
-      bits.push(
-        event.policyId
-          ? `Set policy to ${getCard(event.policyId).name}.`
-          : "Set a district to Neutral.",
-      );
+    if (event.type === "senateInfluenced") {
+      bits.push(`Seated ${getCard(event.seatedCardId).name} in the Senate.`);
     }
+    if (event.type === "policyProposed") bits.push("Proposed a policy.");
+    if (event.type === "policyChanged") bits.push(`Set ${DISTRICT_NAME[event.district]} to ${policyName(event.policyId)}.`);
     if (event.type === "marketTaken") bits.push(`Took ${getCard(event.cardId).name} from the market.`);
     if (event.type === "cardDrawn") bits.push("Drew from the deck.");
-    if (event.type === "electionSetAside") bits.push("A general election was set aside.");
-    if (event.type === "electionTriggered") bits.push("An election will start after this turn.");
-    if (event.type === "electionStarted") bits.push("An election has begun.");
+    if (event.type === "electionSetAside") bits.push("A general election was revealed.");
+    if (event.type === "electionStarted") bits.push("An election phase has begun: the market is 8 and won't refill.");
     if (event.type === "electionWon") bits.push(`${playerLabel(event.player)} won the election.`);
-    if (event.type === "emergencyStateUsed") bits.push("Emergency State called an election.");
-    if (event.type === "legalReviewUsed") bits.push("Legal Review set a district to Neutral.");
+    if (event.type === "decreeActivated") bits.push(`${getCard(event.decreeId).name} is now active.`);
   }
   bits.push("Your turn is over. Pass the device.");
   return bits.join(" ");
