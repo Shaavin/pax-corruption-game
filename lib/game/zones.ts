@@ -1,12 +1,12 @@
 import { DISTRICTS, type DistrictId } from "../cards/schema.ts";
-import type { CardInstance, LastTurn, PlayerId, PlayerState } from "./types.ts";
+import type { CardInstance, PlayerId, PlayerState, TurnState } from "./types.ts";
 
 export function otherPlayer(player: PlayerId): PlayerId {
   return player === 0 ? 1 : 0;
 }
 
-export function emptyTurn(): LastTurn {
-  return { discarded: false, addedSupport: false, player: null };
+export function emptyTurn(): TurnState {
+  return { constructedMonument: false };
 }
 
 export function emptyByDistrict<T>(make: () => T): Record<DistrictId, T> {
@@ -21,14 +21,13 @@ export function createEmptyPlayer(): PlayerState {
     hand: [],
     tableau: emptyByDistrict(() => []),
     support: emptyByDistrict(() => []),
-    policySupporters: [],
     consultativeOffice: [],
+    planetNextBank: [],
     partyId: null,
     monuments: [],
     partisans: 0,
     handLimit: 5,
     electionWins: 0,
-    consecutiveWins: 0,
   };
 }
 

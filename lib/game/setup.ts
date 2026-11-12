@@ -6,7 +6,9 @@ import {
   PARTIES,
 } from "../cards/catalog.ts";
 import { CardKind, DISTRICTS, type PartyIdValue } from "../cards/schema.ts";
+import { initialDecrees } from "./decrees.ts";
 import { createEmptyElection } from "./election.ts";
+import { SENATE_SIZE } from "./senate.ts";
 import type { Rng } from "./rng.ts";
 import {
   GameMode,
@@ -25,14 +27,17 @@ import {
   otherPlayer,
 } from "./zones.ts";
 
-/** Printed Standard A–E. `cards` is non-GE count; elections are inserted as the mode table says. */
+/** Printed Standard A–E. `cards` is non-GE count; elections are shuffled in (`X & Y`). */
 export const STANDARD_DRAW_PLAN = [
   { name: "A", cards: 5, elections: 0 },
   { name: "B", cards: 9, elections: 1 },
   { name: "C", cards: 24, elections: 1 },
   { name: "D", cards: 44, elections: 2 },
-  { name: "E", cards: 10, elections: 0 },
+  { name: "E", cards: 5, elections: 0 },
 ] as const;
+
+/** 104 non-election − 7 starting − 5 Senate − 5 Market. */
+export const PILE_CARD_COUNT = 87;
 
 export type DrawPileSlice = {
   name: string;
@@ -84,22 +89,21 @@ export function createGame(rng: Rng, options: { seed: number }): GameState {
     },
     activePlayer: 0,
     firstPlayer: null,
-    electionTriggerer: null,
     election: createEmptyElection(),
     players: [createEmptyPlayer(), createEmptyPlayer()],
     districtOrder,
     policy: emptyByDistrict(() => null),
+    senate: [],
     market: [],
     deck: [],
     availableMonuments: [],
     monumentDeck: [],
+    decrees: initialDecrees(),
     electionsOut: [],
     unusedParties: [],
-    executive: null,
-    lastTurn: emptyTurn(),
-    currentTurn: emptyTurn(),
+    turn: emptyTurn(),
     flags: {},
-    referendum: null,
+    pendingDecrees: null,
     victory: null,
   };
 }
@@ -208,14 +212,21 @@ export function finishSetup(state: GameState, rng: Rng): GameEvent[] {
     throw new Error(`Expected 97 non-election cards after starting hands, got ${remaining.length}`);
   }
 
-  const market = remaining.slice(0, 5).map((card) => ({ ...card, faceUp: true }));
-  const pileCards = remaining.slice(5);
-  if (pileCards.length !== 92) {
-    throw new Error(`Expected 92 pile cards, got ${pileCards.length}`);
+  const senate = remaining
+    .slice(0, SENATE_SIZE)
+    .map((card) => ({ ...card, faceUp: true }));
+  const market = remaining
+    .slice(SENATE_SIZE, SENATE_SIZE + 5)
+    .map((card) => ({ ...card, faceUp: true }));
+  const pileCards = remaining.slice(SENATE_SIZE + 5);
+  if (pileCards.length !== PILE_CARD_COUNT) {
+    throw new Error(`Expected ${PILE_CARD_COUNT} pile cards, got ${pileCards.length}`);
   }
 
+  state.senate = senate;
   state.market = market;
   state.deck = buildStandardDrawDeck(pileCards, setup.electionCards, rng);
+  events.push({ type: "senateDealt", cardIds: senate.map((card) => card.cardId) });
   events.push({
     type: "marketDealt",
     cardIds: market.map((card) => card.cardId),
@@ -267,8 +278,8 @@ export function buildStandardDrawDeck(
   elections: CardInstance[],
   rng: Rng,
 ): CardInstance[] {
-  if (pileCards.length !== 92) {
-    throw new Error(`Standard piles need 92 cards, got ${pileCards.length}`);
+  if (pileCards.length !== PILE_CARD_COUNT) {
+    throw new Error(`Standard piles need ${PILE_CARD_COUNT} cards, got ${pileCards.length}`);
   }
   if (elections.length !== 4) {
     throw new Error(`Standard piles need 4 general elections, got ${elections.length}`);
@@ -291,7 +302,7 @@ export function buildStandardDrawDeck(
   const B = rng.shuffle([...take(9), ...takeGE(1)]);
   const C = rng.shuffle([...take(24), ...takeGE(1)]);
   const D = rng.shuffle([...take(44), ...takeGE(2)]);
-  const E = take(10);
+  const E = take(5);
 
   if (cards.length !== 0 || ges.length !== 0) {
     throw new Error("Standard pile construction leftover cards");

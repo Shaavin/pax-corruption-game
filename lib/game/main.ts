@@ -3,11 +3,8 @@ import { CardKind, DISTRICTS, type DistrictId } from "../cards/schema.ts";
 import type { CardInstance, GameState, PlayerId } from "./types.ts";
 
 export const DEFAULT_ALLIANCE_LIMIT = 1;
-export const REFERENDUM_SUPPORTER_MIN = 3;
 export const RECRUIT_COST = 3;
 export const CONSTRUCT_COST = 5;
-export const REFERENDUM_COST = 2;
-export const FLAG_CAMPAIGNED = "campaigned";
 
 export function printedDistrict(cardId: string): DistrictId {
   const def = getCard(cardId);
@@ -25,11 +22,6 @@ export function printedDistrict(cardId: string): DistrictId {
 
 export function landingDistrict(card: CardInstance): DistrictId {
   return card.occupiedDistrict ?? printedDistrict(card.cardId);
-}
-
-export function policySupportValue(cardId: string): number {
-  const def = getCard(cardId);
-  return def.kind === CardKind.Alliance ? 2 : 1;
 }
 
 export function allianceCount(state: GameState, player: PlayerId, district: DistrictId): number {
@@ -120,11 +112,22 @@ export function sameDistrictCount(
   );
 }
 
+/** Rulebook: recruiting needs a card you already discarded in that district. */
+export function canRecruitIn(state: GameState, player: PlayerId, district: DistrictId): boolean {
+  return state.players[player].support[district].length > 0;
+}
+
 export function recruitBlockReason(state: GameState, player: PlayerId): string | null {
+  const ready = DISTRICTS.some(
+    (district) =>
+      handCardsInDistrict(state, player, district).length >= RECRUIT_COST &&
+      canRecruitIn(state, player, district),
+  );
+  if (ready) return null;
   if (!sameDistrictCount(state, player, RECRUIT_COST)) {
     return `Discard ${RECRUIT_COST} cards of the same district from hand`;
   }
-  return null;
+  return "Needs a card in your support pile for that district";
 }
 
 export function constructBlockReason(state: GameState, player: PlayerId): string | null {
@@ -139,15 +142,4 @@ export function constructBlockReason(state: GameState, player: PlayerId): string
     return `Discard ${CONSTRUCT_COST} cards of the same district from hand`;
   }
   return "Need an available monument of that district";
-}
-
-export function referendumBlockReason(state: GameState, player: PlayerId): string | null {
-  const tucked = state.players[player].policySupporters.length;
-  if (tucked < REFERENDUM_SUPPORTER_MIN) {
-    return `Need ${REFERENDUM_SUPPORTER_MIN}+ of your own policy supporters (you have ${tucked})`;
-  }
-  if (!sameDistrictCount(state, player, REFERENDUM_COST)) {
-    return `Discard ${REFERENDUM_COST} cards of the same district from hand`;
-  }
-  return null;
 }

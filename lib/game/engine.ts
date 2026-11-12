@@ -2,20 +2,12 @@ import { getCard } from "../cards/catalog.ts";
 import {
   CardKind,
   DISTRICTS,
-  ExecutiveSide,
   type DistrictId,
   type PartyIdValue,
 } from "../cards/schema.ts";
+import { inactiveDecrees } from "./decrees.ts";
 import { discardCards, discardOwn, gameIsOver } from "./discard.ts";
-import {
-  applyChooseElectionFirst,
-  applyChooseExecutiveSide,
-  applyEmergencyState,
-  applyLegalReview,
-  canUseEmergencyState,
-  canUseLegalReview,
-  legalReviewTargets,
-} from "./election.ts";
+import { activateDecree } from "./election.ts";
 import {
   afterMainAction,
   beginIncome,
@@ -23,19 +15,24 @@ import {
   underHandLimit,
 } from "./income.ts";
 import {
-  FLAG_CAMPAIGNED,
   RECRUIT_COST,
   CONSTRUCT_COST,
-  REFERENDUM_COST,
-  REFERENDUM_SUPPORTER_MIN,
   canPlayAlliance,
+  canRecruitIn,
   combinations,
   handCardsInDistrict,
   printedDistrict,
   takeSpend,
 } from "./main.ts";
-import { applyPolicyChoice, startReferendum } from "./referendum.ts";
 import type { Rng } from "./rng.ts";
+import {
+  convincedVotes,
+  influenceSenate,
+  policyOptions,
+  policyTargets,
+  revealPasses,
+  senateTotalVotes,
+} from "./senate.ts";
 import {
   dealStartingOffer,
   finishSetup,
@@ -44,32 +41,28 @@ import {
 } from "./setup.ts";
 import {
   Phase,
-  ReferendumSource,
   SetupStep,
   type Action,
+  type ActivateDecreeAction,
   type ApplyResult,
-  type CallReferendumAction,
-  type CampaignAction,
-  type ChooseElectionFirstAction,
-  type ChooseExecutiveSideAction,
   type ChoosePartyAction,
-  type ChoosePolicyAction,
   type ChooseStartingHandAction,
   type ConstructAction,
+  type DeclareVictoryAction,
   type EndActionAction,
   type EndPoliticsAction,
   type GameEvent,
   type GameState,
+  type InfluenceSenateAction,
   type PlayAllianceAction,
   type PlayCivilAction,
   type PlayConspiracyAction,
   type PlayerId,
+  type ProposePolicyAction,
   type RecruitAction,
   type TakeMarketAction,
-  type UseEmergencyStateAction,
-  type UseLegalReviewAction,
 } from "./types.ts";
-import { resolveVictory } from "./victory.ts";
+import { declarableVictories, endGame, sameVictory } from "./victory.ts";
 import { cloneState, sameIdSet, takeInstance } from "./zones.ts";
 
 export class IllegalActionError extends Error {
@@ -80,7 +73,6 @@ export class IllegalActionError extends Error {
 }
 
 export function currentActor(state: GameState): PlayerId {
-  if (state.referendum?.awaitingChoice) return state.referendum.chooser;
   return state.activePlayer;
 }
 
@@ -107,22 +99,16 @@ export function apply(state: GameState, action: Action, rng: Rng): ApplyResult {
       return { state: next, events: applyRecruit(next, action) };
     case "construct":
       return { state: next, events: applyConstruct(next, action, rng) };
-    case "callReferendum":
-      return { state: next, events: applyCallReferendum(next, action) };
-    case "choosePolicy":
-      return { state: next, events: applyChoosePolicyAction(next, action) };
-    case "campaign":
-      return { state: next, events: applyCampaign(next, action) };
+    case "influenceSenate":
+      return { state: next, events: applyInfluenceSenate(next, action) };
+    case "proposePolicy":
+      return { state: next, events: applyProposePolicy(next, action) };
+    case "declareVictory":
+      return { state: next, events: applyDeclareVictory(next, action) };
     case "endPolitics":
       return { state: next, events: applyEndPolitics(next, action) };
-    case "useEmergencyState":
-      return { state: next, events: applyUseEmergencyState(next, action) };
-    case "useLegalReview":
-      return { state: next, events: applyUseLegalReview(next, action) };
-    case "chooseElectionFirst":
-      return { state: next, events: applyChooseElectionFirstAction(next, action) };
-    case "chooseExecutiveSide":
-      return { state: next, events: applyChooseExecutiveSideAction(next, action) };
+    case "activateDecree":
+      return { state: next, events: applyActivateDecree(next, action) };
     case "endAction":
       return { state: next, events: applyEndAction(next, action) };
     case "takeMarket":
@@ -136,19 +122,6 @@ export function apply(state: GameState, action: Action, rng: Rng): ApplyResult {
 
 export function legalActions(state: GameState, viewer: PlayerId): Action[] {
   if (gameIsOver(state)) return [];
-
-  if (state.referendum?.awaitingChoice) {
-    if (viewer !== state.referendum.chooser) return [];
-    const district = state.districtOrder[state.referendum.districtIndex];
-    if (!district) return [];
-    return state.referendum.options.map((policyId) => ({
-      type: "choosePolicy" as const,
-      player: viewer,
-      district,
-      policyId,
-    }));
-  }
-
   if (state.activePlayer !== viewer) return [];
 
   if (state.phase === Phase.Setup && state.setup) {
@@ -177,49 +150,15 @@ export function legalActions(state: GameState, viewer: PlayerId): Action[] {
   }
 
   if (state.phase === Phase.Politics) {
-    const actions: Action[] = [];
-    if (!state.flags[FLAG_CAMPAIGNED]) {
-      for (const card of state.players[viewer].hand) {
-        actions.push({
-          type: "campaign",
-          player: viewer,
-          instanceId: card.instanceId,
-        });
-      }
-    }
-    if (canUseEmergencyState(state, viewer)) {
-      actions.push({ type: "useEmergencyState", player: viewer });
-    }
-    if (canUseLegalReview(state, viewer)) {
-      for (const district of legalReviewTargets(state)) {
-        actions.push({ type: "useLegalReview", player: viewer, district });
-      }
-    }
-    actions.push({ type: "endPolitics", player: viewer });
-    return actions;
+    return politicsActions(state, viewer);
   }
 
-  if (state.phase === Phase.ElectionStart) {
-    return ( [0, 1] as const ).map((firstPlayer) => ({
-      type: "chooseElectionFirst" as const,
+  if (state.phase === Phase.DecreeChoice && state.pendingDecrees?.player === viewer) {
+    return inactiveDecrees(state).map((decreeId) => ({
+      type: "activateDecree" as const,
       player: viewer,
-      firstPlayer,
+      decreeId,
     }));
-  }
-
-  if (state.phase === Phase.ElectionEnd && !state.executive && !state.referendum) {
-    return [
-      {
-        type: "chooseExecutiveSide" as const,
-        player: viewer,
-        side: ExecutiveSide.EmergencyState,
-      },
-      {
-        type: "chooseExecutiveSide" as const,
-        player: viewer,
-        side: ExecutiveSide.LegalReview,
-      },
-    ];
   }
 
   if (state.phase === Phase.Income) {
@@ -271,8 +210,10 @@ function mainActions(state: GameState, viewer: PlayerId): Action[] {
   for (const district of DISTRICTS) {
     const cards = handCardsInDistrict(state, viewer, district);
     const ids = cards.map((card) => card.instanceId);
-    for (const combo of combinations(ids, RECRUIT_COST)) {
-      actions.push({ type: "recruit", player: viewer, instanceIds: combo });
+    if (canRecruitIn(state, viewer, district)) {
+      for (const combo of combinations(ids, RECRUIT_COST)) {
+        actions.push({ type: "recruit", player: viewer, instanceIds: combo });
+      }
     }
     const monuments = state.availableMonuments.filter(
       (entry) => printedDistrict(entry.cardId) === district,
@@ -289,17 +230,45 @@ function mainActions(state: GameState, viewer: PlayerId): Action[] {
         }
       }
     }
-    if (seat.policySupporters.length >= REFERENDUM_SUPPORTER_MIN) {
-      for (const combo of combinations(ids, REFERENDUM_COST)) {
+  }
+
+  return actions;
+}
+
+/**
+ * Politics step: exactly one of Influence Senate, Propose Policy, or Declare
+ * Victory, or pass. Proposals are listed with the whole hand revealed (the
+ * engine accepts any passing subset); the UI builds its own reveal set.
+ */
+function politicsActions(state: GameState, viewer: PlayerId): Action[] {
+  const actions: Action[] = [];
+  const hand = state.players[viewer].hand;
+
+  for (const card of hand) {
+    actions.push({ type: "influenceSenate", player: viewer, instanceId: card.instanceId });
+  }
+
+  const revealIds = hand.map((card) => card.instanceId);
+  if (revealPasses(state, hand.map((card) => card.cardId))) {
+    for (const target of policyTargets(state)) {
+      for (const discardId of revealIds) {
         actions.push({
-          type: "callReferendum",
+          type: "proposePolicy",
           player: viewer,
-          instanceIds: combo,
+          revealIds,
+          discardId,
+          district: target.district,
+          policyId: target.policyId,
         });
       }
     }
   }
 
+  for (const victory of declarableVictories(state, viewer)) {
+    actions.push({ type: "declareVictory", player: viewer, victory });
+  }
+
+  actions.push({ type: "endPolitics", player: viewer });
   return actions;
 }
 
@@ -497,7 +466,7 @@ function applyPlayConspiracy(
   ];
   discardCards(state, action.player, wiped, events);
   discardOwn(state, action.player, [card], events);
-  if (!gameIsOver(state)) afterMainAction(state, events);
+  afterMainAction(state, events);
   return events;
 }
 
@@ -506,17 +475,21 @@ function applyRecruit(state: GameState, action: RecruitAction): GameEvent[] {
   requireActor(state, action.player);
   const seat = state.players[action.player];
   const spent = requireSpend(seat.hand, action.instanceIds, RECRUIT_COST);
+  if (!canRecruitIn(state, action.player, spent.district)) {
+    for (const card of spent.cards) seat.hand.push(card);
+    throw new IllegalActionError(
+      "Recruiting needs a card already in your support pile for that district",
+    );
+  }
   const events: GameEvent[] = [];
   discardOwn(state, action.player, spent.cards, events);
-  if (gameIsOver(state)) return events;
   seat.partisans += 1;
   events.push({
     type: "partisansRecruited",
     player: action.player,
     count: seat.partisans,
   });
-  resolveVictory(state, events);
-  if (!gameIsOver(state)) afterMainAction(state, events);
+  afterMainAction(state, events);
   return events;
 }
 
@@ -555,7 +528,8 @@ function applyConstruct(
   ];
   replenishMonuments(state, rng, events);
   discardOwn(state, action.player, spent.cards, events);
-  if (!gameIsOver(state)) afterMainAction(state, events);
+  state.turn.constructedMonument = true;
+  afterMainAction(state, events);
   return events;
 }
 
@@ -567,73 +541,83 @@ function replenishMonuments(state: GameState, rng: Rng, events: GameEvent[]): vo
   events.push({ type: "monumentReplenished", cardId: next.cardId });
 }
 
-function applyCallReferendum(
-  state: GameState,
-  action: CallReferendumAction,
-): GameEvent[] {
-  requirePhase(state, Phase.Action);
-  requireActor(state, action.player);
-  const seat = state.players[action.player];
-  if (seat.policySupporters.length < REFERENDUM_SUPPORTER_MIN) {
-    throw new IllegalActionError("Need at least 3 policy supporters to call a referendum");
-  }
-  const spent = requireSpend(seat.hand, action.instanceIds, REFERENDUM_COST);
-  const events: GameEvent[] = [];
-  discardOwn(state, action.player, spent.cards, events);
-  if (gameIsOver(state)) return events;
-  startReferendum(state, events);
-  return events;
-}
-
-function applyChoosePolicyAction(
-  state: GameState,
-  action: ChoosePolicyAction,
-): GameEvent[] {
-  const events: GameEvent[] = [];
-  try {
-    applyPolicyChoice(state, action.player, action.district, action.policyId, events);
-  } catch (error) {
-    throw new IllegalActionError(
-      error instanceof Error ? error.message : "Illegal policy choice",
-    );
-  }
-  return events;
-}
-
-function applyCampaign(state: GameState, action: CampaignAction): GameEvent[] {
+function applyInfluenceSenate(state: GameState, action: InfluenceSenateAction): GameEvent[] {
   requirePhase(state, Phase.Politics);
   requireActor(state, action.player);
-  if (state.flags[FLAG_CAMPAIGNED]) {
-    throw new IllegalActionError("You already campaigned this turn");
-  }
   const seat = state.players[action.player];
   if (!seat.hand.some((card) => card.instanceId === action.instanceId)) {
     throw new IllegalActionError("That card is not in your hand");
   }
   const card = takeInstance(seat.hand, action.instanceId);
-  seat.policySupporters.push({ ...card, faceUp: false });
-  state.flags[FLAG_CAMPAIGNED] = true;
-  state.currentTurn.discarded = true;
-  const events: GameEvent[] = [
-    {
-      type: "campaignTucked",
-      player: action.player,
-      instanceId: card.instanceId,
-      cardId: card.cardId,
-    },
-  ];
-  // Campaign is once per turn. Emergency State can still share this step.
-  if (!furtherPoliticsAvailable(state, action.player)) {
-    beginIncome(state, events);
-  }
+  const events: GameEvent[] = [];
+  influenceSenate(state, action.player, card, events);
+  beginIncome(state, events);
   return events;
 }
 
-function furtherPoliticsAvailable(state: GameState, player: PlayerId): boolean {
-  if (!state.flags[FLAG_CAMPAIGNED] && state.players[player].hand.length > 0) {
-    return true;
+function applyProposePolicy(state: GameState, action: ProposePolicyAction): GameEvent[] {
+  requirePhase(state, Phase.Politics);
+  requireActor(state, action.player);
+  const seat = state.players[action.player];
+  const revealIds = action.revealIds;
+  if (revealIds.length === 0 || new Set(revealIds).size !== revealIds.length) {
+    throw new IllegalActionError("Reveal one or more distinct cards");
   }
-  return canUseEmergencyState(state, player) || canUseLegalReview(state, player);
+  const revealed = revealIds.map((id) => {
+    const card = seat.hand.find((entry) => entry.instanceId === id);
+    if (!card) throw new IllegalActionError("Revealed cards must come from your hand");
+    return card;
+  });
+  if (!revealIds.includes(action.discardId)) {
+    throw new IllegalActionError("The discarded card must be one of the revealed cards");
+  }
+  const revealedCardIds = revealed.map((card) => card.cardId);
+  if (!revealPasses(state, revealedCardIds)) {
+    throw new IllegalActionError("Those cards do not convince more than half of the Senate");
+  }
+  if (!state.districtOrder.includes(action.district)) {
+    throw new IllegalActionError("Unknown district");
+  }
+  if (!policyOptions(state, action.district).includes(action.policyId)) {
+    throw new IllegalActionError(
+      "Policies move from neutral to a side, or from a side back to neutral",
+    );
+  }
+
+  const events: GameEvent[] = [
+    {
+      type: "policyProposed",
+      player: action.player,
+      revealedCardIds,
+      votes: convincedVotes(state, revealedCardIds),
+      totalVotes: senateTotalVotes(state),
+    },
+  ];
+  const discarded = takeInstance(seat.hand, action.discardId);
+  discardOwn(state, action.player, [discarded], events);
+  state.policy[action.district] = action.policyId;
+  events.push({
+    type: "policyChanged",
+    district: action.district,
+    policyId: action.policyId,
+    player: action.player,
+  });
+  beginIncome(state, events);
+  return events;
+}
+
+function applyDeclareVictory(state: GameState, action: DeclareVictoryAction): GameEvent[] {
+  requirePhase(state, Phase.Politics);
+  requireActor(state, action.player);
+  const legal = declarableVictories(state, action.player).find((victory) =>
+    sameVictory(victory, action.victory),
+  );
+  if (!legal) {
+    throw new IllegalActionError("That victory cannot be declared now");
+  }
+  const events: GameEvent[] = [];
+  endGame(state, legal, events);
+  return events;
 }
 
 function applyEndPolitics(state: GameState, action: EndPoliticsAction): GameEvent[] {
@@ -644,79 +628,16 @@ function applyEndPolitics(state: GameState, action: EndPoliticsAction): GameEven
   return events;
 }
 
-function applyUseEmergencyState(
-  state: GameState,
-  action: UseEmergencyStateAction,
-): GameEvent[] {
-  requirePhase(state, Phase.Politics);
+function applyActivateDecree(state: GameState, action: ActivateDecreeAction): GameEvent[] {
+  requirePhase(state, Phase.DecreeChoice);
   requireActor(state, action.player);
   const events: GameEvent[] = [];
   try {
-    applyEmergencyState(state, action.player, events);
+    activateDecree(state, action.player, action.decreeId, events);
   } catch (error) {
     throw new IllegalActionError(
-      error instanceof Error ? error.message : "Emergency State is not legal",
+      error instanceof Error ? error.message : "Illegal decree activation",
     );
-  }
-  if (!furtherPoliticsAvailable(state, action.player)) {
-    beginIncome(state, events);
-  }
-  return events;
-}
-
-function applyUseLegalReview(
-  state: GameState,
-  action: UseLegalReviewAction,
-): GameEvent[] {
-  requirePhase(state, Phase.Politics);
-  requireActor(state, action.player);
-  const events: GameEvent[] = [];
-  try {
-    applyLegalReview(state, action.player, action.district, events);
-  } catch (error) {
-    throw new IllegalActionError(
-      error instanceof Error ? error.message : "Legal Review is not legal",
-    );
-  }
-  if (!gameIsOver(state) && !furtherPoliticsAvailable(state, action.player)) {
-    beginIncome(state, events);
-  }
-  return events;
-}
-
-function applyChooseElectionFirstAction(
-  state: GameState,
-  action: ChooseElectionFirstAction,
-): GameEvent[] {
-  requirePhase(state, Phase.ElectionStart);
-  requireActor(state, action.player);
-  const events: GameEvent[] = [];
-  try {
-    applyChooseElectionFirst(state, action.player, action.firstPlayer, events);
-  } catch (error) {
-    throw new IllegalActionError(
-      error instanceof Error ? error.message : "Illegal election first-player choice",
-    );
-  }
-  return events;
-}
-
-function applyChooseExecutiveSideAction(
-  state: GameState,
-  action: ChooseExecutiveSideAction,
-): GameEvent[] {
-  requirePhase(state, Phase.ElectionEnd);
-  requireActor(state, action.player);
-  const events: GameEvent[] = [];
-  try {
-    applyChooseExecutiveSide(state, action.player, action.side, events);
-  } catch (error) {
-    throw new IllegalActionError(
-      error instanceof Error ? error.message : "Illegal executive-side choice",
-    );
-  }
-  if (!gameIsOver(state)) {
-    startReferendum(state, events, ReferendumSource.Election);
   }
   return events;
 }
@@ -798,30 +719,28 @@ function actionsEqual(a: Action, b: Action): boolean {
       a.monumentInstanceId === b.monumentInstanceId
     );
   }
-  if (a.type === "callReferendum" && b.type === "callReferendum") {
-    return sameIdSet(a.instanceIds, b.instanceIds);
-  }
-  if (a.type === "choosePolicy" && b.type === "choosePolicy") {
-    return a.district === b.district && a.policyId === b.policyId;
-  }
-  if (a.type === "campaign" && b.type === "campaign") {
+  if (a.type === "influenceSenate" && b.type === "influenceSenate") {
     return a.instanceId === b.instanceId;
+  }
+  if (a.type === "proposePolicy" && b.type === "proposePolicy") {
+    return (
+      sameIdSet(a.revealIds, b.revealIds) &&
+      a.discardId === b.discardId &&
+      a.district === b.district &&
+      a.policyId === b.policyId
+    );
+  }
+  if (a.type === "declareVictory" && b.type === "declareVictory") {
+    return sameVictory(a.victory, b.victory);
+  }
+  if (a.type === "activateDecree" && b.type === "activateDecree") {
+    return a.decreeId === b.decreeId;
   }
   if (a.type === "takeMarket" && b.type === "takeMarket") {
     return a.instanceId === b.instanceId;
   }
   if (a.type === "endAction" && b.type === "endAction") return true;
   if (a.type === "endPolitics" && b.type === "endPolitics") return true;
-  if (a.type === "useEmergencyState" && b.type === "useEmergencyState") return true;
-  if (a.type === "useLegalReview" && b.type === "useLegalReview") {
-    return a.district === b.district;
-  }
-  if (a.type === "chooseElectionFirst" && b.type === "chooseElectionFirst") {
-    return a.firstPlayer === b.firstPlayer;
-  }
-  if (a.type === "chooseExecutiveSide" && b.type === "chooseExecutiveSide") {
-    return a.side === b.side;
-  }
   return false;
 }
 

@@ -1,14 +1,16 @@
 import { landingDistrict } from "./main.ts";
 import { Phase, type CardInstance, type GameEvent, type GameState, type PlayerId } from "./types.ts";
-import { resolveVictory } from "./victory.ts";
 
+/**
+ * Move cards to support piles. Victories are declared, never automatic, so
+ * discarding never ends the game by itself.
+ */
 export function discardCards(
   state: GameState,
   discarder: PlayerId,
   entries: readonly { card: CardInstance; owner: PlayerId }[],
   events: GameEvent[],
 ): void {
-  if (entries.length === 0) return;
   for (const { card, owner } of entries) {
     const district = landingDistrict(card);
     const placed = { ...card, faceUp: true, occupiedDistrict: district };
@@ -22,9 +24,6 @@ export function discardCards(
       pileOwner: owner,
     });
   }
-  state.currentTurn.discarded = true;
-  state.currentTurn.addedSupport = true;
-  resolveVictory(state, events);
 }
 
 export function discardOwn(

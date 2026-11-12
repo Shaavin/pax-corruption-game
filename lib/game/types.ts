@@ -1,6 +1,6 @@
 import type {
+  DecreeIdValue,
   DistrictId,
-  ExecutiveSideId,
   PartyIdValue,
   PolicyIdValue,
   SymbolId,
@@ -19,8 +19,8 @@ export const Phase = {
   Action: "action",
   Politics: "politics",
   Income: "income",
-  ElectionStart: "electionStart",
-  ElectionEnd: "electionEnd",
+  /** The election winner is choosing which decree objectives to activate. */
+  DecreeChoice: "decreeChoice",
   GameOver: "gameOver",
 } as const;
 export type PhaseId = (typeof Phase)[keyof typeof Phase];
@@ -32,11 +32,11 @@ export const SetupStep = {
 export type SetupStepId = (typeof SetupStep)[keyof typeof SetupStep];
 
 export const VictoryKind = {
+  Civil: "civil",
+  Political: "political",
   Military: "military",
   Popularity: "popularity",
   Ideological: "ideological",
-  Civil: "civil",
-  Political: "political",
 } as const;
 export type VictoryKindId = (typeof VictoryKind)[keyof typeof VictoryKind];
 
@@ -47,39 +47,36 @@ export type Victory = {
   symbol?: SymbolId;
 };
 
-export const ReferendumSource = {
-  Action: "action",
-  Election: "election",
-} as const;
-export type ReferendumSourceId = (typeof ReferendumSource)[keyof typeof ReferendumSource];
-
-/** In-progress Call Policy Referendum or an election-end referendum. */
-export type ReferendumState = {
-  source: ReferendumSourceId;
-  districtIndex: number;
-  awaitingChoice: boolean;
-  chooser: PlayerId;
-  options: Array<PolicyIdValue | null>;
-  support: [number, number];
-};
-
 export const ElectionTieBreak = {
   Electorates: "electorates",
   Electors: "electors",
   Incumbent: "incumbent",
-  PartyOrder: "partyOrder",
+  FirstPlayer: "firstPlayer",
 } as const;
 export type ElectionTieBreakId = (typeof ElectionTieBreak)[keyof typeof ElectionTieBreak];
 
 export type ElectionRuntime = {
-  /** True from start-of-phase (including fill-to-8) until end-of-phase scoring begins. */
+  /** From the moment a General Election is revealed until the election resolves. */
   active: boolean;
-  /** Triggering turn is done; run start-of-phase next. */
-  pendingStart: boolean;
-  /** Skip market replenish (Emergency State income before start-of-phase). */
-  skipReplenish: boolean;
+  /** Market still needs its one-time fill to 8 for the phase that just started. */
+  needsOpening: boolean;
+  /** General Elections set aside during this phase (= decrees to activate). */
+  generalElections: number;
+  /** Incumbent: winner of the previous election. */
   lastWinner: PlayerId | null;
-  firstPlayer: PlayerId | null;
+};
+
+export type DecreeState = {
+  id: DecreeIdValue;
+  active: boolean;
+};
+
+/** The election winner owes decree activations before the next turn starts. */
+export type PendingDecrees = {
+  player: PlayerId;
+  remaining: number;
+  /** Whose turn comes next once the choices are made (normal alternation). */
+  nextPlayer: PlayerId;
 };
 
 export type CardInstance = {
@@ -94,14 +91,15 @@ export type PlayerState = {
   hand: CardInstance[];
   tableau: Record<DistrictId, CardInstance[]>;
   support: Record<DistrictId, CardInstance[]>;
-  policySupporters: CardInstance[];
+  /** Consultative Office (Smarbbit policy): face-up, usable as if in hand. */
   consultativeOffice: CardInstance[];
+  /** Planet Next (monument): banked Horsard cards, +1 Horsard influence each. */
+  planetNextBank: CardInstance[];
   partyId: PartyIdValue | null;
   monuments: CardInstance[];
   partisans: number;
   handLimit: number;
   electionWins: number;
-  consecutiveWins: number;
 };
 
 export type SetupState = {
@@ -113,16 +111,9 @@ export type SetupState = {
   electionCards: CardInstance[];
 };
 
-export type LastTurn = {
-  discarded: boolean;
-  addedSupport: boolean;
-  /** Who just finished the turn that `lastTurn` describes. */
-  player: PlayerId | null;
-};
-
-export type ExecutiveHolder = {
-  owner: PlayerId;
-  side: ExecutiveSideId;
+export type TurnState = {
+  /** A monument was constructed this turn (Politics step starts with a draw). */
+  constructedMonument: boolean;
 };
 
 export type GameState = {
@@ -131,23 +122,25 @@ export type GameState = {
   phase: PhaseId;
   setup: SetupState | null;
   activePlayer: PlayerId;
+  /** Lower party order number. Breaks a first-election tie. */
   firstPlayer: PlayerId | null;
-  electionTriggerer: PlayerId | null;
   election: ElectionRuntime;
   players: [PlayerState, PlayerState];
   districtOrder: DistrictId[];
   policy: Record<DistrictId, PolicyIdValue | null>;
+  /** Always 5 cards, left → right. */
+  senate: CardInstance[];
   market: CardInstance[];
   deck: CardInstance[];
   availableMonuments: CardInstance[];
   monumentDeck: CardInstance[];
+  decrees: DecreeState[];
   electionsOut: CardInstance[];
   unusedParties: PartyIdValue[];
-  executive: ExecutiveHolder | null;
-  lastTurn: LastTurn;
-  currentTurn: LastTurn;
+  turn: TurnState;
+  /** One-shot markers for the current turn (free actions later). */
   flags: Record<string, boolean>;
-  referendum: ReferendumState | null;
+  pendingDecrees: PendingDecrees | null;
   victory: Victory | null;
 };
 
@@ -194,24 +187,34 @@ export type ConstructAction = {
   monumentInstanceId: string;
 };
 
-export type CallReferendumAction = {
-  type: "callReferendum";
+/** Legal during the action step only when no main action is available. */
+export type EndActionAction = {
+  type: "endAction";
   player: PlayerId;
-  instanceIds: string[];
 };
 
-export type ChoosePolicyAction = {
-  type: "choosePolicy";
+/** Politics: push out the rightmost Senator, seat a hand card on the left. */
+export type InfluenceSenateAction = {
+  type: "influenceSenate";
   player: PlayerId;
+  instanceId: string;
+};
+
+/** Politics: reveal cards to convince a Senate majority, discard one, change a policy. */
+export type ProposePolicyAction = {
+  type: "proposePolicy";
+  player: PlayerId;
+  revealIds: string[];
+  discardId: string;
   district: DistrictId;
-  /** `null` is Neutral. */
+  /** `null` is neutral. */
   policyId: PolicyIdValue | null;
 };
 
-export type CampaignAction = {
-  type: "campaign";
+export type DeclareVictoryAction = {
+  type: "declareVictory";
   player: PlayerId;
-  instanceId: string;
+  victory: Victory;
 };
 
 export type EndPoliticsAction = {
@@ -219,39 +222,16 @@ export type EndPoliticsAction = {
   player: PlayerId;
 };
 
-export type UseEmergencyStateAction = {
-  type: "useEmergencyState";
-  player: PlayerId;
-};
-
-export type UseLegalReviewAction = {
-  type: "useLegalReview";
-  player: PlayerId;
-  district: DistrictId;
-};
-
-export type ChooseElectionFirstAction = {
-  type: "chooseElectionFirst";
-  player: PlayerId;
-  firstPlayer: PlayerId;
-};
-
-export type ChooseExecutiveSideAction = {
-  type: "chooseExecutiveSide";
-  player: PlayerId;
-  side: ExecutiveSideId;
-};
-
-/** Legal during the action step only when no main action is available. */
-export type EndActionAction = {
-  type: "endAction";
-  player: PlayerId;
-};
-
 export type TakeMarketAction = {
   type: "takeMarket";
   player: PlayerId;
   instanceId: string;
+};
+
+export type ActivateDecreeAction = {
+  type: "activateDecree";
+  player: PlayerId;
+  decreeId: DecreeIdValue;
 };
 
 export type Action =
@@ -262,16 +242,13 @@ export type Action =
   | PlayConspiracyAction
   | RecruitAction
   | ConstructAction
-  | CallReferendumAction
-  | ChoosePolicyAction
-  | CampaignAction
-  | EndPoliticsAction
-  | UseEmergencyStateAction
-  | UseLegalReviewAction
-  | ChooseElectionFirstAction
-  | ChooseExecutiveSideAction
   | EndActionAction
-  | TakeMarketAction;
+  | InfluenceSenateAction
+  | ProposePolicyAction
+  | DeclareVictoryAction
+  | EndPoliticsAction
+  | TakeMarketAction
+  | ActivateDecreeAction;
 
 export type GameEvent =
   | { type: "districtsShuffled"; order: DistrictId[] }
@@ -292,6 +269,7 @@ export type GameEvent =
       available: string[];
       deck: string[];
     }
+  | { type: "senateDealt"; cardIds: string[] }
   | { type: "marketDealt"; cardIds: string[] }
   | { type: "deckBuilt"; size: number }
   | { type: "setupComplete"; firstPlayer: PlayerId }
@@ -336,23 +314,19 @@ export type GameEvent =
       cardId: string;
     }
   | { type: "monumentReplenished"; cardId: string }
-  | {
-      type: "campaignTucked";
-      player: PlayerId;
-      instanceId: string;
-      cardId: string;
-    }
   | { type: "politicsStarted"; player: PlayerId }
-  | { type: "referendumStarted"; player: PlayerId }
   | {
-      type: "districtSupportRevealed";
-      district: DistrictId;
-      support: [number, number];
+      type: "senateInfluenced";
+      player: PlayerId;
+      seatedCardId: string;
+      removedCardId: string;
     }
   | {
-      type: "policyChoiceNeeded";
-      district: DistrictId;
+      type: "policyProposed";
       player: PlayerId;
+      revealedCardIds: string[];
+      votes: number;
+      totalVotes: number;
     }
   | {
       type: "policyChanged";
@@ -360,8 +334,6 @@ export type GameEvent =
       policyId: PolicyIdValue | null;
       player: PlayerId;
     }
-  | { type: "policyUnchanged"; district: DistrictId }
-  | { type: "referendumEnded" }
   | { type: "victory"; victory: Victory }
   | { type: "incomeStarted"; player: PlayerId }
   | {
@@ -373,10 +345,7 @@ export type GameEvent =
   | { type: "cardDrawn"; player: PlayerId; cardId: string }
   | { type: "marketReplenished"; cardIds: string[] }
   | { type: "electionSetAside"; cardId: string }
-  | { type: "electionTriggered"; player: PlayerId }
-  | { type: "electionStarted"; triggerer: PlayerId }
-  | { type: "electionFirstPlayerNeeded"; player: PlayerId }
-  | { type: "electionTurnsStarted"; firstPlayer: PlayerId }
+  | { type: "electionStarted"; player: PlayerId }
   | {
       type: "electionTallied";
       electorates: [number, number];
@@ -384,10 +353,9 @@ export type GameEvent =
       winner: PlayerId;
       tieBreak: ElectionTieBreakId;
     }
-  | { type: "electionWon"; player: PlayerId; consecutive: number }
-  | { type: "executiveTaken"; player: PlayerId; side: ExecutiveSideId }
-  | { type: "emergencyStateUsed"; player: PlayerId }
-  | { type: "legalReviewUsed"; player: PlayerId; district: DistrictId }
+  | { type: "electionWon"; player: PlayerId; wins: number }
+  | { type: "decreeChoiceNeeded"; player: PlayerId; count: number }
+  | { type: "decreeActivated"; player: PlayerId; decreeId: DecreeIdValue }
   | { type: "electionEnded" }
   | { type: "turnEnded"; nextPlayer: PlayerId };
 
