@@ -130,7 +130,7 @@ Main actions:
 
 #### Influence Senate
 
-Discard the **rightmost** Senate card (to **your** support pile), shift the others right, and play a card from your hand into the **leftmost** spot. The Senate always has exactly 5 cards.
+Discard the **rightmost** Senate card (to **your** support pile), shift the others right, and play **any** card from your hand into the **leftmost** spot. The Senate always has exactly 5 cards. The pushed-out Senator counts like any other card in your support pile (influence, Popularity, the Recruit precondition).
 
 #### Propose Policy
 
@@ -141,6 +141,8 @@ Reveal any number of cards from your hand. One revealed card may convince severa
 - A **civil** Senator is convinced by a revealed civil card of the **same district** with a **higher value**.
 - An **alliance** Senator is convinced by another revealed alliance of the **same district**.
 - A **conspiracy** Senator can never be convinced, but its vote still counts toward the total.
+
+Districts must match: a Horsard civil 6 convinces lower Horsard civil Senators only, never Shavvinne, Smarbbit, or Dragonara ones.
 
 If you reach the threshold: discard **one** of the revealed cards, then change **one** district's policy. Allowed changes: neutral → either printed side, or a printed side → neutral. You may **not** go directly from one side to the other.
 
@@ -154,10 +156,12 @@ The hand limit gates drawing. It never forces a discard.
 
 1. If you have fewer cards than your hand limit, take **one** card of your choice from the Market.
 2. Replenish the Market back to 5 from the draw deck. **Skip this during an election phase.**
-3. If you are still under your hand limit, draw one card from the top of the draw deck.
+3. If you are still under your hand limit, draw one card from the top of the draw deck. This still happens during an election phase.
 4. Dragon Gate (if owned): at the end of income, if you have exactly 4 cards, draw a card.
 
 If the draw deck is empty, nothing is replenished or drawn (FAQ).
+
+The Market only refills during an income step. A player who skips income (e.g. Kybernetik Inc.) also skips the refill, even if a Market card was taken during their turn.
 
 ## Influence and electorates
 
@@ -196,7 +200,7 @@ After a turn ends with **no cards in the Market**, decide the winner:
 
 ### Resolving an election
 
-1. The winner **activates** as many inactive decree objectives as the number of General Elections set aside during this phase. (Beginner tip: by default, pick one whose symbol matches your party.)
+1. The winner **chooses** and activates as many inactive decree objectives as the number of General Elections set aside during this phase (every General Election revealed during the election counts, including mid-turn ones; extras beyond the remaining inactive decrees are forgotten). (Beginner tip: by default, pick one whose symbol matches your party.)
 2. If this was the final election, the game ends with Civil Victory for its winner (unless Roman Basilica already ended it).
 3. Otherwise replenish the Market to 5. Play resumes normally. A General Election revealed by this replenish starts a new phase.
 
@@ -290,7 +294,7 @@ Notes:
 - **Dragon Gate**: the extra draw is its own step at the end of income. A General Election drawn there is set aside as usual and does not interrupt the step.
 - **Smart Doctrine**: one private copy of each active decree's symbol (0–4 copies).
 - **Roman Basilica**: its owner may declare Civil Victory in their Politics step once they have won **3 elections** (election phases won, not General Election cards). This survives from the old rules, where winning elections was the main path; now only the final election decides Civil Victory for everyone else. The owner can also still win Civil normally at the final election.
-- **Planet Next** works as a **bank**: move Horsard cards from your hand into a face-up personal zone. They don't count toward hand limit, each gives you +1 influence in the Horsard electorate, and you can use them later as if in hand for any action. Using one removes its +1. Still open: when you may bank cards, whether banked cards can be wiped or discarded, and interactions with other Horsard effects (expected: none). See [open-questions.md](open-questions.md).
+- **Planet Next** works as an **extension of your hand** (a "bank"): during your own turn, move Horsard cards from your hand into a face-up personal zone. They don't count toward hand limit, each gives you +1 influence in the Horsard electorate, and you can use them later as if in hand for any action (using one removes its +1). Nothing else interacts with banked cards: conspiracies don't wipe them, no policy, alliance, or decree counts them, and they are never discarded except when spent.
 
 ## FAQ (rulebook)
 
@@ -305,10 +309,10 @@ Beginner tips (strategy, not rules): elections activate decrees; recruiting part
 
 Rulebook: `C:\Repos\pax-corruption-marketing\public\rulebook\legacy-and-diplomacy-rulebook.pdf`. Requires the base game. Summary only, for awareness:
 
-- **Event deck** (40): 10 each from four World Powers (North, South, West, East), including unique and legacy events. Events sit in the Market. At income you may buy one instead of taking a card, by discarding cards equal to the number of non-event cards to its right. Events are played immediately: as a common effect, or into a district like a civil card. Each purchase gives +1 relation with that World Power. East event effects are exclusive to their buyer.
+- **Event deck** (40): 10 each from four World Powers (North, South, West, East), including unique and legacy events. Events sit in the Market. At income you may buy one instead of taking a card, by discarding cards equal to the number of non-event cards to its right. Events are played immediately: as a common effect, or into a district like a civil card. Each purchase gives +1 relation with that World Power. A conspiracy wipes events played as civil cards in its district, but never events played for their effect. A discarded event always goes back to the box, never to a support pile. House rule (2026-11-12, not yet in the rulebook): buying an event and playing it for its effect also draws you a card. East event effects are exclusive to their buyer.
 - **Game board** with tracks for support, alliance, influence, diplomacy, partisans, and symbols.
 - **Seven victories.** Adds Cultural (2+ more monuments) and Diplomatic (higher relation with 3 of 4 powers). Military, Popularity, Ideological, Cultural, and Diplomatic start **inactive** and are activated by legacy events. Civil and Political work as in the base game.
-- Market and election-phase replenish rules change so 1–2 event cards are always in the Market.
+- Market and election-phase replenish rules change so 1–2 event cards are always in the Market. Event cards keep discarding and replenishing during an election phase by their own rules, including disappearing from the last two spots of their row.
 - Foreign Influence variant: start with 3 random events already in play.
 
 Do not implement any of this until the base game is complete.

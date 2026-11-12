@@ -146,7 +146,7 @@ Rulings that still apply:
 
 - **Two District Governors** in the same district silence each other: no alliance ability is active there, and the policy is no longer frozen (rulebook FAQ).
 - **People's Press**: you may look through your Smarbbit support pile and choose the card.
-- **Century Inc.** replacing a Horsard alliance with a Shavvinne Order of Knights: the new alliance occupies the slot it replaced, and its conspiracy protection is printed for Shavvinne, so Horsard can still be conspired. When discarded, it goes to the pile of the district it occupied. (Earlier ruling for Century Club; re-confirm with the new free-action wording.)
+- **Century Inc.** (ruled 2026-11-11): see the Century Inc. entry under Resolved in [open-questions.md](open-questions.md). In short: once per turn; counts as playing an alliance; swaps out an existing alliance (yours or theirs); in the opponent's tableau the new alliance becomes theirs; district-named text follows the printed district, but conspiracies in the occupied lane wipe it.
 
 ## Conspiracies (8)
 
