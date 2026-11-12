@@ -57,7 +57,7 @@ export function InfoTip({ label, children }: InfoTipProps) {
         <span
           id={id}
           role="tooltip"
-          className="absolute top-[calc(100%+6px)] left-1/2 z-[60] w-52 -translate-x-1/2 rounded-md bg-[#221c16] px-2.5 py-2 text-left text-[0.7rem] leading-relaxed font-normal tracking-normal text-stone-200 shadow-xl ring-1 ring-white/10 normal-case"
+          className="absolute top-[calc(100%+6px)] left-1/2 z-[60] w-52 -translate-x-1/2 rounded-xl glass-strong px-2.5 py-2 text-left text-[0.7rem] leading-relaxed font-normal tracking-normal text-stone-200 shadow-xl ring-1 ring-white/10 normal-case"
         >
           {children}
         </span>

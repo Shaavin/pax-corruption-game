@@ -18,7 +18,7 @@ type DecreeChoiceProps = {
 export function DecreeChoice({ winner, chooserIsYou, remaining, options, onChoose }: DecreeChoiceProps) {
   return (
     <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center bg-black/70 px-4">
-      <div className="pointer-events-auto max-w-3xl rounded-xl bg-[#221c16] px-5 py-6 text-center shadow-2xl ring-1 ring-white/10">
+      <div className="pointer-events-auto max-w-3xl rounded-2xl glass-strong px-5 py-6 text-center shadow-2xl ring-1 ring-white/10">
         <p className="text-[0.65rem] font-semibold tracking-[0.18em] text-[var(--brass)] uppercase">
           Election won
         </p>

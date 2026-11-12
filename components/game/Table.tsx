@@ -1,30 +1,21 @@
 "use client";
 
-import { useCallback, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { DistrictHub } from "./DistrictHub";
+import { useCallback, useState, type ReactNode } from "react";
 import { Hand } from "./Hand";
-import { Market } from "./Market";
+import { HistoryRail } from "./HistoryRail";
+import { Lane } from "./Lane";
 import { PeekContext, type PeekCard } from "./peek";
-import { PlayerChrome } from "./PlayerChrome";
-import { SenateRow } from "./SenateRow";
-import { Tableau } from "./Tableau";
+import { PlayerBar } from "./PlayerBar";
+import { playerLabel } from "./players";
+import { SidePanel, TurnDock, type ExtraAction } from "./SidePanel";
+import type { TableModel } from "./table-model";
 import { TableTour } from "./TableTour";
 import { ZoomPreview } from "./ZoomPreview";
-import { playerLabel } from "./players";
-import type { TableModel } from "./table-model";
 import type { DistrictId } from "@/lib/cards/schema";
-import { getCard } from "@/lib/cards/catalog";
-import { CardKind } from "@/lib/cards/schema";
-import { districtInfluence } from "@/lib/game/influence";
-import { otherPlayer, type PlayerId } from "@/lib/game";
+import type { GameEvent, PlayerId } from "@/lib/game";
 
-const LANE_TINT: Record<DistrictId, string> = {
-  dragonara: "bg-[var(--dragonara)]/12",
-  horsard: "bg-[var(--horsard)]/12",
-  shavvinne: "bg-[var(--shavvinne)]/12",
-  smarbbit: "bg-[var(--smarbbit)]/12",
-};
+export type { ExtraAction };
 
 export type TableInteraction = {
   playableHandIds: ReadonlySet<string>;
@@ -32,7 +23,6 @@ export type TableInteraction = {
   selectedHandIds: ReadonlySet<string>;
   onSelectHand: (instanceId: string) => void;
   targetDistrict: DistrictId | null;
-  targetDistricts?: ReadonlySet<DistrictId>;
   targetLabel: string;
   onSelectDistrict: (district: DistrictId) => void;
   takeableMarketIds: ReadonlySet<string>;
@@ -46,20 +36,15 @@ export type TableInteraction = {
   extraActions: ExtraAction[];
 };
 
-export type ExtraAction = {
-  label: string;
-  onClick: () => void;
-  disabled?: boolean;
-  title?: string;
-};
-
 type TableProps = {
   model: TableModel;
   seed: number;
-  status: string;
   showTour: boolean;
   veiled: boolean;
   hotseat: PlayerId;
+  history: readonly GameEvent[];
+  /** Shown in the turn dock when it isn't this seat's move (setup, waiting, game over). */
+  idlePrompt: string;
   interaction?: TableInteraction | null;
   children?: ReactNode;
 };
@@ -67,247 +52,153 @@ type TableProps = {
 export function Table({
   model,
   seed,
-  status,
   showTour,
   veiled,
   hotseat,
+  history,
+  idlePrompt,
   interaction,
   children,
 }: TableProps) {
   const [peek, setPeek] = useState<PeekCard | null>(null);
   const [tourOpen, setTourOpen] = useState(false);
-  const opponent = otherPlayer(hotseat);
-  if (veiled && peek !== null) {
-    setPeek(null);
-  }
+  if (veiled && peek !== null) setPeek(null);
   const setPeekSafe = useCallback(
     (card: PeekCard | null) => {
       if (!tourOpen && !veiled) setPeek(card);
     },
     [tourOpen, veiled],
   );
+  const yourTurn = model.activePlayer === hotseat;
+  const live = model.phase !== "setup" && model.phase !== "over";
 
   return (
     <PeekContext.Provider value={{ setPeek: setPeekSafe }}>
-      <div className="table-felt relative flex h-dvh w-full flex-col overflow-hidden text-stone-100">
-        <header className="flex shrink-0 items-center justify-between px-3 py-1 text-[0.65rem] text-stone-500">
-          <Link
-            href="/"
-            className="tracking-[0.14em] uppercase hover:text-stone-300"
-          >
-            Pax Corruption
-          </Link>
-          <div className="flex items-center gap-3">
-            {showTour ? (
-              <TableTour
-                allowAutoOpen={showTour}
-                onVisibilityChange={(open) => {
-                  setTourOpen(open);
-                  if (open) setPeek(null);
-                }}
-              />
-            ) : null}
-            <span className="uppercase">
-              General election {model.electionsOut}/4
-            </span>
-            <span className="uppercase">
-              Wins {model.you.electionWins}–{model.opponent.electionWins}
-            </span>
-            {model.electionActive ? (
-              <span className="font-semibold tracking-[0.14em] text-[var(--brass)] uppercase">
-                Election
+      <div className="table-shell flex h-dvh w-full text-stone-100">
+        <HistoryRail events={veiled ? [] : history} viewer={hotseat} />
+
+        <main className="flex min-w-0 flex-1 flex-col overflow-clip">
+          {/* Opponent strip: portrait and numbers on the left, face-down hand in the middle. */}
+          <div className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-start gap-3 border-b border-[var(--line)] bg-black/20 px-3 py-2">
+            <PlayerBar
+              seat="opponent"
+              name={playerLabel(model.opponent.id)}
+              partyId={model.opponent.partyId}
+              monuments={model.opponent.monuments}
+              setAside={model.opponent.setAside}
+              partisans={model.opponent.partisans}
+              electionWins={model.opponent.electionWins}
+              electorates={model.opponent.electorates}
+              lords={model.opponent.lords}
+              active={!yourTurn && live}
+            />
+            <Hand cards={model.opponent.hand} variant="opponent" />
+            <div className="flex items-center justify-end gap-3 text-[0.65rem] text-stone-500">
+              {showTour ? (
+                <TableTour
+                  allowAutoOpen={showTour}
+                  onVisibilityChange={(open) => {
+                    setTourOpen(open);
+                    if (open) setPeek(null);
+                  }}
+                />
+              ) : null}
+              <span className="tabular-nums" title="Deterministic setup seed">
+                Seed {seed}
               </span>
-            ) : null}
-            <span className="tabular-nums" title="Deterministic setup seed">
-              Seed {seed}
-            </span>
-            <span>{status}</span>
-          </div>
-        </header>
-
-        {veiled ? null : (
-          <div
-            className="flex shrink-0 items-center justify-center gap-2 border-b border-[var(--brass)]/35 bg-black/40 px-3 py-1"
-            role="status"
-            aria-live="polite"
-          >
-            <span className="text-[0.7rem] font-semibold tracking-[0.16em] text-[var(--brass)] uppercase">
-              {playerLabel(hotseat)} has this device
-            </span>
-          </div>
-        )}
-
-        <div className="hand-rail hand-rail-opponent flex shrink-0 items-center gap-3 px-3 py-2">
-          <span className="w-[4.4rem] shrink-0 leading-tight">
-            <span className="block text-[0.6rem] font-semibold tracking-[0.16em] text-stone-500 uppercase">
-              Opponent
-            </span>
-            <span className="block text-[0.55rem] tracking-[0.12em] text-stone-400 uppercase">
-              {playerLabel(opponent)}
-            </span>
-          </span>
-          <Hand cards={model.opponent.hand} faceUp align="start" />
-          <PlayerChrome
-            partyId={model.opponent.partyId}
-            monuments={model.opponent.monuments}
-            partisans={model.opponent.partisans}
-            setAside={model.opponent.setAside}
-          />
-        </div>
-
-        <div className="grid min-h-0 flex-1 grid-cols-4">
-          {model.districtOrder.map((district) => (
-            <div
-              key={`opp-${district}`}
-              className={`min-h-0 border-x border-white/6 ${LANE_TINT[district]}`}
-            >
-              <Tableau cards={model.opponent.tableau[district]} anchor="top" />
+              <Link href="/" className="tracking-[0.14em] uppercase hover:text-stone-300">
+                Menu
+              </Link>
             </div>
-          ))}
-        </div>
+          </div>
 
-        <div className="grid shrink-0 grid-cols-4">
-          {model.districtOrder.map((district) => (
-            <div
-              key={`hub-${district}`}
-              className={`border-x border-white/6 ${LANE_TINT[district]}`}
-            >
-              <DistrictHub
+          {/* The four districts. */}
+          <div className="grid min-h-0 flex-1 grid-cols-4">
+            {model.districtOrder.map((district, index) => (
+              <Lane
+                key={district}
                 district={district}
                 policyId={model.policies[district]}
-                yourSupport={model.you.support[district]}
-                theirSupport={model.opponent.support[district]}
-                yourInfluence={districtInfluence(
-                  model.you.tableau[district],
-                  model.you.support[district],
-                  district === "horsard" ? model.you.bank : 0,
-                )}
-                theirInfluence={districtInfluence(
-                  model.opponent.tableau[district],
-                  model.opponent.support[district],
-                  district === "horsard" ? model.opponent.bank : 0,
-                )}
-                electors={
-                  model.electionActive
-                    ? civilCount(model.you.tableau[district]) +
-                      civilCount(model.opponent.tableau[district])
+                opponent={{
+                  cards: model.opponent.tableau[district],
+                  support: model.opponent.support[district],
+                  influence: model.opponent.influence[district],
+                }}
+                you={{
+                  cards: model.you.tableau[district],
+                  support: model.you.support[district],
+                  influence: model.you.influence[district],
+                }}
+                electors={model.electors ? model.electors[district] : null}
+                tourAnchor={index === 0}
+                target={
+                  interaction?.targetDistrict === district
+                    ? { label: interaction.targetLabel, onSelect: () => interaction.onSelectDistrict(district) }
                     : null
                 }
               />
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
 
-        <div className="grid min-h-0 flex-1 grid-cols-4">
-          {model.districtOrder.map((district) => (
-            <div
-              key={`you-${district}`}
-              className={[
-                "relative min-h-0 border-x border-white/6",
-                LANE_TINT[district],
-                interaction?.targetDistrict === district ||
-                interaction?.targetDistricts?.has(district)
-                  ? "ring-2 ring-inset ring-[var(--brass)]"
-                  : "",
-              ].join(" ")}
-            >
-              {interaction?.targetDistrict === district ||
-              interaction?.targetDistricts?.has(district) ? (
-                <button
-                  type="button"
-                  className="absolute inset-0 z-20 cursor-pointer bg-[var(--brass)]/10"
-                  aria-label={`${interaction.targetLabel} ${district}`}
-                  onClick={() => interaction.onSelectDistrict(district)}
-                >
-                  <span className="pointer-events-none absolute inset-x-1 bottom-1 rounded-sm bg-black/55 px-1 py-0.5 text-center text-[0.55rem] font-semibold tracking-[0.14em] text-[var(--brass)] uppercase">
-                    {interaction.targetLabel}
-                  </span>
-                </button>
-              ) : null}
-              <Tableau
-                cards={model.you.tableau[district]}
-                anchor="bottom"
-                tourId={district === model.districtOrder[0] ? "your-tableau" : undefined}
+          {/* Your strip, then the hand, which bleeds off the bottom edge. */}
+          <div className="shrink-0 border-t border-[var(--line)] bg-black/20 px-3 pt-1.5">
+            <PlayerBar
+              seat="you"
+              name={`${playerLabel(model.you.id)} (you)`}
+              partyId={model.you.partyId}
+              monuments={model.you.monuments}
+              setAside={model.you.setAside}
+              partisans={model.you.partisans}
+              electionWins={model.you.electionWins}
+              electorates={model.you.electorates}
+              lords={model.you.lords}
+              active={yourTurn && live}
+            />
+          </div>
+          <div className="relative h-[calc(var(--card-hand)*1.364*0.7)] shrink-0 bg-black/20">
+            <div className="absolute inset-x-0 bottom-0 flex translate-y-[28%] justify-center">
+              <Hand
+                cards={model.you.hand}
+                variant="you"
+                tourId="your-hand"
+                playableIds={interaction?.playableHandIds}
+                selectableIds={interaction?.selectableHandIds}
+                selectedIds={interaction?.selectedHandIds}
+                onSelect={interaction?.onSelectHand}
               />
             </div>
-          ))}
-        </div>
+          </div>
+        </main>
 
-        <SenateRow
+        <SidePanel
           senate={model.senate}
-          totalVotes={model.senateVotes}
-          votesNeeded={model.senateVotesNeeded}
+          senateVotes={model.senateVotes}
+          senateVotesNeeded={model.senateVotesNeeded}
           convinced={interaction?.convincedSenators}
           revealVotes={interaction?.revealVotes ?? null}
           decrees={model.decrees}
-        />
-
-        <Market
           market={model.market}
+          electionActive={model.electionActive}
+          electionsOut={model.electionsOut}
           monuments={model.availableMonuments}
           deckCount={model.deckCount}
-          electionActive={model.electionActive}
           takeableIds={interaction?.takeableMarketIds}
           onTake={interaction?.onTakeMarket}
           claimableIds={interaction?.claimableMonumentIds}
           onClaimMonument={interaction?.onClaimMonument}
+          dock={
+            <TurnDock
+              phase={model.phase}
+              seatColor={yourTurn ? "var(--you)" : "var(--opp)"}
+              prompt={interaction?.prompt ?? idlePrompt}
+              actions={interaction?.extraActions ?? []}
+            />
+          }
         />
-
-        {interaction ? (
-          <div className="flex shrink-0 items-center justify-center gap-3 px-3 py-1">
-            <p className="text-center text-[0.7rem] tracking-wide text-stone-300">
-              {interaction.prompt}
-            </p>
-            {(interaction.extraActions ?? []).map((action) => (
-              <button
-                key={action.label}
-                type="button"
-                title={action.title}
-                disabled={action.disabled}
-                className="cursor-pointer rounded-full bg-[var(--brass)] px-3 py-1 text-[0.7rem] font-semibold text-stone-950 hover:bg-[#d4b57c] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-[var(--brass)]"
-                onClick={action.onClick}
-              >
-                {action.label}
-              </button>
-            ))}
-          </div>
-        ) : null}
-
-        <div className="hand-rail hand-rail-you flex shrink-0 items-center gap-3 px-3 py-2">
-          <span className="w-[4.4rem] shrink-0 leading-tight">
-            <span className="block text-[0.6rem] font-semibold tracking-[0.16em] text-[var(--brass)] uppercase">
-              You
-            </span>
-            <span className="block text-[0.55rem] tracking-[0.12em] text-[var(--brass)] uppercase">
-              {playerLabel(hotseat)}
-            </span>
-          </span>
-          <Hand
-            cards={model.you.hand}
-            faceUp
-            align="end"
-            tourId="your-hand"
-            playableIds={interaction?.playableHandIds}
-            selectableIds={interaction?.selectableHandIds}
-            selectedIds={interaction?.selectedHandIds}
-            onSelect={interaction?.onSelectHand}
-          />
-          <PlayerChrome
-            partyId={model.you.partyId}
-            monuments={model.you.monuments}
-            partisans={model.you.partisans}
-            setAside={model.you.setAside}
-            tourTarget="partisans"
-          />
-        </div>
 
         {children}
         {tourOpen || veiled ? null : <ZoomPreview card={peek} />}
       </div>
     </PeekContext.Provider>
   );
-}
-
-function civilCount(tableau: readonly { cardId: string }[]): number {
-  return tableau.filter((card) => getCard(card.cardId).kind === CardKind.Civil).length;
 }

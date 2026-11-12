@@ -16,9 +16,23 @@ export function ZoomPreview({ card }: { card: PeekCard | null }) {
   const related = party ? partyRelatedCards(party) : null;
   const contents = card.contents ?? [];
 
+  // Open on the half of the screen away from the hovered card, so it is never covered.
+  const side =
+    card.anchorX === undefined || typeof window === "undefined"
+      ? "center"
+      : card.anchorX > window.innerWidth / 2
+        ? "left"
+        : "right";
+  const placement =
+    side === "left"
+      ? "justify-start pl-[5rem]"
+      : side === "right"
+        ? "justify-end pr-[5rem]"
+        : "justify-center";
+
   return (
-    <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="flex max-w-[min(96vw,68rem)] flex-wrap items-center justify-center gap-4 rounded-md bg-black/35 p-2 shadow-[0_20px_60px_rgba(0,0,0,0.65)] ring-1 ring-white/10 backdrop-blur-[2px]">
+    <div className={`pointer-events-none fixed inset-0 z-50 flex items-center p-4 ${placement}`}>
+      <div className="rise-in glass-strong flex max-w-[min(70vw,64rem)] flex-wrap items-center justify-center gap-4 rounded-2xl p-3 shadow-[0_24px_70px_rgba(0,0,0,0.7)]">
         {contents.length === 0 ? (
           <CardView
             name={card.name}
@@ -80,7 +94,7 @@ function RelatedGroup({
 }) {
   return (
     <div className="flex flex-col items-start gap-1">
-      <div className="text-[0.6rem] font-semibold tracking-[0.14em] text-[var(--brass)] uppercase">
+      <div className="label">
         {label}
       </div>
       <div

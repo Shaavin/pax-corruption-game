@@ -20,7 +20,7 @@ export function PassDeviceGate({
 
   return (
     <div
-      className="fixed inset-0 z-[80] flex items-center justify-center bg-[#16120e] px-6"
+      className="fixed inset-0 z-[80] flex items-center justify-center bg-[var(--background)] px-6"
       role="dialog"
       aria-modal="true"
       aria-labelledby="pass-device-title"
@@ -34,7 +34,7 @@ export function PassDeviceGate({
         }}
         aria-hidden
       />
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/50 via-[#16120e]/80 to-[#16120e]" />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/50 via-[#0a0c10]/85 to-[#0a0c10]" />
       <div className="relative max-w-md text-center text-stone-100">
         <p className="text-[0.7rem] font-semibold tracking-[0.2em] text-[var(--brass)] uppercase">
           Hotseat
@@ -45,7 +45,7 @@ export function PassDeviceGate({
         <p className="mt-3 text-sm leading-relaxed text-stone-300">{hint}</p>
         <button
           type="button"
-          className="mt-8 cursor-pointer rounded-full bg-[var(--brass)] px-6 py-3 text-sm font-semibold tracking-wide text-stone-950 hover:bg-[#d4b57c]"
+          className="mt-8 cursor-pointer rounded-xl bg-[var(--act)] px-6 py-3 text-sm font-semibold tracking-wide text-stone-950 hover:brightness-110"
           onClick={onConfirm}
         >
           I am {name}

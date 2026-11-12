@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
-export const TABLE_TOUR_KEY = "pax-table-tour-v6";
+export const TABLE_TOUR_KEY = "pax-table-tour-v7";
 
 type TourStep = {
   id: string;
@@ -15,62 +15,56 @@ const STEPS: TourStep[] = [
   {
     id: "table",
     title: "The table",
-    body: "Four district lanes run vertically. Your hand sits at the bottom; theirs is face-down at the top. The market, monuments, and draw deck sit on the rail above your hand.",
+    body: "Four district lanes fill the middle. The opponent's cards hang down toward each district; yours rise up toward it. Your hand sits at the bottom (hover a card to lift it), the shared Senate, decrees, and Market are on the right, and the log of recent moves runs down the left.",
     target: null,
   },
   {
-    id: "support",
-    title: "Support piles",
-    body: "Discarded cards land here and each is worth 1 influence in that district. The left count is your opponent; the right count is you.",
-    target: "support",
-  },
-  {
-    id: "district-influence",
-    title: "District influence",
-    body: "Influence is yours minus theirs in this district: civil card values plus 1 per support-pile card. Elections compare these leads. Click the (i) for the raw totals.",
-    target: "district-influence",
-  },
-  {
-    id: "popularity",
-    title: "Popularity",
-    body: "Popularity is your support pile minus theirs — the Opp/You counts under the stacks. Lead by 9 in any one district and you may declare Popularity Victory in your Politics step. Click the (i) for a reminder.",
-    target: "popularity",
-  },
-  {
-    id: "electors",
-    title: "Electors",
-    body: "When an election is scored, the district winner takes electors equal to the civil cards in play there. Dashes mean no election is running yet.",
-    target: "electors",
+    id: "district",
+    title: "Reading a district",
+    body: "Each plate shows influence (Inf: civil values + 1 per support-pile card) and popularity (Pop: support-pile cards) for both players. The higher influence wins the district at an election, and the plate's border takes the leader's colour: teal for you, red for them. Lead Pop by 9 to declare Popularity Victory.",
+    target: "district",
   },
   {
     id: "influence",
-    title: "Civil influence",
-    body: "The large number on a civil card is its influence in that district once it is in your tableau. Hover any face-up card to inspect the full art.",
+    title: "Your cards in play",
+    body: "Civil cards add their number to the district's influence. Hover any face-up card to inspect it; the zoom opens on the other side of the screen so it never covers what you're looking at.",
     target: "your-tableau",
   },
   {
     id: "partisans",
-    title: "Partisans",
-    body: "How many times you have recruited. Lead by 3 or more and you may declare Military Victory in your Politics step.",
+    title: "Your numbers",
+    body: "Partisans (lead by 3 to declare Military Victory), elections won, Council of Lords symbols, and how many of the 5 electorates you'd win if the election were scored right now.",
     target: "partisans",
   },
   {
     id: "senate",
     title: "The Senate",
-    body: "Five Senators: civil and conspiracy cards carry 1 vote, alliances 2. In Politics you may seat a card here (the rightmost Senator is discarded to your pile), or reveal cards that convince more than half the votes to change a district policy.",
+    body: "Five Senators: civil and conspiracy cards carry 1 vote, alliances 2. In Politics you may seat a card here (the rightmost Senator goes to your support pile), or reveal cards that convince more than half the votes to change a policy in a revealed card's district.",
     target: "senate",
   },
   {
     id: "decrees",
     title: "Decree objectives",
-    body: "Election winners activate decrees. Active decrees add shared symbols, and meeting any two active decrees at once lets you declare Political Victory.",
+    body: "Election winners activate decrees. Active decrees add shared symbols, and meeting any two active decrees at once lets you declare Political Victory. The dots show who meets each one now.",
     target: "decrees",
   },
   {
     id: "deck",
-    title: "Market and deck",
-    body: "Income lets you take one market card; the market refills, then you draw if still under your hand limit. The number is cards left in the draw deck — 91 after a Standard setup (87 cards plus 4 General Elections). Face-up monuments beside the market are what you can construct.",
+    title: "Market and monuments",
+    body: "Income lets you take one Market card; the Market refills, then you draw if still under your hand limit. During an election the Market grows to 8 and doesn't refill; the election is scored once it's empty.",
     target: "market",
+  },
+  {
+    id: "turn",
+    title: "Your turn",
+    body: "Each turn goes Action → Politics → Income. This dock shows the current step, what to do next, and the buttons for it.",
+    target: "turn",
+  },
+  {
+    id: "history",
+    title: "History",
+    body: "Every public move lands here, tinted by who made it. Hover a tile to see the cards involved; click to pin it.",
+    target: "history",
   },
 ];
 
@@ -307,7 +301,7 @@ export function TableTour({
 
           <div
             ref={tooltipRef}
-            className="absolute z-10 w-[min(20rem,calc(100vw-2rem))] rounded-lg bg-[#221c16] p-4 text-stone-100 shadow-2xl ring-1 ring-white/10"
+            className="absolute z-10 w-[min(20rem,calc(100vw-2rem))] rounded-2xl glass-strong p-4 text-stone-100 shadow-2xl ring-1 ring-white/10"
             style={{ top: pos.top, left: pos.left }}
           >
             <div className="text-[0.65rem] font-semibold tracking-[0.16em] text-[var(--brass)] uppercase">
@@ -339,7 +333,7 @@ export function TableTour({
                 ) : null}
                 <button
                   type="button"
-                  className="cursor-pointer rounded-full bg-[var(--brass)] px-4 py-1.5 text-sm font-semibold text-stone-950 hover:bg-[#d4b57c]"
+                  className="cursor-pointer rounded-xl bg-[var(--act)] px-4 py-1.5 text-sm font-semibold text-stone-950 hover:brightness-110"
                   onClick={next}
                 >
                   {last ? "Done" : "Next"}

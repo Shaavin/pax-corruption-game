@@ -14,6 +14,8 @@ export type PeekCard = {
   cardId?: string;
   contents?: PeekRelatedCard[];
   contentsLabel?: string;
+  /** Viewport x of the hovered element's center; the zoom opens on the other half. */
+  anchorX?: number;
 };
 
 type PeekContextValue = {

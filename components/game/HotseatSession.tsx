@@ -45,6 +45,8 @@ type Session = {
   rng: Rng;
   state: GameState;
   lastEvents: GameEvent[];
+  /** Every event this game, for the history rail. */
+  history: GameEvent[];
 };
 
 type SpendKind = "recruit" | "construct" | "propose";
@@ -112,6 +114,7 @@ export function HotseatSession({ seed }: { seed: number }) {
       lastEvents: START_OF_TURN.has(action.type)
         ? result.events
         : [...session.lastEvents, ...result.events],
+      history: [...session.history, ...result.events],
     });
   }
 
@@ -202,7 +205,7 @@ export function HotseatSession({ seed }: { seed: number }) {
 
   const extraActions: ExtraAction[] = [];
   if (spendKind) {
-    extraActions.push({ label: "Cancel", onClick: resetSelection });
+    extraActions.push({ label: "Cancel", tone: "ghost", onClick: resetSelection });
     if (spendKind === "recruit" && spendReady) {
       extraActions.push({
         label: "Recruit",
@@ -221,6 +224,7 @@ export function HotseatSession({ seed }: { seed: number }) {
   } else if (inAction) {
     extraActions.push({
       label: "Recruit",
+      tone: "neutral",
       disabled: recruitReason !== null,
       title: recruitReason ?? "Discard 3 cards of the same district",
       onClick: () => {
@@ -230,6 +234,7 @@ export function HotseatSession({ seed }: { seed: number }) {
     });
     extraActions.push({
       label: "Construct",
+      tone: "neutral",
       disabled: constructReason !== null,
       title: constructReason ?? "Discard 5 cards of the same district to claim a monument",
       onClick: () => {
@@ -240,6 +245,7 @@ export function HotseatSession({ seed }: { seed: number }) {
     if (canEndAction) {
       extraActions.push({
         label: "No main action — continue",
+        tone: "neutral",
         onClick: () => dispatch({ type: "endAction", player: viewer }),
       });
     }
@@ -254,6 +260,7 @@ export function HotseatSession({ seed }: { seed: number }) {
     }
     extraActions.push({
       label: "Propose policy",
+      tone: wholeHandPasses ? "primary" : "neutral",
       disabled: !wholeHandPasses,
       title: wholeHandPasses
         ? "Reveal cards that convince more than half of the Senate"
@@ -271,6 +278,7 @@ export function HotseatSession({ seed }: { seed: number }) {
     }
     extraActions.push({
       label: "Skip politics",
+      tone: "neutral",
       onClick: () => dispatch({ type: "endPolitics", player: viewer }),
     });
   }
@@ -356,7 +364,8 @@ export function HotseatSession({ seed }: { seed: number }) {
     <Table
       model={model}
       seed={session.seed}
-      status={statusLine(state)}
+      history={session.history}
+      idlePrompt={statusLine(state)}
       showTour={!veiled && !waitingFirstSeat && !inSetup && !state.victory}
       veiled={veiled || waitingFirstSeat}
       hotseat={viewer}
@@ -389,7 +398,7 @@ export function HotseatSession({ seed }: { seed: number }) {
 
 function startSession(seed: number): Session {
   const rng = createSeededRng(seed);
-  return { seed, rng, state: createGame(rng, { seed }), lastEvents: [] };
+  return { seed, rng, state: createGame(rng, { seed }), lastEvents: [], history: [] };
 }
 
 function policyName(policyId: PolicyIdValue | null): string {

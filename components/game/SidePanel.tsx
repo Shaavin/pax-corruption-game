@@ -1,0 +1,378 @@
+"use client";
+
+import type { ReactNode } from "react";
+import { CardBack, CardView } from "./CardView";
+import { InfoTip } from "./InfoTip";
+import { resolveCard } from "./layout-fixture";
+import type { DecreeView } from "./table-model";
+import { getCard } from "@/lib/cards/catalog";
+import { CardKind } from "@/lib/cards/schema";
+import { senatorVotes } from "@/lib/game/senate";
+import type { CardInstance } from "@/lib/game/types";
+
+export type ExtraAction = {
+  label: string;
+  onClick: () => void;
+  disabled?: boolean;
+  title?: string;
+  /** primary = the highlighted "act" colour; neutral = pass/skip; ghost = cancel. */
+  tone?: "primary" | "neutral" | "ghost";
+};
+
+export type PhaseStep = "action" | "politics" | "income" | "decree" | "setup" | "over";
+
+type SidePanelProps = {
+  senate: CardInstance[];
+  senateVotes: number;
+  senateVotesNeeded: number;
+  convinced?: ReadonlySet<number>;
+  revealVotes: number | null;
+  decrees: DecreeView[];
+  market: CardInstance[];
+  electionActive: boolean;
+  electionsOut: number;
+  monuments: CardInstance[];
+  deckCount: number;
+  takeableIds?: ReadonlySet<string>;
+  onTake?: (instanceId: string) => void;
+  claimableIds?: ReadonlySet<string>;
+  onClaimMonument?: (instanceId: string) => void;
+  dock: ReactNode;
+};
+
+/** Shared zones live on the right edge so the four lanes keep the centre of the screen. */
+export function SidePanel(props: SidePanelProps) {
+  return (
+    <aside
+      aria-label="Shared table"
+      className="relative z-10 flex h-full w-[19.5rem] shrink-0 flex-col border-l border-[var(--line)] bg-black/25"
+    >
+      <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-2.5 [scrollbar-width:thin]">
+        <ElectionStatus active={props.electionActive} electionsOut={props.electionsOut} marketLeft={props.market.length} />
+        <SenateSection {...props} />
+        <DecreeSection decrees={props.decrees} />
+        <MarketSection {...props} />
+        <SupplySection {...props} />
+      </div>
+      <div className="shrink-0 border-t border-[var(--line)] p-2.5">{props.dock}</div>
+    </aside>
+  );
+}
+
+function Section({
+  title,
+  aside,
+  tour,
+  info,
+  children,
+}: {
+  title: string;
+  aside?: ReactNode;
+  tour?: string;
+  info?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <section data-tour={tour} className="glass rounded-xl px-2.5 py-2">
+      <header className="mb-1.5 flex items-center gap-1.5">
+        <h3 className="label">{title}</h3>
+        {info ? <InfoTip label={`About ${title}`}>{info}</InfoTip> : null}
+        <div className="ml-auto text-[0.65rem] text-stone-400 tabular-nums">{aside}</div>
+      </header>
+      {children}
+    </section>
+  );
+}
+
+function ElectionStatus({ active, electionsOut, marketLeft }: { active: boolean; electionsOut: number; marketLeft: number }) {
+  return (
+    <div
+      className={[
+        "flex items-center gap-2 rounded-xl px-3 py-2",
+        active ? "bg-[var(--act)]/12 ring-1 ring-[var(--act)]/50" : "glass",
+      ].join(" ")}
+    >
+      <div className="flex gap-1" aria-label={`${electionsOut} of 4 General Elections revealed`}>
+        {[0, 1, 2, 3].map((index) => (
+          <span
+            key={index}
+            className={[
+              "h-2 w-5 rounded-full",
+              index < electionsOut ? "bg-[var(--act)]" : "bg-white/10",
+            ].join(" ")}
+          />
+        ))}
+      </div>
+      <div className="min-w-0 text-[0.7rem] leading-tight">
+        {active ? (
+          <>
+            <div className="font-semibold text-[var(--act)]">Election under way</div>
+            <div className="text-stone-300">
+              Scored when the Market empties · {marketLeft} left
+            </div>
+          </>
+        ) : (
+          <div className="text-stone-300">
+            General Elections <span className="font-semibold text-stone-100">{electionsOut}/4</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SenateSection({
+  senate,
+  senateVotes,
+  senateVotesNeeded,
+  convinced,
+  revealVotes,
+}: SidePanelProps) {
+  const proposing = revealVotes !== null;
+  const passing = proposing && revealVotes >= senateVotesNeeded;
+  return (
+    <Section
+      title="Senate"
+      tour="senate"
+      info={
+        <>
+          Civil and conspiracy Senators carry 1 vote, alliances 2. To pass a policy, reveal
+          cards that convince more than half: a higher civil of the same district, or another
+          alliance of the same district. Conspiracies are never convinced.
+        </>
+      }
+      aside={
+        proposing ? (
+          <span className={passing ? "font-semibold text-[var(--act)]" : ""}>
+            {revealVotes} / {senateVotesNeeded} votes
+          </span>
+        ) : (
+          <>
+            {senateVotes} votes · {senateVotesNeeded} to pass
+          </>
+        )
+      }
+    >
+      <ol className="flex justify-between gap-1">
+        {senate.map((entry, index) => {
+          const def = getCard(entry.cardId);
+          const votes = senatorVotes(entry.cardId);
+          const isConvinced = convinced?.has(index) ?? false;
+          return (
+            <li key={entry.instanceId} className="relative">
+              <CardView
+                name={def.name}
+                art={def.art}
+                size="panel"
+                cardId={entry.cardId}
+                selected={isConvinced}
+                dimmed={proposing && !isConvinced}
+              />
+              <span
+                className={[
+                  "pointer-events-none absolute -right-1 -bottom-1 rounded-md px-1 text-[0.6rem] font-bold tabular-nums ring-1",
+                  def.kind === CardKind.Alliance
+                    ? "bg-[var(--brass)] text-stone-950 ring-black/40"
+                    : "bg-stone-900 text-stone-100 ring-white/20",
+                ].join(" ")}
+                title={`${votes} vote${votes === 1 ? "" : "s"}`}
+              >
+                {votes}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+    </Section>
+  );
+}
+
+function DecreeSection({ decrees }: { decrees: DecreeView[] }) {
+  const active = decrees.filter((decree) => decree.active).length;
+  return (
+    <Section
+      title="Decrees"
+      tour="decrees"
+      aside={`${active}/4 active`}
+      info={
+        <>
+          Election winners activate one decree per General Election revealed. Active decrees
+          add shared symbols. Meet any two active decrees at once to declare Political Victory.
+          Dots show who meets each one right now.
+        </>
+      }
+    >
+      <ol className="flex justify-between gap-1">
+        {decrees.map((decree) => {
+          const def = getCard(decree.id);
+          if (def.kind !== CardKind.Decree) return null;
+          return (
+            <li key={decree.id} className="flex flex-col items-center gap-1">
+              <CardView
+                name={decree.active ? def.name : def.inactiveName}
+                art={decree.active ? def.art : def.inactiveArt}
+                size="panel"
+                square
+                cardId={decree.id}
+                dimmed={!decree.active}
+              />
+              <span className="flex h-2 items-center gap-1" aria-label={decree.active ? `${def.name}: you ${decree.youMeet ? "meet" : "don't meet"} it; opponent ${decree.theyMeet ? "meets" : "doesn't meet"} it` : `${def.inactiveName}: inactive`}>
+                {decree.active ? (
+                  <>
+                    <Dot on={decree.theyMeet} color="var(--opp)" />
+                    <Dot on={decree.youMeet} color="var(--you)" />
+                  </>
+                ) : (
+                  <span className="text-[0.5rem] tracking-wide text-stone-500 uppercase">off</span>
+                )}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+    </Section>
+  );
+}
+
+function Dot({ on, color }: { on: boolean; color: string }) {
+  return (
+    <span
+      className="block h-2 w-2 rounded-full"
+      style={on ? { background: color, boxShadow: `0 0 6px ${color}` } : { background: "rgb(255 255 255 / 0.12)" }}
+    />
+  );
+}
+
+function MarketSection({ market, electionActive, takeableIds, onTake }: SidePanelProps) {
+  return (
+    <Section
+      title="Market"
+      tour="market"
+      aside={electionActive ? "no refill during the election" : `${market.length} cards`}
+    >
+      {market.length === 0 ? (
+        <p className="py-3 text-center text-xs text-stone-500">Empty</p>
+      ) : (
+        <ol className="grid grid-cols-5 justify-items-center gap-1">
+          {market.map((entry) => {
+            const catalog = resolveCard(entry.cardId);
+            const takeable = takeableIds?.has(entry.instanceId) ?? false;
+            return (
+              <li key={entry.instanceId}>
+                <CardView
+                  name={catalog.name}
+                  art={catalog.art}
+                  faceUp={entry.faceUp}
+                  size="panel"
+                  cardId={entry.cardId}
+                  playable={takeable}
+                  selectLabel={takeable ? `Take ${catalog.name}` : undefined}
+                  onSelect={takeable && onTake ? () => onTake(entry.instanceId) : undefined}
+                />
+              </li>
+            );
+          })}
+        </ol>
+      )}
+    </Section>
+  );
+}
+
+function SupplySection({ monuments, deckCount, claimableIds, onClaimMonument }: SidePanelProps) {
+  return (
+    <Section title="Monuments" aside={`deck ${deckCount}`}>
+      <div className="flex items-end justify-between gap-1">
+        {monuments.map((entry) => {
+          const catalog = resolveCard(entry.cardId);
+          const claimable = claimableIds?.has(entry.instanceId) ?? false;
+          return (
+            <CardView
+              key={entry.instanceId}
+              name={catalog.name}
+              art={catalog.art}
+              faceUp={entry.faceUp}
+              back={CardBack.monument}
+              size="panel"
+              cardId={entry.cardId}
+              playable={claimable}
+              selectLabel={claimable ? `Construct ${catalog.name}` : undefined}
+              onSelect={claimable && onClaimMonument ? () => onClaimMonument(entry.instanceId) : undefined}
+            />
+          );
+        })}
+        <div className="ml-1 flex flex-col items-center gap-0.5" title={`${deckCount} cards left in the draw deck`}>
+          <CardView name="Draw deck" art={CardBack.common} faceUp={false} size="mini" />
+          <span className="text-[0.6rem] font-semibold tabular-nums text-stone-300">{deckCount}</span>
+        </div>
+      </div>
+    </Section>
+  );
+}
+
+const STEPS: { id: PhaseStep; label: string }[] = [
+  { id: "action", label: "Action" },
+  { id: "politics", label: "Politics" },
+  { id: "income", label: "Income" },
+];
+
+/** Bottom-right turn controls: phase ladder, what to do now, and the buttons. */
+export function TurnDock({
+  phase,
+  seatColor,
+  prompt,
+  actions,
+}: {
+  phase: PhaseStep;
+  seatColor: string;
+  prompt: string;
+  actions: ExtraAction[];
+}) {
+  return (
+    <div className="flex flex-col gap-2" data-tour="turn">
+      <ol className="flex items-center gap-1" aria-label="Turn steps">
+        {STEPS.map((step, index) => {
+          const current = phase === step.id;
+          const done = STEPS.findIndex((entry) => entry.id === phase) > index;
+          return (
+            <li key={step.id} className="flex flex-1 items-center gap-1">
+              <span
+                className={[
+                  "flex-1 rounded-full px-2 py-1 text-center text-[0.6rem] font-semibold tracking-[0.12em] uppercase transition-colors",
+                  current ? "text-stone-950" : done ? "bg-white/8 text-stone-400" : "bg-white/4 text-stone-500",
+                ].join(" ")}
+                style={current ? { background: seatColor } : undefined}
+                aria-current={current ? "step" : undefined}
+              >
+                {step.label}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+      <p className="min-h-[2.4em] text-[0.78rem] leading-snug text-stone-200">{prompt}</p>
+      {actions.length > 0 ? (
+        <div className="flex flex-wrap gap-1.5">
+          {actions.map((action) => (
+            <button
+              key={action.label}
+              type="button"
+              title={action.title}
+              disabled={action.disabled}
+              onClick={action.onClick}
+              className={[
+                "cursor-pointer rounded-lg px-3 py-1.5 text-[0.75rem] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-35",
+                action.tone === "ghost"
+                  ? "text-stone-300 ring-1 ring-white/15 hover:bg-white/8"
+                  : action.tone === "neutral"
+                    ? "bg-white/10 text-stone-100 hover:bg-white/16"
+                    : "bg-[var(--act)] text-stone-950 hover:brightness-110",
+              ].join(" ")}
+            >
+              {action.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}

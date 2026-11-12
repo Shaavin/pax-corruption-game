@@ -16,6 +16,7 @@ export type CardSize =
   | "board"
   | "market"
   | "mini"
+  | "panel"
   | "zoom"
   | "choice"
   | "related"
@@ -26,6 +27,7 @@ const WIDTH: Record<CardSize, string> = {
   board: "w-[var(--card-board)]",
   market: "w-[var(--card-market)]",
   mini: "w-[var(--card-mini)]",
+  panel: "w-[var(--card-panel)]",
   zoom: "w-[var(--card-zoom)]",
   choice: "w-[var(--card-choice)]",
   related: "w-[var(--card-related)]",
@@ -37,6 +39,7 @@ const SIZES: Record<CardSize, string> = {
   board: "70px",
   market: "80px",
   mini: "56px",
+  panel: "56px",
   zoom: "280px",
   choice: "168px",
   related: "140px",
@@ -90,24 +93,22 @@ export function CardView({
     peekDelay ?? (size === "choice" ? CHOICE_PEEK_DELAY_MS : 0);
   const liftOnHover = size !== "choice";
   const frameClass = [
-    "relative block shrink-0 overflow-hidden rounded-[0.22em] bg-stone-900 shadow-[0_2px_8px_rgba(0,0,0,0.45)] ring-1 ring-black/40",
+    "relative block shrink-0 overflow-hidden rounded-[0.32em] bg-stone-900 shadow-[0_3px_10px_rgba(0,0,0,0.5)] ring-1 ring-black/50",
     square ? "aspect-square" : "aspect-[825/1125]",
     WIDTH[size],
     interactive
       ? [
           "cursor-pointer focus-visible:z-20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brass)]",
           liftOnHover
-            ? "transition-transform duration-150 hover:-translate-y-1 hover:z-20 hover:shadow-[0_8px_20px_rgba(0,0,0,0.55)]"
+            ? "transition-[transform,box-shadow] duration-150 ease-out hover:-translate-y-1 hover:z-20 hover:shadow-[0_10px_24px_rgba(0,0,0,0.6)]"
             : "",
         ].join(" ")
       : "",
     canPeek && !onSelect ? "cursor-zoom-in" : "",
     selected && !dimmed
-      ? "ring-2 ring-[var(--brass)] ring-offset-2 ring-offset-[#16120e]"
+      ? "ring-2 ring-[var(--act)] ring-offset-2 ring-offset-[#0a0c10]"
       : "",
-    playable && !selected
-      ? "ring-2 ring-[var(--brass)]/70"
-      : "",
+    playable && !selected ? "act-glow" : "",
     className,
   ].join(" ");
 
@@ -130,15 +131,17 @@ export function CardView({
     }
   }
 
-  function showPeek() {
+  function showPeek(event: { currentTarget: HTMLElement }) {
     if (!canPeek) return;
+    const box = event.currentTarget.getBoundingClientRect();
+    const peek = { name, art, cardId, anchorX: box.left + box.width / 2 };
     if (inspectDelay <= 0) {
-      setPeek({ name, art, cardId });
+      setPeek(peek);
       return;
     }
     clearPeekTimer();
     peekTimer.current = window.setTimeout(() => {
-      setPeek({ name, art, cardId });
+      setPeek(peek);
       peekTimer.current = null;
     }, inspectDelay);
   }
