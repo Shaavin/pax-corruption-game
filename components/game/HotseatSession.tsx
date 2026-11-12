@@ -210,7 +210,7 @@ export function HotseatSession({ seed }: { seed: number }) {
       });
     }
     if (spendKind === "propose" && revealPassing && !proposeTarget) {
-      for (const target of policyTargets(state)) {
+      for (const target of policyTargets(state, revealedCardIds)) {
         extraActions.push({
           label: `${DISTRICT_NAME[target.district]} → ${policyName(target.policyId)}`,
           title: "Change this district's policy, then pick a revealed card to discard",

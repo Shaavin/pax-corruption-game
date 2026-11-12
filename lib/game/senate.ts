@@ -71,13 +71,27 @@ export function policyOptions(state: GameState, district: DistrictId): (PolicyId
   return POLICIES.filter((policy) => policy.district === district).map((policy) => policy.id);
 }
 
-/** Every (district, policy) change a successful proposal could make. */
+/** Districts a proposal may change: the printed districts of the revealed cards (ruled 2026-11-12). */
+export function revealedDistricts(revealedCardIds: readonly string[]): DistrictId[] {
+  const districts = new Set<DistrictId>();
+  for (const id of revealedCardIds) {
+    const def = getCard(id);
+    if ("district" in def) districts.add(def.district);
+  }
+  return [...districts];
+}
+
+/** Every (district, policy) change a successful proposal with these revealed cards could make. */
 export function policyTargets(
   state: GameState,
+  revealedCardIds: readonly string[],
 ): { district: DistrictId; policyId: PolicyIdValue | null }[] {
-  return state.districtOrder.flatMap((district) =>
-    policyOptions(state, district).map((policyId) => ({ district, policyId })),
-  );
+  const allowed = new Set(revealedDistricts(revealedCardIds));
+  return state.districtOrder
+    .filter((district) => allowed.has(district))
+    .flatMap((district) =>
+      policyOptions(state, district).map((policyId) => ({ district, policyId })),
+    );
 }
 
 /** Influence Senate: rightmost Senator to the actor's support pile, new card seated leftmost. */

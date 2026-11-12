@@ -30,6 +30,7 @@ import {
   influenceSenate,
   policyOptions,
   policyTargets,
+  revealedDistricts,
   revealPasses,
   senateTotalVotes,
 } from "./senate.ts";
@@ -249,8 +250,9 @@ function politicsActions(state: GameState, viewer: PlayerId): Action[] {
   }
 
   const revealIds = hand.map((card) => card.instanceId);
-  if (revealPasses(state, hand.map((card) => card.cardId))) {
-    for (const target of policyTargets(state)) {
+  const revealCardIds = hand.map((card) => card.cardId);
+  if (revealPasses(state, revealCardIds)) {
+    for (const target of policyTargets(state, revealCardIds)) {
       for (const discardId of revealIds) {
         actions.push({
           type: "proposePolicy",
@@ -577,6 +579,9 @@ function applyProposePolicy(state: GameState, action: ProposePolicyAction): Game
   }
   if (!state.districtOrder.includes(action.district)) {
     throw new IllegalActionError("Unknown district");
+  }
+  if (!revealedDistricts(revealedCardIds).includes(action.district)) {
+    throw new IllegalActionError("The changed policy must be in a district of a revealed card");
   }
   if (!policyOptions(state, action.district).includes(action.policyId)) {
     throw new IllegalActionError(

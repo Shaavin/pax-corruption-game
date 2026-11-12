@@ -4,11 +4,7 @@ Do not invent answers. If a task depends on one of these, stop and ask, then mov
 
 ## Still open (rules revision 2026-11)
 
-These come from the current rulebook and card faces. Ask Joe.
-
-| # | Topic | Question | Where it bites |
-| --- | --- | --- | --- |
-| 1 | Propose Policy leftovers | The district-matching rule is settled (see Resolved). Still unconfirmed: must the changed district relate to the revealed cards (implemented: no, any district), and do the revealed cards that aren't discarded go back to hand (implemented: yes)? | Politics step |
+None right now. If new card text or a rulebook update conflicts with this file, ask before coding.
 
 ## Resolved
 
@@ -33,11 +29,13 @@ These come from the current rulebook and card faces. Ask Joe.
 | Tie-break cards | Tie-break 2 counts civil cards (both players) in each won district and alliance cards (both players) for a won Council of Lords. |
 | De Jures | Compare each district separately. A player with **no** civil cards in a district loses that district's comparison. If **neither** player has civil cards there, it's a tie, which satisfies "tie for lowest" for both. Satisfied only if the player passes in all 4 districts. |
 
-### 2026-11-12 (Joe, via Ian; not yet in the rulebook)
+### 2026-11-12 (Joe, via Ian)
 
 | Topic | Decision |
 | --- | --- |
-| Buying an event for its effect (expansion) | When you purchase an event and play it **for its event effect** (not as a civil card), **draw a card**. This makes playing an event for its effect effectively 1 card cheaper than playing it as a civil card. |
+| Propose Policy reveals | Revealed cards go back to your hand (except the one you discard); cards you didn't reveal never leave it. |
+| Propose Policy target | The changed policy must be in a district of one of the **revealed** cards. Example: revealing a Smarbbit alliance and a Shavvinne civil lets you change Smarbbit's or Shavvinne's policy, not Horsard's. (Interpretation of "must relate to the revealed cards"; implemented.) |
+| Buying an event for its effect (expansion; not yet in the rulebook) | When you purchase an event and play it **for its event effect** (not as a civil card), **draw a card**. This makes playing an event for its effect effectively 1 card cheaper than playing it as a civil card. |
 
 ### Earlier rulings still valid under the current rules
 

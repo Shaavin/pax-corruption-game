@@ -235,6 +235,19 @@ function toPolitics(state: GameState): GameState {
     "Discard must be a revealed card",
   );
 
+  expectIllegal(
+    () =>
+      apply(start, {
+        type: "proposePolicy",
+        player: actor,
+        revealIds: [robot.instanceId, enterprise.instanceId],
+        discardId: enterprise.instanceId,
+        district: District.Horsard,
+        policyId: PolicyId.HorsardA,
+      }, rng),
+    "Only a revealed card's district can change (Dragonara reveal → Horsard)",
+  );
+
   const passed = propose(start, [robot.instanceId, enterprise.instanceId], enterprise.instanceId, PolicyId.DragonaraA);
   assert(passed.policy[d] === PolicyId.DragonaraA, "One civil convinces two Senators; with the alliance, 4 of 6");
   assert(
