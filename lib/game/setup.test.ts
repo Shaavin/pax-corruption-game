@@ -56,14 +56,15 @@ function collectIds(state: GameState): string[] {
   };
   for (const player of state.players) {
     add(player.hand);
-    add(player.policySupporters);
     add(player.consultativeOffice);
+    add(player.planetNextBank);
     add(player.monuments);
     for (const district of DISTRICTS) {
       add(player.tableau[district]);
       add(player.support[district]);
     }
   }
+  add(state.senate);
   add(state.market);
   add(state.deck);
   add(state.availableMonuments);
@@ -88,7 +89,16 @@ function kindOf(cardId: string) {
   assert(state.setup === null, "Setup should be cleared");
   assert(state.firstPlayer !== null, "First player should be set");
   assert(state.activePlayer === state.firstPlayer, "First player takes turn 1");
-  assert(state.executive === null, "Nobody holds executive power at start");
+  assert(state.senate.length === 5, "Senate has 5 cards");
+  assert(state.senate.every((c) => c.faceUp), "Senate is face-up");
+  assert(
+    state.senate.every((c) => kindOf(c.cardId) !== CardKind.Election),
+    "Senate must not contain general elections",
+  );
+  assert(
+    state.decrees.length === 4 && state.decrees.every((d) => !d.active),
+    "Four decree objectives start inactive",
+  );
   assert(state.districtOrder.length === 4, "Need 4 districts");
   assert(
     new Set(state.districtOrder).size === 4,
@@ -136,7 +146,7 @@ function kindOf(cardId: string) {
   const nonGeDeck = state.deck.filter((c) => kindOf(c.cardId) !== CardKind.Election);
   assert(nonGeHands.length === 7, `Starting cards ${nonGeHands.length}, want 7`);
   assert(nonGeMarket.length === 5, `Market ${nonGeMarket.length}, want 5`);
-  assert(nonGeDeck.length === 92, `Pile non-GE ${nonGeDeck.length}, want 92`);
+  assert(nonGeDeck.length === 87, `Pile non-GE ${nonGeDeck.length}, want 87`);
   assert(state.market.length === 5, "Market is 5 cards");
   assert(
     state.market.every((c) => kindOf(c.cardId) !== CardKind.Election),
@@ -164,6 +174,10 @@ function kindOf(cardId: string) {
   assert(
     state.market.every((c) => !startingIds.has(c.instanceId)),
     "Starting cards must not be in the market",
+  );
+  assert(
+    state.senate.every((c) => !startingIds.has(c.instanceId)),
+    "Starting cards must not be in the Senate",
   );
   assert(
     state.deck.every((c) => !startingIds.has(c.instanceId)),
@@ -345,4 +359,4 @@ if (errors.length > 0) {
   process.exit(1);
 }
 
-console.log("Setup ok: Standard seed reaches turn 1 with 7+5+92 and printed A–E piles.");
+console.log("Setup ok: Standard seed reaches turn 1 with 7 + 5 Senate + 5 Market + 87 and printed A–E piles.");

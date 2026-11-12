@@ -58,14 +58,15 @@ function collectIds(state: GameState): string[] {
   };
   for (const player of state.players) {
     add(player.hand);
-    add(player.policySupporters);
     add(player.consultativeOffice);
+    add(player.planetNextBank);
     add(player.monuments);
     for (const district of DISTRICTS) {
       add(player.tableau[district]);
       add(player.support[district]);
     }
   }
+  add(state.senate);
   add(state.market);
   add(state.deck);
   add(state.availableMonuments);
@@ -389,8 +390,10 @@ function finishTurnAfterMain(
     !state.market.some((card) => card.instanceId === ge.instanceId),
     "General election must not sit in the market",
   );
-  assert(state.election.active, "A GE drawn during income starts an election after the turn");
-  assert(state.activePlayer === otherPlayer(actor), "First election: the non-triggerer goes first");
+  assert(state.election.active, "A revealed GE starts an election phase right away");
+  assert(state.market.length === 8, `Election phase fills the Market to 8, got ${state.market.length}`);
+  assert(state.election.generalElections === 1, "One GE counted for decree activation");
+  assert(state.activePlayer === otherPlayer(actor), "Turn order is unchanged: the opponent opens the election");
   assertUniqueIds(state, "after GE set-aside");
 }
 
@@ -452,4 +455,4 @@ if (errors.length > 0) {
   process.exit(1);
 }
 
-console.log("Turn ok: play civil, income (take / draw / replenish), pass, GE starts election.");
+console.log("Turn ok: play civil, income (take / replenish / draw), pass, GE opens an election.");
