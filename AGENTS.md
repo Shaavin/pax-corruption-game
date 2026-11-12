@@ -20,4 +20,8 @@ Before changing game rules, engine code, or board UI, read:
 4. [docs/agents/development-plan.md](docs/agents/development-plan.md) — architecture and build order
 5. [docs/agents/open-questions.md](docs/agents/open-questions.md) — unresolved rules (do not invent answers)
 
-Do not implement a card ability from memory. Use the catalog (and the printed card image) as the source of truth. If a rule is listed as open, stop and ask.
+The rules were revised in 2026-11: the Senate and decree objectives replaced policy supporters, referendums, and executive power. The engine still implements the old rules, so the next work is **Phase R (rules migration)** in the development plan. Code for removed mechanics is wrong, not unfinished.
+
+Source priority: current printed card text (the Tabletop Simulator save faces) > the current rulebook PDF > these docs > marketing copy. Paths are in [card-catalog.md](docs/agents/card-catalog.md#sources-of-truth).
+
+Do not implement a card ability from memory. Use the catalog and the current printed card image. If a rule is listed as open, stop and ask.

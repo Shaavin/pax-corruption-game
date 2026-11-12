@@ -1,157 +1,188 @@
 # Card catalog
 
-Base-game cards and how to encode them. Expansion art exists on disk but is out of scope until the base game is playable.
+Base-game cards, where their current faces live, and how to encode them. Expansion cards are out of scope until the base game is playable.
 
 Marketing site: [pax-corruption-marketing.vercel.app](https://pax-corruption-marketing.vercel.app/).
 
-## Art on disk
+## Sources of truth
 
-Source (not in git yet):
+| Source | Status | Use for |
+| --- | --- | --- |
+| Tabletop Simulator save **"Pax Corruption - Full Game"** (`C:\Users\ianpe\OneDrive\Documents\My Games\Tabletop Simulator\Saves\TS_Save_1.json`) and its cached sheets in `...\Tabletop Simulator\Mods\Images\` | **Current** (2026-11) | Printed card text and art |
+| Base rulebook PDF (`C:\Repos\pax-corruption-marketing\public\rulebook\pax-corruption-rulebook.pdf`) | **Current** | Rules, components, examples |
+| `C:\Users\ianpe\Downloads\Resized to 825x1125\...` (what `public/cards/` was built from) | **Stale** for alliances, monuments, the Republican party, executive power, and player aids | Civil cards, conspiracies, policies, overviews (unchanged) |
 
-`C:\Users\ianpe\Downloads\Resized to 825x1125\Resized to 825x1125`
+When text in `lib/cards` disagrees with the TTS faces, the TTS faces win.
 
-| Folder | What |
+### TTS deck map
+
+`TS_Save_1.json` has 21 `CustomDeck` entries. Sheets are 10×7 grids of 880×1232 cards (8800×8624 px). Cached file name = the URL with every non-alphanumeric character removed. `CardID = deckId * 100 + index`.
+
+| Deck | Contents |
 | --- | --- |
-| `Common Back/<District>/` | Main-deck faces. `A-*` alliance, `B-*` civil, `C-*` conspiracy |
-| `District Back/` | 4 district overviews + 4 policy overviews |
-| `Monument Back/` | 8 monuments |
-| `Party Back/` | 8 parties |
-| `Double Sided/` | Policies A/B, executive power, markers, player aids |
-| `Common Back.png` etc. | Card backs (common / district / monument / party) |
-| `Expansion Pack/` | Ignore for v1 |
+| 2, 3 | Main deck (108), including real **General Election** art (replaces the placeholder SVGs) |
+| 4 | District overviews + policy overviews (8) |
+| 5 | Monuments (8) |
+| 6 | Parties (8) |
+| 7 | District policies (4 double-sided; unique backs = the other side) |
+| 17–20 | Decree objectives (face = inactive side, back = active side) |
+| 21 | Base player aid (Victories / Actions) |
+| 1, 8–16 | Expansion (player aid, 4 event decks, 5 victory cards). Ignore for v1. |
 
-Counts match the rulebook: 4 districts × (6 alliance + 18 civil + 2 conspiracy) = 104, plus 4 general election cards.
+## Ingest status
 
-**General election faces are not in this folder.** Use a placeholder back/face until official files are provided.
+The **civil cards (72), conspiracies (8), policies, and overviews** in `lib/cards` and `public/cards` match the current faces. Verified 2026-11 by comparing every name and value.
 
-Copy into the app as `public/cards/...` (or a web-sized derivative). Keep filenames stable; the catalog points at them.
+These are **out of date** and must be re-ingested (art) and re-transcribed (text):
 
-Suggested in-repo layout after ingest:
+| Item | What changed |
+| --- | --- |
+| 15 of 24 alliance faces | New text. See [Alliances](#alliances-base-24). Every alliance's `OR` line now reads "It counts 2x many votes in the Senate." |
+| `horsard-a-5` | Renamed **Century Club → Century Inc.**, new text |
+| Monuments | Planet Next, Roman Basilica, Model Society, Smart Doctrine have new text |
+| Republican Party (party-8) | Starting cards are now Century Inc.; 8 – Civic Council; 6 – Monarch Family; **5 – Patrons of Art** (Emirates is no longer a starting card) |
+| Executive power | **Removed from the game.** Delete `public/cards/executive/` and the `EXECUTIVE` catalog entries. |
+| Decree objectives | **New.** 4 double-sided cards, not in the repo yet |
+| General Election | Real art exists now (TTS deck 3). Replace the placeholder SVGs. |
+| Player aids | New base aid. Victories: Civil / Political (2 active decrees) / Military / Popularity / Ideological. |
 
-```
-public/cards/
-  backs/{common,district,monument,party}.png
-  districts/{dragonara,horsard,shavvinne,smarbbit}/{overview,policy-overview}.png
-  parties/party-1.png … party-8.png
-  monuments/{intel-network,dragon-gate,...}.png
-  policies/{dragonara-a,dragonara-b,...}.png
-  executive/{emergency-state,legal-review}.png
-  deck/{dragonara-a-1.png,...}
-```
+## Components
 
-## Anatomy (from printed cards)
+| Group | Count | Contents |
+| --- | --- | --- |
+| Main deck | 108 | Per district: 6 alliance + 18 civil + 2 conspiracy (×4 = 104), plus 4 General Election |
+| Double-sided | 15 | Partisans marker, 4 district policies, 8 support markers, 2 player aids |
+| Special | 24 | 4 district overviews, 4 policy overviews, 8 monuments, 8 parties |
+| Decree objectives | 4 | Inactive / active sides |
+
+## Anatomy
 
 Shared header: district crest (top-left), type icon (top-right).
 
 | Type | Type icon | Body |
 | --- | --- | --- |
-| Civil | Person bust, district color | Name, large influence number, same number printed upside-down in the corners (physical-hand convenience, not a second stat) |
-| Alliance | Handshake | Ability text, then `OR` / "counts 2× for policy support in {district}" |
-| Conspiracy | Flame | Flavor + "Remove and discard ALL cards in {district}, then discard this conspiracy" |
-| Party | Political symbol + order number | Flavor, name, 4 starting-card rows, guaranteed monument |
+| Civil | Person bust, district color | Name, large influence number. The number repeats upside-down in the corners (hand convenience, not a second stat). 6 and 9 are underlined. |
+| Alliance | Handshake (Financial Bankers has 2) | Ability text, then `OR` / "It counts 2x many votes in the Senate." |
+| Conspiracy | Flame | Flavor + "Remove and discard ALL cards in {district}, then discard this conspiracy." |
+| Party | Political symbol + order number | Flavor, name, 4 starting cards (colored by **district**), guaranteed monument |
 | Monument | Equestrian statue | Ability + political symbol |
 | Policy | Temple | Ability + political symbol |
-| Executive | President hat or courthouse | Condition + yellow ability band |
+| Decree objective | Rosette (inactive) / "Pax" stamp (active) | Inactive: "Win an election to activate this decree." Active: condition + political symbol |
 
-District face colors: Dragonara cream, Horsard blue, Shavvinne green, Smarbbit pink.
+District face colors: Dragonara yellow, Horsard blue, Shavvinne green, Smarbbit pink.
 
 ## Political symbols
 
-Four types. Color is cosmetic.
+| Id | Printed as | Theme |
+| --- | --- | --- |
+| `atom` | Nucleus + orbits | science |
+| `chart` | Rising bar chart with arrow | economy |
+| `crown` | Three-point crown | authority |
+| `scales` | Balance scale | justice |
 
-| Id | Printed as |
-| --- | --- |
-| `atom` | Nucleus + orbits |
-| `chart` | Rising bar chart with arrow |
-| `crown` | Three-point crown |
-| `scales` | Balance scale |
-
-Sources: party (owner only), constructed monument (owner only), active district policy (both players). **Smart Doctrine** grants the owner one of each type.
+Color is cosmetic. Sources: party and monuments (private, owner only), active policies and active decrees (shared). Smart Doctrine adds private copies matching active decrees. Scoring rules: [game-rules.md#ideological-victory](game-rules.md#ideological-victory).
 
 ## Data shape
 
-Implement catalog entries as typed objects, not free-form strings the UI parses.
+Implement entries as typed objects, not free-form strings the UI parses.
 
-Closed sets live as const objects in `lib/cards/schema.ts` and `lib/cards/effects.ts` (`District`, `Symbol`, `CardKind`, `EffectId`, `TriggerWhen`, …). Use those at call sites so the editor can complete them. Do not use TypeScript `enum`. Main-deck instance ids (`dragonara-a-1`) stay strings — they are filenames, not a closed design set.
+Closed sets live as const objects in `lib/cards/schema.ts` and `lib/cards/effects.ts` (`District`, `Symbol`, `CardKind`, `EffectId`, `TriggerWhen`, …). Use them at call sites. Do not use TypeScript `enum`. Main-deck instance ids (`dragonara-a-1`) stay strings; they double as filenames.
 
-Every main-deck card needs at least: `id`, `kind`, `district` (except election), `name`, `art`, `copies` (usually 1; civil values repeat as distinct names).
+Every main-deck card: `id`, `kind`, `district` (except election), `name`, `art`, `copies`.
 
-Civil: `influence: number`.
-Alliance: `allianceSymbols: number` (handshake count, default 1), `effects`, `policySupportValue: 2`.
-Conspiracy: same wipe effect; `district` is the target.
-Party: `order: 1–8`, `symbol`, `startingCardIds[4]`, `guaranteedMonumentId`.
-Monument: `district`, `symbol[]`, `effects`.
-Policy: `district`, `side: "a" | "b"`, `symbol`, `effects`.
+- Civil: `influence`. Senate votes: 1.
+- Alliance: `allianceSymbols` (handshake count, default 1), `effects`, `senateVotes: 2` (replaces `policySupportValue`).
+- Conspiracy: `district` is the target. Senate votes: 1.
+- Party: `order` 1–8, `symbol`, `startingCards[4]`, `guaranteedMonumentId`.
+- Monument: `district`, `symbols[]`, `effects`.
+- Policy: `district`, `side: "a" | "b"`, `symbol`, `effects`.
+- **Decree objective** (new): `id`, `inactiveName`, `activeName`, `symbol`, `condition` (an `EffectId`-style id, not text).
 
-Ability `id`s are a registry in the engine (`lib/game/abilities/`). New card text = new handler or a reused generic one. Do not regex card text at runtime.
+Ability ids are a registry in the engine. New card text means a new handler or a reused generic one. Never regex card text at runtime.
 
-## Parties (base)
+## Parties
 
-| Order | Party | Symbol (from card) | Starting names (search the deck) | Monument |
+| Order | Party | Symbol | Starting cards (district) | Monument |
 | --- | --- | --- | --- | --- |
-| 1 | Trinity Party | crown | Architecture Inc.; Divine Inquisitors; 9 – Roman Church; 8 – Fundamentalists | Roman Basilica |
-| 2 | Conservative Party | crown | Capitol Inc.; Project Habitat; 8 – Conservatives; 8 – Estate Moguls | Smart Doctrine |
-| 3 | Progressive Party | atom | District Governor; Urban Aristocrats; 8 – Grand Justices; 5 – Royal Academy | Intel Network |
-| 4 | Innovative Party | atom | Financial Bankers; Foreign Inc.; 8 – Professors; 7 – Regulators | Space Agency |
-| 5 | Liberal Party | chart | Rebel Inc.; 8 – Film Industry; 8 – Liberalists; 4 – Influencers | Planet Next |
-| 6 | Global Party | scales | People's Press; 8 – Export Giants; 7 – Robot Factories; 6 – Export Bureau | Dragon Gate |
-| 7 | Socialist Party | scales | State Enterprise; 9 – Communists; 8 – Socialists; 5 – Local Politicians | Model Society |
-| 8 | Republican Party | chart | Century Club; 8 – Civic Council; 7 – Emirates; 6 – Monarch Family | Civil Service |
+| 1 | Trinity Party | crown | Architecture Inc. (S); Divine Inquisitors (S); 9 – Roman Church (S); 8 – Fundamentalists (M) | Roman Basilica |
+| 2 | Conservative Party | crown | Capitol Inc. (M); Project Habitat (M); 8 – Conservatives (M); 8 – Estate Moguls (H) | Smart Doctrine |
+| 3 | Progressive Party | atom | District Governor (D); Urban Aristocrats (D); 8 – Grand Justices (D); 5 – Royal Academy (S) | Intel Network |
+| 4 | Innovative Party | atom | Financial Bankers (H); Foreign Inc. (H); 8 – Professors (D); 7 – Regulators (H) | Space Agency |
+| 5 | Liberal Party | chart | Rebel Inc. (S); 8 – Film Industry (H); 8 – Liberalists (M); 4 – Influencers (H) | Planet Next |
+| 6 | Global Party | scales | People's Press (M); 8 – Export Giants (H); 7 – Robot Factories (D); 6 – Export Bureau (D) | Dragon Gate |
+| 7 | Socialist Party | scales | State Enterprise (D); 9 – Communists (M); 8 – Socialists (M); 5 – Local Politicians (S) | Model Society |
+| 8 | Republican Party | chart | **Century Inc.** (H); 8 – Civic Council (D); 6 – Monarch Family (S); **5 – Patrons of Art** (S) | Civil Service |
 
-Starting-card colors on party faces match **district**, not card kind: green Shavvinne, blue Horsard, orange Dragonara, red/pink Smarbbit.
+D = Dragonara, H = Horsard, S = Shavvinne, M = Smarbbit. Where a name has several copies (District Governor, Foreign Inc.), the starting card is the one in the listed district.
 
-Party symbol colors follow the party, not the monument district. Encode the **type** only.
+Guaranteed monuments that share a district: Progressive + Global (Dragonara), Innovative + Liberal (Horsard), Trinity + Republican (Shavvinne), Conservative + Socialist (Smarbbit). Ruled 2026-11-11: that's fine; available monuments may share a district.
 
-## Main deck file map
+## Alliances (base, 24)
 
-Per district folder `Common Back/<District>/`:
+Current printed text. Every alliance also prints `OR — It counts 2x many votes in the Senate.` (omitted below). ✱ = changed from what `lib/cards/deck.ts` has.
 
-- `A-1` … `A-6` — alliances
-- `B-1` … `B-18` — civil
-- `C-1`, `C-2` — conspiracies
-
-Verified examples:
-
-- `Dragonara/A-1` = Order of Knights (Dragonara civil +1 influence; conspiracies cannot be played in Dragonara)
-- `Dragonara/B-1` = Technocrats (civil 9)
-- `Dragonara/C-1` = Theft of Thunder (standard Dragonara wipe)
-- `Horsard/B-8` = Consumer Brands (civil 4)
-
-**Phase 0 work:** walk every PNG, record `id`, `name`, `kind`, `district`, `influence` / effects. Until that sheet exists, do not implement unique alliance abilities beyond the handful already transcribed.
-
-## Alliances named in rules or starting hands
-
-These must exist in the catalog even before the full walk:
-
-Architecture Inc., Divine Inquisitors, Capitol Inc., Project Habitat, District Governor, Urban Aristocrats, Financial Bankers, Foreign Inc., Rebel Inc., People's Press, State Enterprise, Century Club, Order of Knights, Diet of Saints.
-
-District Governor (Dragonara A-3, and equivalents in other districts if present). Played text: silences opponent’s alliances in its district; that district’s policy cannot be changed via policy referendum. Does **not** block Legal Review. The `OR` line is the usual alliance alternative (tuck as 2× policy support), not a second in-play mode. Two Governors of the same district silence each other, so no alliance ability is active there (FAQ).
-
-People's Press: retrieve a chosen card from a support pile (FAQ: you may look and choose).
-
-Century Club: replace an alliance (FAQ interaction with Order of Knights).
-
-## Executive power
-
-One physical card, two faces. Election winner chooses the face.
-
-| Face | Title | Use |
+| Id | Name | Text |
 | --- | --- | --- |
-| President | Emergency State | Politics step, only the turn after opponent discarded any card: enter Election Phase |
-| Supreme Court | Legal Review | Same timing: remove any policy |
+| `dragonara-a-1` | Order of Knights | Each of your Dragonara civil cards now gives you +1 influence. Conspiracy cannot be played in Dragonara. |
+| `dragonara-a-2` | Kybernetik Inc. ✱ | As a free action, you may draw to hand limit. If you do, **end your action step** and skip income step this turn. |
+| `dragonara-a-3`, `-a-4` | District Governor ✱ | This card silences opponent's alliances in Dragonara. The policy in Dragonara cannot be targeted by **policy proposal**. |
+| `dragonara-a-5` | Urban Aristocrats | After playing a civil card in Dragonara, you may swap one of your civil cards with an opponent's in Dragonara. |
+| `dragonara-a-6` | State Enterprise ✱ | You treat Dragonara **civil** cards in market as if they are in your hand when you do your main or free actions. |
+| `horsard-a-1`, `-a-2` | Order of Knights | (Horsard version of the above) |
+| `horsard-a-3` | Foreign Inc. ✱ | As a free action, you may once **influence Senate** with a Horsard card, then draw a card. |
+| `horsard-a-4` | District Governor ✱ | (Horsard version of the above) |
+| `horsard-a-5` | **Century Inc.** ✱ (was Century Club) | As a free action, **play an alliance** to replace your own or opponent's alliance, even when districts are unmatched. |
+| `horsard-a-6` | Financial Bankers (2 handshakes) | This card counts as 2 alliances during elections. This ability cannot be silenced. |
+| `shavvinne-a-1` | Order of Knights | (Shavvinne version) |
+| `shavvinne-a-2` | Architecture Inc. ✱ | As a free action, you may **construct a monument with only 4 cards of the same matching color**. |
+| `shavvinne-a-3` | Foreign Inc. ✱ | (Shavvinne version of Foreign Inc.) |
+| `shavvinne-a-4` | Rebel Inc. | As a free action, you may recruit partisans. |
+| `shavvinne-a-5` | Diet of Saints | You always have higher influence in Shavvinne. Discard ALL civil cards in Shavvinne after an election. |
+| `shavvinne-a-6` | Divine Inquisitors ✱ | You win Shavvinne during elections **if this is the only alliance card in the district**. |
+| `smarbbit-a-1`, `-a-3` | Foreign Inc. ✱ | (Smarbbit version of Foreign Inc.) |
+| `smarbbit-a-2` | Capitol Inc. ✱ | As a free action, you may **propose new policy**. |
+| `smarbbit-a-4` | People's Press | When drawing from deck, you may now draw from your Smarbbit support pile instead. |
+| `smarbbit-a-5` | District Governor ✱ | (Smarbbit version) |
+| `smarbbit-a-6` | Project Habitat | Conspiracy no longer discards your already played civil cards in Smarbbit. |
 
-Rulebook phrasing ("added support") is looser than the card. **Card text wins:** opponent discarded any card last turn.
+Effect ids to retire: anything referencing policy referendum, policy supporters, or the 3+ supporter requirement (old Capitol Inc., old District Governor wording).
+
+Rulings that still apply:
+
+- **Two District Governors** in the same district silence each other: no alliance ability is active there, and the policy is no longer frozen (rulebook FAQ).
+- **People's Press**: you may look through your Smarbbit support pile and choose the card.
+- **Century Inc.** replacing a Horsard alliance with a Shavvinne Order of Knights: the new alliance occupies the slot it replaced, and its conspiracy protection is printed for Shavvinne, so Horsard can still be conspired. When discarded, it goes to the pile of the district it occupied. (Earlier ruling for Century Club; re-confirm with the new free-action wording.)
+
+## Conspiracies (8)
+
+All share one effect: wipe the printed district, then discard the conspiracy.
+
+Dragonara: Theft of Thunder, Broken Chains. Horsard: Grassroot Media, Idle Proliferation. Shavvinne: Q'iat av Shah Riot, Hub of Assassins. Smarbbit: Separatists of the Ublozisky Plateau, Power Vacuum.
+
+## Civil cards (72)
+
+Unchanged. Each district has 18 civil cards valued 3–9. `lib/cards/deck.ts` (`*-b-*`) matches the current faces name-for-name and value-for-value.
+
+## Decree objectives (4)
+
+| Id (suggested) | Inactive | Active | Symbol | Condition |
+| --- | --- | --- | --- | --- |
+| `decree-imperium` | Unruly Clans | Imperium | crown | Have more partisans than opponent does. |
+| `decree-profectus` | Turmoil Land | Profectus | chart | Have 7+ more total support than opponent does. |
+| `decree-academia` | Emigration | Academia | atom | Have 20+ more influence than opponent in a district. |
+| `decree-de-jures` | Class Schism | De Jures | scales | Have the lowest (or tie for lowest) civil card in all 4 districts. |
 
 ## Markers (UI only)
 
-`Double Sided/` has per-district `+1` `+2` `+3` `+6` support references and `Partisans x1` / `x2`. Render numeric badges; do not model these as cards in engine state.
+Support markers (+1 / +3 sides, per district) and the partisans marker (×1 / ×2) are references for numbers the engine already tracks. Render badges; do not model them as cards.
 
-## Catalog checklist (phase 0)
+## Re-ingest checklist
 
-- [x] Copy art into `public/cards`
-- [x] Placeholder for 4 general election faces (`public/cards/deck/election-1.svg` … `4`)
-- [x] Typed catalog in `lib/cards/` (108 main-deck incl. elections, 8 parties, 8 monuments, 8 policies, 2 executive faces)
-- [x] Each unique ability mapped to an `Effect.id` in `lib/cards/effects.ts` (handlers still unimplemented)
-- [x] `npm test` checks starting-hand names, monument links, counts, and art files
-
-Art layout matches the tree above. Duplicate printed alliances (two District Governors in Dragonara, two Order of Knights in Horsard, two Foreign Inc. in Smarbbit) are separate catalog rows with the same `name`.
+- [ ] Script that slices TTS sheets (decks 2–7, 17–21) into `public/cards/...` using the existing filenames
+- [ ] Replace alliance, monument, party-8, and player-aid art with the TTS faces
+- [ ] Add decree objective art (`public/cards/decrees/{id}-inactive.png`, `-active.png`)
+- [ ] Replace `deck/election-*.svg` with the TTS General Election face
+- [ ] Delete `public/cards/executive/` and executive catalog entries
+- [ ] Update `deck.ts` text and effect ids for the ✱ alliances; rename Century Club
+- [ ] Update `setup-cards.ts`: Republican starting cards, monument text/effects, decree objectives
+- [ ] `npm test` catalog checks: counts (108 / 15 / 24 / 4), starting-card lookups, art files exist

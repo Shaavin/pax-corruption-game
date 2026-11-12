@@ -1,13 +1,17 @@
 # Agent docs
 
-These files are the working brief for anyone (human or agent) building the simulator.
+The working brief for anyone (human or agent) building the simulator.
 
 | Doc | Read when |
 | --- | --- |
-| [game-rules.md](game-rules.md) | Implementing setup, turns, elections, scoring, or victory |
-| [card-catalog.md](card-catalog.md) | Adding card data, art, or ability handlers |
+| [game-rules.md](game-rules.md) | Implementing setup, turns, the Senate, elections, decrees, or victory |
+| [card-catalog.md](card-catalog.md) | Adding card data, art, or ability handlers; re-ingesting card faces |
 | [development-plan.md](development-plan.md) | Choosing what to build next or where code should live |
 | [open-questions.md](open-questions.md) | A rule, card, or mode is missing or contradictory |
+
+## Current status
+
+The game's rules were revised in 2026-11. The Senate, Propose Policy, and decree objectives replaced policy supporters, the referendum, and executive power. The engine and UI still implement the old rules. **Next work is Phase R (rules migration)** in [development-plan.md](development-plan.md).
 
 ## Product intent
 
@@ -19,6 +23,7 @@ These files are the working brief for anyone (human or agent) building the simul
 ## Hard rules for agents
 
 - The TypeScript engine is the rules authority. React only renders state and dispatches actions.
-- Printed card text beats the rulebook summary when they conflict. The rulebook beats marketing copy.
-- Do not fill gaps in [open-questions.md](open-questions.md). Ask.
-- Expansion-pack cards and victories are out of scope until the base game is playable.
+- Source priority: **current printed card text** (TTS save faces) > **current rulebook PDF** > these docs > marketing copy. Paths are in [card-catalog.md](card-catalog.md#sources-of-truth).
+- Do not fill gaps in [open-questions.md](open-questions.md). Ask, then record the answer there.
+- Do not implement anything listed under "Obsolete" in [open-questions.md](open-questions.md).
+- Expansion cards and victories are out of scope until the base game is playable.

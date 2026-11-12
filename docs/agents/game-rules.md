@@ -1,121 +1,108 @@
 # Pax Corruption — game rules
 
-Source: designer rulebook, FAQ, player-aid cards, and printed card text. Unresolved items live in [open-questions.md](open-questions.md). Do not treat guesses as rules.
+Rules for the **current** base game (rulebook revision of late 2026). Expansion rules are summarized at the end and are out of scope for now.
 
-Two players, ~30 minutes. Each leads a political party competing to control the Vitalic Union. There are four districts (lanes) and five electorates (the four districts plus the Council of Lords).
+Sources, in priority order:
 
-## Goal
+1. Printed card text on the current cards (see [card-catalog.md](card-catalog.md) for where the current faces live)
+2. The base rulebook PDF: `C:\Repos\pax-corruption-marketing\public\rulebook\pax-corruption-rulebook.pdf` (12 pages)
+3. This file
 
-Win by any one victory path. Victories other than Civil are declared the instant they happen. There is never a simultaneous double win: the first legal declaration ends the game.
+Anything the rulebook leaves unclear is listed in [open-questions.md](open-questions.md). Do not fill those gaps yourself.
 
-| Victory | When | Who wins |
-| --- | --- | --- |
-| Civil | End-of-phase step 3 of the **final** election (all 4 general election cards are out of the deck) | More election wins; if tied, the winner of that final election |
-| Political | Immediately | 3 consecutive election wins |
-| Military | Immediately | Recruited partisans 3 or more times more than the opponent |
-| Popularity | Immediately | 9 or more more cards in **any one** district support pile than the opponent has there |
-| Ideological | Immediately | 4 matching political symbols, and the opponent has fewer than 4 of that type |
+> **Rules changed in 2026-11.** Policy supporters, political campaigns, the Call Policy Referendum action, executive power (Emergency State / Legal Review), National Priorities, and "3 elections in a row" Political Victory **no longer exist**. They were replaced by the **Senate**, **Propose Policy**, and **decree objectives**. The engine in `lib/game` still implements the old loop. See the migration phase in [development-plan.md](development-plan.md).
 
-Ideological extras:
-
-- Symbol **color does not matter**. Types are `atom`, `chart`, `crown`, `scales`.
-- A district policy's symbol is available to **both** players.
-- Party and monument symbols are exclusive to their owner.
-- Cannot be declared if both players have 4 of the same type.
-- Smart Doctrine gives its owner one of each type (not four of one type).
-
-Roman Basilica overrides Civil Victory: its owner always wins Civil at the end of the final election, regardless of election-win count.
+Two players, about 30 minutes. Each leads a political party competing for the Vitalic Union. There are four districts (lanes) and five electorates: the four districts plus the Council of Lords.
 
 ## Components (base)
 
-Main deck (108): 24 alliance, 72 civil, 8 conspiracy, 4 general election.
+| Group | Count | Contents |
+| --- | --- | --- |
+| Main deck | 108 | 72 civil, 24 alliance, 8 conspiracy, 4 General Election |
+| Double-sided | 15 | 1 partisans marker, 4 district policies, 8 support markers, 2 player aids |
+| Special (single-sided) | 24 | 4 district overviews, 4 policy overviews, 8 monuments, 8 political parties |
+| Decree objectives | 4 | Double-sided: inactive side / active side |
+| Rulebook | 1 | |
 
-Public / setup cards:
+Markers and player aids have no rules effect. In the app they are UI (badges, overlays), not engine state.
 
-- 4 district overviews, 4 policy overviews
-- 4 double-sided district policy cards (plus Neutral, which is "no card")
-- 8 monuments, 8 political parties
-- 1 double-sided executive power (Emergency State / Legal Review)
-- Markers: partisans, per-district support deltas
-- Player aids: Actions, Victories (digital: UI chrome, not table cards)
+## Goal
 
-Markers have no rules effect. Digital UI should show the same numbers they exist to track.
+Five victories. Civil is checked at the end of the final election. **All others are declared during your own Politics step**, and declaring is one of the three mutually exclusive politics options (see below).
+
+| Victory | Condition (player aid wording) | Detail |
+| --- | --- | --- |
+| Civil | Win the final election of the game | Triggers at game end, not declared. Final election = the election phase in which the last General Election leaves the deck. Exception: the Roman Basilica owner may declare it after winning 3 elections. |
+| Political | Achieve 2 active decree objectives | You must currently satisfy the conditions of 2 **active** decrees. Decrees are shared; it does not matter who activated them. |
+| Military | Lead by 3+ partisans | You have recruited partisans 3+ more times than the opponent. |
+| Popularity | Lead by 9+ support in a district | 9+ more cards in **one** of your support piles than the opponent's pile for that district. |
+| Ideological | Most total copies of your ideology (at least 4) | See [Ideological Victory](#ideological-victory). |
+
+The rulebook calls these "active victories". In the base game all five are always active. (The expansion adds inactive victories.)
 
 ## Zones
 
 Per player:
 
-- Hand (limit 5 unless a card raises it; over-limit is legal, you just stop drawing)
-- Tableau: civil and alliance cards in play, grouped by district
-- 4 support piles (one per district). Always inspectable. Each card = 1 influence in that district unless a card says otherwise
-- Policy supporters: cards tucked face-down under the party. Count is public; identities are secret until a referendum
-- Consultative Office (only while that Smarbbit policy is active): face-up personal zone beside the player. Move Smarbbit cards **from hand** into it. Cards here are usable as if in hand and do not count toward hand limit
-- Party card (permanent)
-- Constructed monuments (permanent, next to the party)
-- Partisan count (absolute recruits; victory uses the **difference**)
+- **Hand.** Limit 5 unless a card raises it. Over the limit is legal; the limit only gates income.
+- **Tableau.** Civil and alliance cards in play, by district lane. Default limit: one alliance per player per district.
+- **Support piles.** Four, one per district. Always public. Each card is 1 influence for its owner in that district unless a card says otherwise.
+- **Party** (permanent) and **constructed monuments** (permanent, next to the party).
+- **Partisans.** Number of times you recruited. Victory uses the difference.
+- **Consultative Office zone** (only while that Smarbbit policy is active) and **Planet Next zone** (only if owned): face-up set-aside cards that do not count toward hand limit.
 
 Shared:
 
-- 4 district lanes in a random left-to-right order
-- Active policy per district: side A, side B, or Neutral
-- Market (5 face-up; 8 during an election phase)
-- Draw deck (piles A–E stacked, A on top)
-- Available monuments (always 4 face-up, if any remain)
-- Monument deck (unused monuments, used to replenish the row)
-- Set-aside general election cards
-- Executive power (0 or 1 player holds it, one side face-up)
-- Election-win history (consecutive and total)
+- 4 district lanes in a fixed left-to-right order chosen at setup
+- Active policy per district: side A, side B, or neutral (no card)
+- **Senate**: always 5 face-up cards in a row, left to right
+- **Market**: 5 face-up cards (8, in two rows, during an election phase)
+- Draw deck (piles A–E, A on top)
+- Available monuments (4) and the monument deck
+- **Decree objectives**: 4 cards, each inactive or active
+- Set-aside General Elections
+- Election history (who won each election, for the incumbent tie-break)
 
-Discard always means "to a support pile" unless the card is a general election or a double-sided public card, which are set aside instead. Default pile: matching **printed district** and **owner**.
-
-**Space Agency** (owner only, whenever they discard): you may send discarded cards to **your** other district piles, at most 1 card per other district. Remaining cards use the default pile. This never moves the opponent’s discards and does not change which cards an action was allowed to spend (Martial Law still looks at printed district).
-
-**United Front:** if the card’s **landing pile** is Smarbbit, it goes to the **non-discarding** player’s Smarbbit pile. If Space Agency routes it to a non-Smarbbit pile, the discarder keeps it.
-
-Cards that land off their printed district still count in the pile they occupy.
+**Discard** always means "to a support pile": the pile matching the card's **printed district** and the **discarding player**, unless a card or policy reroutes it (Space Agency, United Front). General Elections never go to support piles; they are set aside.
 
 ## Districts
 
-| Id | Theme | Board color | Overview chart |
-| --- | --- | --- | --- |
-| `dragonara` | Technocratic | Cream / yellow | Civil-value distribution |
-| `horsard` | Commercial | Light blue | Civil-value distribution |
-| `shavvinne` | Religious | Mint green | Civil-value distribution |
-| `smarbbit` | Populist / media | Pink | Civil-value distribution |
+| Id | Theme | Color | Policy A | Policy B |
+| --- | --- | --- | --- | --- |
+| `dragonara` | the Technocrats | Yellow / cream | Currency Ballots | Populist Forum |
+| `horsard` | the Prosperous | Blue | Economic Reform | Market Regulation |
+| `shavvinne` | the Divine | Green | Martial Law | Secularism |
+| `smarbbit` | the Vocals | Pink / red | United Front | Consultative Office |
 
-Overview charts count how many civil cards of each value 3–9 exist in that district. They are reference, not a track you move tokens on.
+District overview cards show how many civil cards of each value (3–9) exist in that district. They are reference only.
 
 ## Setup
 
-1. Shuffle the 4 district overviews and line them up as the 4 lanes. Place each policy overview beside its district. Districts start **Neutral**.
-2. Shuffle the 8 party cards. Deal 2 to each player. Each chooses one, reveal together. Unused parties leave the game.
-3. Lower party **order number** is first player. First player searches the main deck and takes **3 of the 4** listed starting cards. The other player takes **all 4** listed cards. Those 7 cards are out of the deck for the rest of setup.
-4. Put the monuments printed on the two chosen parties into the available-monument row (they will appear). Draw 2 more at random from the remaining 6 so 4 monuments are available. The other 4 form the monument deck.
+1. **District layout.** Line up the 4 district overviews in any order (digital: random) as the 4 lanes. Put each policy overview beside its district. All policies start neutral.
+2. **Choose party and starting hand.** Shuffle the 8 parties and deal 2 to each player. Each picks one; reveal together. Unused parties leave the game. The lower order number (top-left of the party card) is the **first player**. The first player searches the deck and takes **any 3 of the 4** cards listed on their party. The second player takes **all 4** listed cards.
+3. **Monuments.** The monuments printed at the bottom of both chosen parties are guaranteed available. Draw 2 more at random from the rest so there are 4 available. The rest form the monument deck. The rulebook says "each from a different district", but Joe has ruled that monuments **may share a district**: no district constraint at setup or on replenish.
+4. **Senate and Market.** Take out the 4 General Elections and shuffle the rest of the main deck. Deal 5 face-up as the **Senate**, then 5 face-up as the **Market**.
+5. **Decree objectives.** Place all 4 decrees inactive side up beside the Market.
+6. **Draw deck.** Build piles A–E (A on top) from the remaining **87** cards, using the mode table.
 
-   **National priorities (advanced, later):** after the 2 guaranteed, reveal 4 of the remaining 6. First player boxes 1, then the other player boxes 1. Available = 2 guaranteed + 2 remaining revealed. The 2 boxed stay out. The 2 never-revealed go into the **monument deck** and can be drawn later when a monument is constructed.
-
-5. Remove the 4 general election cards (if not already set aside). Shuffle the remaining **97** non-election cards. Deal **5** face-up as the market. Build piles A–E from the remaining **92**, inserting general elections as the mode table says. Stack E on the bottom through A on top. That stack is the draw deck.
-
-   Deck check: 104 non-GE − 7 starting cards − 5 market = 92 pile cards, which matches the printed A–E totals.
+Deck check: 104 non-election cards − 7 starting cards − 5 Senate − 5 Market = **87**, which matches every mode's pile totals.
 
 ### Draw-deck modes
 
 How to read a cell:
 
-- `X` — pile of X cards, no election
-- `X+1` — pile of X, then put a general election on the **bottom** of that pile
-- `X&Y` — shuffle Y general elections **into** X cards
+- `X`: a pile of X cards, no election
+- `X + 1`: a pile of X, then put a General Election **after** it (at the bottom of that pile)
+- `X & Y`: shuffle Y General Elections **into** the X cards
 
-| Mode | Term limit | A | B | C | D | E |
+| Mode | Term | A | B | C | D | E |
 | --- | --- | --- | --- | --- | --- | --- |
-| Standard | Random | 5 | 9&1 | 24&1 | 44&2 | 10 |
-| Tournament | Fixed | 7+1 | 23+1 | 23+1 | 23+1 | 16 |
-| Chaos | Hybrid | 12+1 | 10 | 60&3 (C+D are **one** pile) | — | 10 |
-| Epic | Hybrid | 2+1 | 30&1 | 8+1 | 42&1 | 10 |
+| Standard | Random | 5 | 9 & 1 | 24 & 1 | 44 & 2 | 5 |
+| Tourney | Fixed | 10 + 1 | 22 + 1 | 20 + 1 | 18 + 1 | 17 |
+| Chaotic | Hybrid | 8 + 1 | 10 | 64 & 3 (C and D are **one** pile) | — | 5 |
+| Epic | Hybrid | 4 + 1 | 20 + 1 | 8 | 35 & 1 | 20 & 1 |
 
-Use the printed pile sizes. They add up once starting hands (7) and the market (5) are already removed. Chaos is four piles: A, B, combined CD, E. GE placement in Chaos: 1 under A, 3 shuffled into the 60.
-
-After the draw deck exists, the game is ready.
+Every mode uses all 4 General Elections. Ship Standard first.
 
 ## Turn structure
 
@@ -123,167 +110,205 @@ Players alternate. Each turn: **Action → Politics → Income**.
 
 ### Action step
 
-Exactly **one** main action is mandatory. Any number of free actions are optional. Main and free may be done in **any order**, but you may not take a free action that leaves you with no legal main action if a different order would have allowed one.
+Exactly **one** main action (mandatory) and any number of free actions, in any order. Each alliance or monument grants its free action **once per turn**. You may not take a free action that leaves you unable to do a main action (FAQ).
 
-Each alliance or monument grants its free action **once per turn**.
+Main actions:
 
-#### Main actions
-
-1. **Play a civil card** from hand into your tableau in its printed district. It gives influence equal to its number in that district's electorate.
-2. **Play a conspiracy card.** Resolve immediately: discard **all** civil and alliance cards in that conspiracy's district (both players) to support piles, then discard the conspiracy itself to its owner's matching support pile.
-3. **Play an alliance card** from hand into your tableau in its printed district. Illegal if you already have an alliance in that district (unless a card raises the limit). Default: one alliance per player per district. Ability text is mandatory unless it says "may".
-4. **Call policy referendum.** Requires 3+ policy supporters already tucked. Discard 2 cards of the same district from hand, then resolve a full referendum (below).
-5. **Recruit partisans.** Discard 3 cards of the same district from hand. Gain 1 partisan. If you now lead by 3+, Military Victory.
-6. **Construct monument.** Discard 5 cards of the same district from hand to claim an **available** monument of that district. Place it by your party. Draw a random replacement from the monument deck so 4 remain available if any are left. You cannot spend 5 cards without actually claiming a matching available monument.
-
-#### Free actions
-
-Printed on alliances and monuments. Optional, once per source per turn, only during the action step.
+1. **Play a civil card** to your tableau in its printed district. It gives influence equal to its number in that district's electorate.
+2. **Play a conspiracy.** Discard **all** civil and alliance cards in that district, both players', to their owners' support piles. Then discard the conspiracy.
+3. **Play an alliance** to your tableau in its printed district. One per player per district unless a card changes it.
+4. **Recruit partisans.** Discard 3 cards of the same district from hand. Gain 1 partisan. **Only legal if you already have at least one card in your support pile for that district.**
+5. **Construct a monument.** Discard 5 cards of the same district from hand to claim an **available** monument of that district. Place it by your party. Shuffle the monument deck and draw one at random so 4 are available again (if any remain). You may not do this just to discard; a matching monument must be available.
 
 ### Politics step
 
-Skippable in whole or in part.
+1. If you constructed a monument this turn, **draw a card**.
+2. Then you may do **one** of:
+   - **Influence Senate**
+   - **Propose Policy**
+   - **Declare an active victory**
 
-You may use **both** of the following on the same turn (designer: they are both available in the Politics step, not instead of each other).
+#### Influence Senate
 
-1. **Executive power** (if you have it). You may use the face-up side only on the turn **immediately after** the opponent discarded **any** card. Printed text (authoritative):
-   - A campaign tuck counts (the card left their hand). The card is still a policy supporter, not a support-pile discard.
-   - **Emergency State:** enter Election Phase now. If that happens, this turn's income occurs **during** the election phase.
-   - **Legal Review:** set one district’s policy to Neutral. District Governor does **not** block this.
-2. **Political campaign.** Tuck one card from hand face-down under your party as a policy supporter (civil, alliance, or **conspiracy**). Count is public; identity is secret. Each supporter is worth 1 policy support in its printed district, or **2** if it is an alliance. This is not a main action and is not an Action-step free action.
+Discard the **rightmost** Senate card (to **your** support pile), shift the others right, and play a card from your hand into the **leftmost** spot. The Senate always has exactly 5 cards.
+
+#### Propose Policy
+
+Each Senator has votes: civil **1**, conspiracy **1**, alliance **2**. To pass a policy you must convince **more than half** of the Senate's total votes.
+
+Reveal any number of cards from your hand. One revealed card may convince several Senators.
+
+- A **civil** Senator is convinced by a revealed civil card of the **same district** with a **higher value**.
+- An **alliance** Senator is convinced by another revealed alliance of the **same district**.
+- A **conspiracy** Senator can never be convinced, but its vote still counts toward the total.
+
+If you reach the threshold: discard **one** of the revealed cards, then change **one** district's policy. Allowed changes: neutral → either printed side, or a printed side → neutral. You may **not** go directly from one side to the other.
+
+Rulebook example: Senate is People's Press (2), Local Politicians 5 (1), Civil Advocates 4 (1), Financial Bankers (2), Broken Chains (1) = 7 votes; 4 needed. Revealing Capitol Inc. (Smarbbit alliance) convinces People's Press; revealing TuWang Gang 8 (Shavvinne) convinces both Shavvinne civils. 2 + 1 + 1 = 4.
+
+District Governor makes its district's policy an illegal target for policy proposal (see card catalog).
 
 ### Income step
 
-Hand limit only gates drawing, never forces discards.
+The hand limit gates drawing. It never forces a discard.
 
-1. If `handSize < handLimit`, take **one** market card of your choice.
-2. If still under the limit, draw the top of the draw deck. This still happens during an election phase.
-3. Replenish the market to 5 from the deck. **Skip replenish during an election phase.**
-4. **Dragon Gate** (if owned): if you have **exactly 4** cards after steps 1–3, draw one more card. A general election here is set aside as usual but does **not** interrupt this step.
+1. If you have fewer cards than your hand limit, take **one** card of your choice from the Market.
+2. Replenish the Market back to 5 from the draw deck. **Skip this during an election phase.**
+3. If you are still under your hand limit, draw one card from the top of the draw deck.
+4. Dragon Gate (if owned): at the end of income, if you have exactly 4 cards, draw a card.
 
-If the deck is empty, draws and replenishes give nothing.
+If the draw deck is empty, nothing is replenished or drawn (FAQ).
 
-If a general election is revealed as a market card or drawn into hand: set it aside, draw a replacement, and trigger an election phase unless one is already in progress. A second election card during an existing election is set aside only (it still counts toward "all 4 are out").
+## Influence and electorates
 
-## Policy referendum
+Influence in a district electorate, per player:
 
-Used by the Call Policy Referendum action and by every election's end-of-phase step 2.
+- Each of your civil cards there: its printed number
+- +1 per card in **your** support pile for that district
+- Horsard only: +1 per card in your Planet Next bank
+- Plus any policy, alliance, or monument modifiers
 
-Resolve districts **left → right** as laid out at setup. “First player” here is the **setup** first player (lower party order), not the current election first player.
+Alliances are not district influence (Economic Reform is an exception: "each played card in Horsard, even alliance, gains +3 influence").
 
-For each district:
+**District electorate:** strictly more influence wins it. Tie: nobody wins it.
 
-1. Both players reveal all policy supporters of that district.
-2. Count policy support (1, or 2 if alliance).
-3. Higher total **must** change that district’s policy to **the other printed side** or **Neutral**. Tie: no change. Neutral may be active in several districts at once.
-4. District Governor (alliance) prevents **that** district’s policy from changing via referendum only. Legal Review still sets the district to Neutral. Supporters are still discarded.
-5. Discard all revealed supporters of that district to the appropriate support piles, then move to the next district.
+**Council of Lords:** strictly more **alliance symbols** (printed handshakes) across all your alliances in play. Financial Bankers has 2. Tie: nobody wins it.
 
-After a full referendum, nobody should still have policy supporters.
+## Election phase
 
-## Influence and elections
+### Trigger
 
-### What counts as influence in a district electorate
+When a General Election appears in the **Market** or in a **player's hand** (by any draw), the election phase starts right away:
 
-- Your civil cards in that district, each worth its printed number
-- +1 per card in **your** support pile for that district (modified by policies such as Populist Forum)
-- Policy and alliance adjustments printed on those cards
-- Policy supporters **never** add electorate influence
+1. Set the General Election aside and replace it with a new card from the deck.
+2. Fill the Market to **8 cards**, in two rows.
+3. Play continues normally, except the Market is **not** replenished during income.
 
-A played alliance is **not** a district elector. It is an elector of the Council of Lords. It does not add district influence unless an ability or policy says so (e.g. Economic Reform: even alliances gain +3 influence in Horsard).
+If another General Election appears during the phase, set it aside and replace it as usual. It does **not** start a second phase, but it counts for decree activation (below).
 
-### Council of Lords
+### Winning an election
 
-Winner: more **printed handshake symbols** on alliances in play across all 4 districts (not 1 per alliance card). Tie: nobody wins it.
+After a turn ends with **no cards in the Market**, decide the winner:
 
-### Winning an electorate
+1. More electorates won (out of 5).
+2. Tie: more total **cards in the electorates each player won** (cards in a district electorate = civil cards there; Council of Lords = alliance cards in play).
+3. Still tied: the **incumbent** (winner of the previous election). In the first election, the first player.
 
-You need **strictly more**. Ties: nobody wins that electorate.
+### Resolving an election
 
-Electors awarded to the electorate winner: total **played cards** in that electorate from both players.
+1. The winner **activates** as many inactive decree objectives as the number of General Elections set aside during this phase. (Beginner tip: by default, pick one whose symbol matches your party.)
+2. If this was the final election, the game ends with Civil Victory for its winner (unless Roman Basilica already ended it).
+3. Otherwise replenish the Market to 5. Play resumes normally. A General Election revealed by this replenish starts a new phase.
 
-- District electorate: played civil cards in that district (alliances do not count here)
-- Council of Lords: played alliance cards across all districts
+**Turn order never changes.** The election phase is only a state of the Market. If player A reveals a General Election during their income step, player B takes the next turn, which is the first turn of the phase. After resolution, play keeps alternating. Nobody chooses a first player.
 
-### Election phase
+## Decree objectives
 
-Triggered when a general election is revealed/drawn, or by Emergency State.
+Four double-sided cards. Each starts on its grey **inactive** side ("Win an election to activate this decree"). Once activated, it stays active and its political symbol counts as a **shared** copy for Ideological Victory.
 
-Mark who triggered it. Finish the current turn, then run **start of phase**:
+| Inactive side | Active side | Symbol | Condition (when active) |
+| --- | --- | --- | --- |
+| Unruly Clans | Imperium | crown | Have more partisans than the opponent. |
+| Turmoil Land | Profectus | chart | Have 7+ more **total** support than the opponent. |
+| Emigration | Academia | atom | Have 20+ more influence than the opponent in a district. |
+| Class Schism | De Jures | scales | Have the lowest (or tied for lowest) civil card in all 4 districts. See below. |
 
-1. Fill market to 8 face-up cards (replace any elections you flip while filling).
-2. Discard Executive Power (return it to the unowned state).
-3. Determine election first player:
-   - First election of the game: the player who **did not** just take the triggering turn
-   - Later elections: the player who did **not** win the last election (the opposition) **chooses** who goes first this phase
+**De Jures** is checked district by district. In each district, compare each player's lowest civil card. You pass that district if yours is lower or tied. A player with **no** civil cards in a district fails it, unless **neither** player has civil cards there (a tie, so both pass). You satisfy De Jures only if you pass all 4 districts.
 
-Then players alternate normal turns, except the market is **not** replenished. The phase ends after a turn when the market is empty.
+Political Victory = you satisfy 2 active decrees at the time you declare.
 
-**End of phase:**
+## Ideological Victory
 
-1. Determine the election winner: more electorates, then more electors, then incumbency (winner of the previous election; if this is the first election, lower party order number). Winner takes Executive Power and chooses a side. If this is their 3rd consecutive win: Political Victory immediately.
-2. Policy referendum (full). **Smart Doctrine:** its owner may swap steps 1 and 2. They must choose at the start of end-of-phase, before either step.
+Four political symbols: `crown` (authority), `chart` (economy), `atom` (science), `scales` (justice). Color does not matter.
 
-**Planet Next** (if owned) fires immediately **before the winner tally** (step 1, wherever it sits after a Smart Doctrine swap). That player may discard any number of cards from hand. Each discarded card gives **+2 influence this election only** to its printed district, then goes to the matching support pile (Popularity can end the game here).
-3. If all 4 general elections are out of the deck, the game ends on Civil Victory (or Roman Basilica). Otherwise continue.
-4. Deal a fresh market of 5. The player who did **not** trigger this election takes the next turn. That market deal can immediately trigger another election.
+- **Private copies** come from your party and your constructed monuments (and Smart Doctrine).
+- **Shared copies** come from active district policies and active decrees.
+- **Total copies** of a symbol = shared copies + the private copies of **whichever player has more** private copies of that symbol. The other player's private copies of that symbol are ignored.
 
-## Card types (rules, not catalog)
+You may declare Ideological Victory with symbol X when **all** of these hold:
+
+1. You have **more** private copies of X than the opponent.
+2. Total copies of X are **at least 4**.
+3. Total copies of X are **strictly more** than the total of every other symbol (no ties).
+
+Rulebook example: Player 1 has Innovative Party + Space Agency (2 atom private). Player 2 has Progressive Party + Model Society (1 atom, 1 scales private). Active policies: Secularism (scales), United Front (scales), Currency Ballots (atom). Active decrees: Profectus (chart), De Jures (scales). Totals: crown 0, chart 1, atom 2 + 1 = 3 (Player 2's atom is ignored), scales 1 + 3 = 4. Player 2 has more private scales, 4 ≥ 4, and 4 > 3, so Player 2 can declare.
+
+## Card types
 
 **Civil.** District + number. Play to tableau. Influence = number in that district.
 
-**Alliance.** District + handshake icon(s). Play to tableau for text, or tuck as a 2x policy supporter. One per player per district by default. Two District Governors of the same district silence **all** alliance abilities in that district.
+**Alliance.** District + handshake symbol(s). Play to tableau for its ability. In the Senate it carries 2 votes (every alliance prints "OR — It counts 2x many votes in the Senate" as a reminder). Ability text is mandatory unless it says "may".
 
-**Conspiracy.** Flame icon, printed district. Wipe that district's tableaus (both sides), then discard itself.
+**Conspiracy.** Flame icon, printed district. Wipes that district (both sides), then discards itself. All 8 share the same effect.
 
-**General election.** Never goes to a support pile. Set aside. Triggers (or deepens) an election phase.
+**General Election.** Never goes to a support pile. Set aside. Starts an election phase, or adds to the decree count of the current one.
 
-**Party.** Permanent. Order number, starting-card list, guaranteed monument, one political symbol.
+**Party.** Permanent. Order number, one political symbol, four starting cards, one guaranteed monument.
 
-**Monument.** Permanent once built. Matching-district 5-card cost. Ability + political symbol(s).
+**Monument.** Permanent once built. Costs 5 same-district cards. Ability + political symbol.
 
-**District policy.** One of: printed A, printed B, Neutral. A referendum change in a district is to that district’s other printed side or Neutral. Policy symbols are shared.
+**District policy.** Printed side A, side B, or neutral. Active policy symbols are shared.
 
-## Known policy effects (base)
+## Policy effects
 
-All districts start Neutral.
+All districts start neutral.
 
-| District | Side | Name | Symbol | Effect |
+| District | Name | Symbol | Printed effect |
+| --- | --- | --- | --- |
+| Dragonara | Currency Ballots | atom | When you play a card in Dragonara, immediately draw a card, then discard a card from hand. |
+| Dragonara | Populist Forum | chart | Each discard in Dragonara now provides 2 influence. |
+| Horsard | Economic Reform | chart | Each played card in Horsard, even alliance, gains +3 influence. |
+| Horsard | Market Regulation | crown | Civil cards of 8 or higher cannot be played in Horsard. |
+| Shavvinne | Martial Law | crown | Each player gets −1 alliance limit and can only use actions that discard up to 1 card in Shavvinne. |
+| Shavvinne | Secularism | scales | Civil cards in Shavvinne of 5 or lower each count influence twice. |
+| Smarbbit | United Front | scales | Cards to be discarded in Smarbbit now go to the opponent's pile instead. |
+| Smarbbit | Consultative Office | atom | You may set aside face-up Smarbbit cards to be used in later turns. They don't count toward hand limit. |
+
+Rulings carried over from earlier play (still consistent with current text):
+
+- **Martial Law** applies only to Shavvinne: −1 alliance limit there; any action that would discard 2+ Shavvinne cards is illegal. A Shavvinne conspiracy is therefore illegal while it is active.
+- **United Front** looks at the **landing** pile. A card discarded to Smarbbit goes to the non-discarding player's Smarbbit pile. If Space Agency sends it elsewhere, the discarder keeps it. Applies to every discard source and can feed Popularity.
+- **Consultative Office**: a personal face-up zone. Move Smarbbit cards from hand into it; they are usable later as if in hand.
+- **Currency Ballots**: a General Election drawn by this effect does not delay the mandatory discard. Finish draw-then-discard, then handle the election.
+
+## Monument effects
+
+| Monument | District | Guaranteed by | Symbol | Printed effect |
 | --- | --- | --- | --- | --- |
-| Dragonara | A | Currency Ballots | atom | When you play a card in Dragonara, immediately draw, then discard a card from hand. A GE drawn here does not delay the discard. |
-| Dragonara | B | Populist Forum | chart | Each discard in Dragonara provides 2 influence |
-| Horsard | A | Economic Reform | chart | Each played card in Horsard, even alliance, gains +3 influence |
-| Horsard | B | Market Regulation | crown | Civil cards of 8+ cannot be played in Horsard |
-| Shavvinne | A | Martial Law | crown | Shavvinne only: −1 alliance limit; discard-cost actions may spend at most 1 Shavvinne card. Other districts unaffected. Shavvinne conspiracy is illegal while this is active. |
-| Shavvinne | B | Secularism | scales | Civil cards in Shavvinne of 5 or lower each count influence twice |
-| Smarbbit | A | United Front | scales | If a card **lands** in Smarbbit, it goes to the **non-discarding** player's Smarbbit pile. A card routed elsewhere stays with the discarder. |
-| Smarbbit | B | Consultative Office | atom | From hand, set aside face-up Smarbbit cards into a personal zone beside you. Use them later as if in hand; they ignore hand limit. |
+| Dragon Gate | Dragonara | Global (6) | scales | You now have +2 hand limit. Draw a card at the end of income step if you have exactly 4 cards. |
+| Intel Network | Dragonara | Progressive (3) | atom | As a free action, you may inspect the top 5 cards of the draw deck, then move one to the top of the deck. |
+| Planet Next | Horsard | Liberal (5) | chart | You may set aside face-up Horsard cards. They don't count toward hand limit and give +1 influence each. |
+| Space Agency | Horsard | Innovative (4) | atom | You may discard cards to other support piles as long as you only discard up to 1 in each of those. |
+| Civil Service | Shavvinne | Republican (8) | chart | Opponent cannot win a district where they don't have more civil cards. |
+| Roman Basilica | Shavvinne | Trinity (1) | crown | You may declare Civil Victory either after 1) end of the final election, or 2) winning 3 elections cards. |
+| Model Society | Smarbbit | Socialist (7) | scales | You can now have 2 alliances in a district. Draw a card when you play an alliance. |
+| Smart Doctrine | Smarbbit | Conservative (2) | all four, dotted (conditional) | This monument provides a matching ideological symbol for each active decree currently. |
 
-## Known monument effects (base)
+Notes:
 
-| Monument | District | Party that guarantees it | Symbol | Effect |
-| --- | --- | --- | --- | --- |
-| Intel Network | Dragonara | Progressive | atom | Free action: inspect top 5 of deck, move one to the top |
-| Dragon Gate | Dragonara | Global | scales | +2 hand limit. After normal income, if you have exactly 4 cards, draw one more. A GE on that extra draw does not interrupt the step. |
-| Planet Next | Horsard | Liberal | chart | Before election results, you may discard cards from hand. Each gives +2 influence this election only to its printed district, then sits in the support pile (and can trip Popularity). |
-| Space Agency | Horsard | Innovative | atom | Whenever you discard, you may send cards to your other district piles (max 1 each). Owner only. United Front applies only if the landing pile is Smarbbit. |
-| Roman Basilica | Shavvinne | Trinity | crown | You always win Civil Victory at the end of the final election |
-| Civil Service | Shavvinne | Republican | chart | Opponent cannot win a district where they do not have more civil cards |
-| Model Society | Smarbbit | Socialist | scales | You can have 2 alliances in a district |
-| Smart Doctrine | Smarbbit | Conservative | atom + chart + crown + scales | You may host the policy referendum before or after tallying election wins. Owner scores one of each symbol type. |
+- **Space Agency**: owner only; routes your own discards to your other piles, at most 1 per other district. It never moves the opponent's discards and does not change which printed districts an action spent (Martial Law still checks printed district).
+- **Dragon Gate**: the extra draw is its own step at the end of income. A General Election drawn there is set aside as usual and does not interrupt the step.
+- **Smart Doctrine**: one private copy of each active decree's symbol (0–4 copies).
+- **Roman Basilica**: its owner may declare Civil Victory in their Politics step once they have won **3 elections** (election phases won, not General Election cards). This survives from the old rules, where winning elections was the main path; now only the final election decides Civil Victory for everyone else. The owner can also still win Civil normally at the final election.
+- **Planet Next** works as a **bank**: move Horsard cards from your hand into a face-up personal zone. They don't count toward hand limit, each gives you +1 influence in the Horsard electorate, and you can use them later as if in hand for any action. Using one removes its +1. Still open: when you may bank cards, whether banked cards can be wiped or discarded, and interactions with other Horsard effects (expected: none). See [open-questions.md](open-questions.md).
 
-## FAQ (authoritative clarifications)
+## FAQ (rulebook)
 
-- Over hand limit: never forced to discard. Limit only blocks income draws.
-- Empty draw deck: skip the draw / replenish.
-- Two District Governors in the same district: they silence each other, so **no** alliance ability is active in that district.
-- People's Press: you may look through your support pile and choose which card to retrieve, including cards that landed there from other districts.
-- You may not take a free action that makes a mandatory main action impossible if another order would have allowed one.
-- Century Club replacing a Horsard alliance with Shavvinne Order of Knights: conspiracy-prevention is printed for **Shavvinne**, so Horsard can still be conspired. The new alliance occupies the slot it replaced. When discarded, it goes to the pile of the district it occupied.
-- Civil Service vs Diet of Saints / Divine Inquisitors: separate effects. Civil Service forces a tie instead of an opponent win when they do not have more civil cards. Diet of Saints raises Shavvinne influence. Divine Inquisitors change how the Shavvinne electorate is decided, but the opponent still needs more Shavvinne civil cards in play to possibly win it.
+- Two District Governors in the same district silence each other, and that district's policy is **no longer frozen**.
+- You may not trigger a free action that leaves you unable to do a main action.
+- Support piles are open to inspection at any time.
+- Draw deck exhausted: no card is replenished to the Market and no card is drawn.
 
-## Things this file is not
+Beginner tips (strategy, not rules): elections activate decrees; recruiting partisans threatens Military Victory; plan for the turns after building a monument; watch discards, because partisans (3×) and monuments (5×) move Popularity fast.
 
-- Card-by-card alliance and civil lists → [card-catalog.md](card-catalog.md)
-- File layout, UI, and build order → [development-plan.md](development-plan.md)
-- Unresolved rules → [open-questions.md](open-questions.md)
+## Expansion: Legacy & Diplomacy (out of scope)
+
+Rulebook: `C:\Repos\pax-corruption-marketing\public\rulebook\legacy-and-diplomacy-rulebook.pdf`. Requires the base game. Summary only, for awareness:
+
+- **Event deck** (40): 10 each from four World Powers (North, South, West, East), including unique and legacy events. Events sit in the Market. At income you may buy one instead of taking a card, by discarding cards equal to the number of non-event cards to its right. Events are played immediately: as a common effect, or into a district like a civil card. Each purchase gives +1 relation with that World Power. East event effects are exclusive to their buyer.
+- **Game board** with tracks for support, alliance, influence, diplomacy, partisans, and symbols.
+- **Seven victories.** Adds Cultural (2+ more monuments) and Diplomatic (higher relation with 3 of 4 powers). Military, Popularity, Ideological, Cultural, and Diplomatic start **inactive** and are activated by legacy events. Civil and Political work as in the base game.
+- Market and election-phase replenish rules change so 1–2 event cards are always in the Market.
+- Foreign Influence variant: start with 3 random events already in play.
+
+Do not implement any of this until the base game is complete.
