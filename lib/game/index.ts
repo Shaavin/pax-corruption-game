@@ -21,3 +21,4 @@ export * from "./record.ts";
 export * from "./diagnostics.ts";
 export * from "./world.ts";
 export * from "./events.ts";
+export * from "./redact.ts";

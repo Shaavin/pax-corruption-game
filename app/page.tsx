@@ -69,6 +69,13 @@ export default function Home() {
           </button>
         </form>
         <ContinueGame />
+        <Link
+          href="/online"
+          prefetch={false}
+          className="rounded-full px-6 py-3 text-sm font-semibold tracking-wide text-stone-100 ring-1 ring-white/20 transition-colors hover:bg-white/8"
+        >
+          Play online
+        </Link>
         <p className="text-sm text-stone-500">Play civil, draw, pass the device</p>
         <details className="w-full text-sm text-stone-400">
           <summary className="cursor-pointer select-none hover:text-stone-200">More options</summary>

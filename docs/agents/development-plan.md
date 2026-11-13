@@ -4,7 +4,7 @@ Local hotseat simulator first. The same rules engine should later run a networke
 
 ## Where things stand (2026-11-13)
 
-**Phases R (rules migration), 6 (card abilities), 7 (hotseat finish), and 8 (troubleshooting) are done.** Engine, catalog, art, tests, and hotseat UI follow the current rulebook, every base-game card ability works, a hotseat game saves, resumes, and supports undo, and reported games can be replayed step by step at `/troubleshoot`. **Phase 9** is under way: setup modes and the Legacy & Diplomacy expansion are done; online play comes later.
+**Phases R (rules migration), 6 (card abilities), 7 (hotseat finish), and 8 (troubleshooting) are done.** Engine, catalog, art, tests, and hotseat UI follow the current rulebook, every base-game card ability works, a hotseat game saves, resumes, and supports undo, and reported games can be replayed step by step at `/troubleshoot`. **Phase 9** is done: setup modes, the Legacy & Diplomacy expansion, and online play (a free Cloudflare server, see `server/README.md`).
 
 | Area | State |
 | --- | --- |
@@ -190,7 +190,18 @@ Tests: `diagnostics.test.ts` (clean simulation, failure index, invariants, versi
   | UI | Menu form (mode + expansion), Market rows with ◆ cost badges, `BuyEventDialog`, World panel (events in effect, relations, victory cards), East free action and reveal, expansion player aid |
 
   The game board is not drawn as a separate object: its tracks (support, influence, relations, symbols) are already shown on the table. Tests: `expansion.test.ts`.
-- **Later:** Online: host the engine on a server, two clients, same actions
+- **Done (2026-11-13):** Online play. Cost goal: $0 and no extra Vercel usage, so the realtime server is **not** on Vercel.
+
+  | Piece | Where |
+  | --- | --- |
+  | Server | `server/`: a Cloudflare Worker + one Durable Object per game (`GameRoom`), Workers Free plan, WebSocket hibernation, runtime-answered pings. Stores seed, settings, seat tokens, and actions; rebuilds state by replay; deletes games 30 days after the last move. Deploy steps: `server/README.md` |
+  | Protocol | `lib/online/protocol.ts` (HTTP create / join, WebSocket hello / action / undo, per-seat `state` messages) |
+  | Hidden information | `lib/game/redact.ts`: each seat's view hides the opponent's face-down hand, deck order, monument and event decks, the box, secret setup picks, and the **seed** (seed + public moves would rebuild every shuffle). Tests: `redact.test.ts` (no leaks over full games; a seat's legal actions are identical on its view) |
+  | Client | `/online` (create), `/online/[id]` (join, invite link, play). `components/online/online-client.ts` (connection hook with reconnect), `HotseatSession` `remote` mode (one seat, no pass-device gate, actions go to the server) |
+  | Config | `NEXT_PUBLIC_PAX_SERVER_URL` on Vercel; `ALLOWED_ORIGINS` in `server/wrangler.jsonc` |
+
+  Seats are tokens in `localStorage` (no accounts). Undo works online with the hotseat rules, checked by the server. Bug reports stay hotseat-only (an online record would reveal the opponent's cards).
+  `server/smoke.ts` plays two scripted clients against a running server.
 
 ## Testing
 

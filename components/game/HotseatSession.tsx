@@ -102,19 +102,42 @@ const START_OF_TURN = new Set<Action["type"]>([
 ]);
 
 
+/** Online play: the server owns the game; this device is one seat. */
+export type RemoteGame = {
+  seat: PlayerId;
+  /** This seat's redacted view, from the server. */
+  state: GameState;
+  history: GameEvent[];
+  settings: { mode: GameModeId; expansion: boolean; foreignInfluence: boolean };
+  canUndo: boolean;
+  send: (action: Action) => void;
+  undo: () => void;
+  /** Shown in the turn dock while it is the other player's move. */
+  waitingText: string;
+};
+
+type LocalProps = { remote?: undefined };
 type HotseatSessionProps =
-  | { seed: number; mode?: GameModeId; expansion?: boolean; foreignInfluence?: boolean; record?: undefined }
+  | (LocalProps & { seed: number; mode?: GameModeId; expansion?: boolean; foreignInfluence?: boolean; record?: undefined })
   /** Resume a saved game. The caller has already checked that it replays. */
-  | { record: GameRecord; seed?: undefined; mode?: undefined; expansion?: undefined; foreignInfluence?: undefined };
+  | (LocalProps & { record: GameRecord; seed?: undefined; mode?: undefined; expansion?: undefined; foreignInfluence?: undefined })
+  /** Online: render one seat of a server-run game. */
+  | { remote: RemoteGame; record?: undefined; seed?: undefined; mode?: undefined; expansion?: undefined; foreignInfluence?: undefined };
 
 export function HotseatSession(props: HotseatSessionProps) {
-  const [session, setSession] = useState<Session>(() => ({
-    replay: props.record
-      ? replayRecord(props.record)
-      : newReplay(props.seed, { mode: props.mode, expansion: props.expansion, foreignInfluence: props.foreignInfluence }),
-    lastEvents: [],
-  }));
-  const [seated, setSeated] = useState<PlayerId | null>(null);
+  const remote = props.remote ?? null;
+  const [localSession, setSession] = useState<Session | null>(() =>
+    props.remote
+      ? null
+      : {
+          replay: props.record
+            ? replayRecord(props.record)
+            : newReplay(props.seed, { mode: props.mode, expansion: props.expansion, foreignInfluence: props.foreignInfluence }),
+          lastEvents: [],
+        },
+  );
+  const [localSeated, setSeated] = useState<PlayerId | null>(null);
+  const seated = remote ? remote.seat : localSeated;
   const [selectedHandIds, setSelectedHandIds] = useState<string[]>([]);
   const [spendKind, setSpendKind] = useState<SpendKind | null>(null);
   const [proposeTarget, setProposeTarget] = useState<PolicyTarget | null>(null);
@@ -125,11 +148,22 @@ export function HotseatSession(props: HotseatSessionProps) {
   const [buying, setBuying] = useState<string | null>(null);
   const closeReport = useCallback(() => setReportOpen(false), []);
 
-  const { state } = session.replay;
-  const history = useMemo(() => session.replay.steps.flatMap((step) => step.events), [session.replay]);
+  // In local games `session` is always set; online games never touch it.
+  const session = localSession!;
+  const state = remote ? remote.state : session.replay.state;
+  const settings = remote
+    ? remote.settings
+    : { mode: session.replay.mode, expansion: session.replay.expansion, foreignInfluence: session.replay.foreignInfluence };
+  const remoteHistory = remote?.history;
+  const history = useMemo(
+    () => remoteHistory ?? localSession!.replay.steps.flatMap((step) => step.events),
+    [remoteHistory, localSession],
+  );
   const actor = currentActor(state);
-  const veiled = seated !== null && seated !== actor && !state.victory;
+  // Online, each device is one seat: nothing to hide behind a pass-device screen.
+  const veiled = !remote && seated !== null && seated !== actor && !state.victory;
   const waitingFirstSeat = seated === null;
+  const myMove = !remote || actor === remote.seat;
   const viewer: PlayerId = seated ?? 0;
   const model = useMemo(() => tableModel(state, viewer), [state, viewer]);
   const inSetup = state.phase === Phase.Setup;
@@ -159,20 +193,33 @@ export function HotseatSession(props: HotseatSessionProps) {
   }, []);
 
   function commit(replay: Replay, lastEvents: GameEvent[]) {
+    if (remote) return;
     resetSelection();
     setSession({ replay, lastEvents });
     if (replay.steps.length > 0) saveGame(replay);
   }
 
   function dispatch(action: Action) {
+    if (remote) {
+      resetSelection();
+      remote.send(action);
+      return;
+    }
     const replay = stepReplay(session.replay, action);
     const events = replay.steps.at(-1)!.events;
     commit(replay, START_OF_TURN.has(action.type) ? events : [...session.lastEvents, ...events]);
   }
 
-  const undoAvailable = canUndo(session.replay) && !veiled && !waitingFirstSeat && actor === viewer;
+  const undoAvailable = remote
+    ? remote.canUndo && actor === viewer
+    : canUndo(session.replay) && !veiled && !waitingFirstSeat && actor === viewer;
 
   function undo() {
+    if (remote) {
+      resetSelection();
+      remote.undo();
+      return;
+    }
     if (!canUndo(session.replay)) return;
     commit(undoReplay(session.replay), []);
   }
@@ -586,21 +633,21 @@ export function HotseatSession(props: HotseatSessionProps) {
           extraActions,
         };
 
-  const showGate = (waitingFirstSeat || veiled) && !state.victory;
+  const showGate = !remote && (waitingFirstSeat || veiled) && !state.victory;
 
   return (
     <Table
       model={model}
-      seed={session.replay.seed}
-      mode={session.replay.mode}
-      expansion={session.replay.expansion}
+      seed={remote ? null : session.replay.seed}
+      mode={settings.mode}
+      expansion={settings.expansion}
       history={history}
-      idlePrompt={statusLine(state)}
+      idlePrompt={remote && !myMove && !state.victory ? remote.waitingText : statusLine(state)}
       showTour={!veiled && !waitingFirstSeat && !inSetup && !state.victory}
       veiled={veiled || waitingFirstSeat}
       hotseat={viewer}
-      interaction={interaction}
-      onReport={() => setReportOpen(true)}
+      interaction={myMove ? interaction : null}
+      onReport={remote ? undefined : () => setReportOpen(true)}
     >
       {veiled || waitingFirstSeat ? null : (
         <SetupOverlay state={state} viewer={viewer} onAction={dispatch} />
@@ -623,10 +670,14 @@ export function HotseatSession(props: HotseatSessionProps) {
       {state.victory ? (
         <GameOverOverlay
           victory={state.victory}
-          newGameHref={`/play?mode=${session.replay.mode}${session.replay.expansion ? "&expansion=1" : ""}${session.replay.foreignInfluence ? "&fi=1" : ""}`}
+          newGameHref={
+            remote
+              ? "/online"
+              : `/play?mode=${settings.mode}${settings.expansion ? "&expansion=1" : ""}${settings.foreignInfluence ? "&fi=1" : ""}`
+          }
         />
       ) : null}
-      {reportOpen ? <ReportDialog replay={session.replay} viewer={seated} onClose={closeReport} /> : null}
+      {reportOpen && !remote ? <ReportDialog replay={session.replay} viewer={seated} onClose={closeReport} /> : null}
       {showGate ? (
         <PassDeviceGate
           to={actor}

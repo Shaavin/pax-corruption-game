@@ -11,14 +11,14 @@ The working brief for anyone (human or agent) building the simulator.
 
 ## Current status
 
-The game's rules were revised in 2026-11. The Senate, Propose Policy, and decree objectives replaced policy supporters, the referendum, and executive power. The engine, catalog, and hotseat UI were migrated on 2026-11-11 (Phase R). Card abilities (Phase 6) were completed on 2026-11-12, the hotseat finish (Phase 7: save and resume, undo, victory prompts, player aid) and troubleshooting (Phase 8: bug reports, `/troubleshoot` replay viewer) on 2026-11-13. **Phase 9** is under way in [development-plan.md](development-plan.md): setup modes (Standard, Tourney, Chaotic, Epic) and the Legacy & Diplomacy expansion are done, and online play comes later.
+The game's rules were revised in 2026-11. The Senate, Propose Policy, and decree objectives replaced policy supporters, the referendum, and executive power. The engine, catalog, and hotseat UI were migrated on 2026-11-11 (Phase R). Card abilities (Phase 6) were completed on 2026-11-12, the hotseat finish (Phase 7: save and resume, undo, victory prompts, player aid) and troubleshooting (Phase 8: bug reports, `/troubleshoot` replay viewer) on 2026-11-13. **Phase 9** is under way in [development-plan.md](development-plan.md): setup modes (Standard, Tourney, Chaotic, Epic), the Legacy & Diplomacy expansion, and online play (Cloudflare Worker in `server/`) are done.
 
 ## Product intent
 
 - Local, one-device, two-player hotseat first.
 - Board layout inspired by digital CCGs: your hand along the bottom, opponent card backs along the top, shared board in the middle.
 - The four districts are vertical lanes, not a single battlefield row.
-- Online multiplayer comes after the rules engine and hotseat UI are trustworthy.
+- Online multiplayer: two devices, server-authoritative (`server/`), free hosting outside Vercel.
 
 ## Hard rules for agents
 

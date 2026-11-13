@@ -48,7 +48,8 @@ export type TableInteraction = {
 
 type TableProps = {
   model: TableModel;
-  seed: number;
+  /** Null online: the seed would reveal every shuffle. */
+  seed: number | null;
   mode?: GameModeId;
   /** Legacy & Diplomacy is in play (expansion player aid, labels). */
   expansion?: boolean;
@@ -153,7 +154,7 @@ export function Table({
               ) : null}
               <span className="tabular-nums" title="Draw-deck mode and deterministic setup seed">
                 {GAME_MODES.find((entry) => entry.id === mode)?.name ?? mode}
-                {expansion ? " + L&D" : ""} · Seed {seed}
+                {expansion ? " + L&D" : ""} · {seed === null ? "Online" : `Seed ${seed}`}
               </span>
               <Link href={menuHref} className="tracking-[0.14em] uppercase hover:text-stone-300">
                 Menu

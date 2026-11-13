@@ -1,0 +1,17 @@
+{
+  // Pax Corruption online server. Deploy: `cd server && npm install && npx wrangler deploy`.
+  // Runs on the Cloudflare Workers Free plan (SQLite-backed Durable Objects).
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "pax-corruption-server",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-10-01",
+  "durable_objects": {
+    "bindings": [{ "name": "GAMES", "class_name": "GameRoom" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["GameRoom"] }],
+  "vars": {
+    // Comma-separated site origins allowed to create and join games (localhost:3000 is always allowed).
+    "ALLOWED_ORIGINS": "https://pax-corruption-game.vercel.app"
+  },
+  "observability": { "enabled": false }
+}
