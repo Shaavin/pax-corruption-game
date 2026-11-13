@@ -102,7 +102,7 @@ How to read a cell:
 | Chaotic | Hybrid | 8 + 1 | 10 | 64 & 3 (C and D are **one** pile) | — | 5 |
 | Epic | Hybrid | 4 + 1 | 20 + 1 | 8 | 35 & 1 | 20 & 1 |
 
-Every mode uses all 4 General Elections. Ship Standard first.
+Every mode uses all 4 General Elections. All four are implemented (`DRAW_PLANS` in `lib/game/setup.ts`); players pick one on the menu, and the mode is stored in the game record. Piles without a General Election are not reshuffled, so Standard deals exactly as it did before modes existed.
 
 ## Turn structure
 

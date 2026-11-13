@@ -8,6 +8,7 @@ import { APP_BUILD, copyText, downloadText, stamp } from "./share";
 import { Table } from "./Table";
 import { tableModel } from "./table-model";
 import { getCard } from "@/lib/cards/catalog";
+import { GAME_MODES } from "@/lib/game/setup";
 import {
   currentActor,
   describeAction,
@@ -147,6 +148,21 @@ export function SeedForm() {
         placeholder="Seed, e.g. 7"
         className="w-40 rounded-lg bg-black/40 px-3 py-2 text-sm text-stone-100 tabular-nums ring-1 ring-white/15 outline-none placeholder:text-stone-500 focus:ring-[var(--brass)]/60"
       />
+      <label className="sr-only" htmlFor="seed-mode">
+        Mode
+      </label>
+      <select
+        id="seed-mode"
+        name="mode"
+        defaultValue="standard"
+        className="rounded-lg bg-black/40 px-2 py-2 text-sm text-stone-100 ring-1 ring-white/15 outline-none focus:ring-[var(--brass)]/60"
+      >
+        {GAME_MODES.map((mode) => (
+          <option key={mode.id} value={mode.id}>
+            {mode.name}
+          </option>
+        ))}
+      </select>
       <button
         type="submit"
         className="cursor-pointer rounded-lg bg-white/10 px-4 py-2 text-sm font-semibold text-stone-100 hover:bg-white/16"
@@ -253,7 +269,8 @@ function ReplayViewer({ loaded, onClose }: { loaded: Loaded; onClose: () => void
               <div className="min-w-0 flex-1">
                 <p className="text-[0.6rem] font-semibold tracking-[0.18em] text-[var(--brass)] uppercase">Troubleshooting</p>
                 <p className="text-sm font-semibold tabular-nums">
-                  Seed {record.seed} · {record.actions.length} moves
+                  {GAME_MODES.find((mode) => mode.id === (record.mode ?? "standard"))?.name} · Seed {record.seed} ·{" "}
+                  {record.actions.length} moves
                 </p>
                 <p className="truncate text-[0.68rem] text-stone-500 tabular-nums" title={loaded.source}>
                   Engine {record.engineVersion ?? "unknown"}
@@ -402,6 +419,7 @@ function ReplayViewer({ loaded, onClose }: { loaded: Loaded; onClose: () => void
         <Table
           model={model}
           seed={record.seed}
+          mode={record.mode}
           history={history}
           idlePrompt={idlePrompt}
           showTour={false}

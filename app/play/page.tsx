@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { HotseatSession } from "@/components/game/HotseatSession";
 import { ResumeGame } from "@/components/game/ResumeGame";
 import { randomUint32 } from "@/lib/game/rng";
+import { isGameMode } from "@/lib/game/setup";
+import { GameMode } from "@/lib/game/types";
 
 export const dynamic = "force-dynamic";
 
@@ -23,5 +25,8 @@ export default async function PlayPage({
       ? Number(value) >>> 0
       : randomUint32();
 
-  return <HotseatSession seed={seed} />;
+  const rawMode = Array.isArray(params.mode) ? params.mode[0] : params.mode;
+  const mode = isGameMode(rawMode) ? rawMode : GameMode.Standard;
+
+  return <HotseatSession seed={seed} mode={mode} />;
 }

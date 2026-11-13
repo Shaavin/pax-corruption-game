@@ -36,7 +36,7 @@ function victoryReason(victory: Victory): string {
   }
 }
 
-export function GameOverOverlay({ victory }: { victory: Victory }) {
+export function GameOverOverlay({ victory, mode }: { victory: Victory; mode?: string }) {
   const [reviewing, setReviewing] = useState(false);
 
   if (reviewing) {
@@ -75,7 +75,7 @@ export function GameOverOverlay({ victory }: { victory: Victory }) {
             Review the table
           </button>
           <a
-            href="/play"
+            href={mode ? `/play?mode=${mode}` : "/play"}
             className="rounded-xl bg-[var(--act)] px-5 py-2.5 text-sm font-semibold text-stone-950 hover:brightness-110"
           >
             New game

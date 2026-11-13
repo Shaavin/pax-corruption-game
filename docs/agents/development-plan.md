@@ -4,12 +4,12 @@ Local hotseat simulator first. The same rules engine should later run a networke
 
 ## Where things stand (2026-11-13)
 
-**Phases R (rules migration), 6 (card abilities), 7 (hotseat finish), and 8 (troubleshooting) are done.** Engine, catalog, art, tests, and hotseat UI follow the current rulebook, every base-game card ability works, a hotseat game saves, resumes, and supports undo, and reported games can be replayed step by step at `/troubleshoot`. **Phase 9** (online play, setup modes, expansion) is the remaining backlog.
+**Phases R (rules migration), 6 (card abilities), 7 (hotseat finish), and 8 (troubleshooting) are done.** Engine, catalog, art, tests, and hotseat UI follow the current rulebook, every base-game card ability works, a hotseat game saves, resumes, and supports undo, and reported games can be replayed step by step at `/troubleshoot`. **Phase 9** is under way: setup modes are done; the Legacy & Diplomacy expansion is next; online play comes later.
 
 | Area | State |
 | --- | --- |
 | Catalog + art (`lib/cards`, `public/cards`) | Current. Re-ingest any time with `scripts/ingest-tts.py` ([card-catalog.md](card-catalog.md#ingest-status)). |
-| Setup (`lib/game/setup.ts`) | Senate 5 + Market 5, 87 pile cards (Standard only), decrees inactive, monuments with no district constraint. |
+| Setup (`lib/game/setup.ts`) | Senate 5 + Market 5, 87 pile cards in Standard, Tourney, Chaotic, or Epic piles (`DRAW_PLANS`), decrees inactive, monuments with no district constraint. |
 | Turn, main actions (`main.ts`, `income.ts`, `draw.ts`) | 5 main actions, Recruit precondition, construct → Politics draw, income: Market take → refill to 5 → deck draw. |
 | Politics step (`senate.ts`, `engine.ts`) | Influence Senate / Propose Policy / Declare Victory / pass. |
 | Elections (`election.ts`, `draw.ts`) | GE opens the phase immediately (Market 8, count GEs), turn order unchanged, resolves when the Market is empty after a turn, tie-breaks, winner activates decrees (`decreeChoice` phase), final election → Civil. |
@@ -63,7 +63,7 @@ Do not clone Hearthstone chrome. Use Pax art, district colors, and a political-t
 
 ```
 app/
-  page.tsx                  # menu: new local game, mode
+  page.tsx                  # menu: new local game (choose mode), continue, seed, troubleshooting
   play/page.tsx             # hotseat table (client island)
 lib/
   game/
@@ -174,11 +174,11 @@ How it works:
 
 Tests: `diagnostics.test.ts` (clean simulation, failure index, invariants, version stamps, share codes, action descriptions).
 
-### Phase 9 — Later, not now
+### Phase 9 — Modes, expansion, then online
 
-- Online: host the engine on a server, two clients, same actions
-- Tourney / Chaotic / Epic as setup options (Chaotic C+D is one `64 & 3` pile)
-- Expansion: Legacy & Diplomacy (event deck, relations, game board, 7 victories)
+- **Done (2026-11-13):** Tourney / Chaotic / Epic as setup options (Chaotic C+D is one `64 & 3` pile). The menu offers all four; `/play?mode=`; records carry `mode` (absent = Standard). Tests: `modes.test.ts`.
+- **Next:** Expansion: Legacy & Diplomacy (event deck, relations, game board, 7 victories)
+- **Later:** Online: host the engine on a server, two clients, same actions
 
 ## Testing
 

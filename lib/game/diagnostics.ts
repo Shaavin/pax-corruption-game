@@ -28,7 +28,7 @@ export type Simulation = {
 };
 
 export function simulate(record: GameRecord): Simulation {
-  const replay = newReplay(record.seed);
+  const replay = newReplay(record.seed, record.mode);
   const states: GameState[] = [replay.state];
   const steps: ReplayStep[] = [];
   const issues: StepIssue[] = [];

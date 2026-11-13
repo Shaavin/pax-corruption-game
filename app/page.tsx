@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ContinueGame } from "@/components/game/ContinueGame";
 import { SeedForm } from "@/components/game/Troubleshooter";
+import { GAME_MODES } from "@/lib/game/setup";
 
 export default function Home() {
   return (
@@ -21,17 +22,39 @@ export default function Home() {
             Two players, one device. Local hotseat first.
           </p>
         </div>
-        <Link
-          href="/play"
-          prefetch={false}
-          className="rounded-full bg-[var(--brass,#c6a56c)] px-6 py-3 text-sm font-semibold tracking-wide text-stone-950 transition-colors hover:bg-[#d4b57c]"
-        >
-          New local game
-        </Link>
+        <section aria-labelledby="new-game" className="w-full">
+          <h2 id="new-game" className="mb-3 text-xs font-semibold tracking-[0.16em] text-stone-400 uppercase">
+            New local game
+          </h2>
+          <ul className="grid grid-cols-2 gap-2 text-left">
+            {GAME_MODES.map((mode, index) => (
+              <li key={mode.id}>
+                <Link
+                  href={`/play?mode=${mode.id}`}
+                  prefetch={false}
+                  className={[
+                    "flex h-full flex-col rounded-xl px-3.5 py-3 ring-1 transition-colors",
+                    index === 0
+                      ? "bg-[var(--brass,#c6a56c)] text-stone-950 ring-transparent hover:bg-[#d4b57c]"
+                      : "bg-white/[0.04] text-stone-100 ring-white/12 hover:bg-white/[0.08]",
+                  ].join(" ")}
+                >
+                  <span className="text-sm font-semibold">
+                    {mode.name}
+                    <span className={index === 0 ? "ml-1.5 text-xs font-normal text-stone-800" : "ml-1.5 text-xs font-normal text-stone-500"}>
+                      {mode.term}
+                    </span>
+                  </span>
+                  <span className={index === 0 ? "mt-0.5 text-xs text-stone-800" : "mt-0.5 text-xs text-stone-400"}>
+                    {mode.blurb}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
         <ContinueGame />
-        <p className="text-sm text-stone-500">
-          Standard · play civil, draw, pass the device
-        </p>
+        <p className="text-sm text-stone-500">Play civil, draw, pass the device</p>
         <details className="w-full text-sm text-stone-400">
           <summary className="cursor-pointer select-none hover:text-stone-200">More options</summary>
           <div className="mt-3 flex flex-col items-center gap-3">

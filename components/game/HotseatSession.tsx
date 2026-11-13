@@ -46,6 +46,7 @@ import {
   VictoryKind,
   type Action,
   type GameEvent,
+  type GameModeId,
   type GameRecord,
   type GameState,
   type PlayerId,
@@ -92,13 +93,13 @@ const START_OF_TURN = new Set<Action["type"]>([
 
 
 type HotseatSessionProps =
-  | { seed: number; record?: undefined }
+  | { seed: number; mode?: GameModeId; record?: undefined }
   /** Resume a saved game. The caller has already checked that it replays. */
-  | { record: GameRecord; seed?: undefined };
+  | { record: GameRecord; seed?: undefined; mode?: undefined };
 
 export function HotseatSession(props: HotseatSessionProps) {
   const [session, setSession] = useState<Session>(() => ({
-    replay: props.record ? replayRecord(props.record) : newReplay(props.seed),
+    replay: props.record ? replayRecord(props.record) : newReplay(props.seed, props.mode),
     lastEvents: [],
   }));
   const [seated, setSeated] = useState<PlayerId | null>(null);
@@ -559,6 +560,7 @@ export function HotseatSession(props: HotseatSessionProps) {
     <Table
       model={model}
       seed={session.replay.seed}
+      mode={session.replay.mode}
       history={history}
       idlePrompt={statusLine(state)}
       showTour={!veiled && !waitingFirstSeat && !inSetup && !state.victory}
@@ -582,7 +584,7 @@ export function HotseatSession(props: HotseatSessionProps) {
       {choice && choice.player === viewer && !veiled && !waitingFirstSeat ? (
         <ChoiceOverlay state={state} choice={choice} viewer={viewer} onAction={dispatch} />
       ) : null}
-      {state.victory ? <GameOverOverlay victory={state.victory} /> : null}
+      {state.victory ? <GameOverOverlay victory={state.victory} mode={session.replay.mode} /> : null}
       {reportOpen ? <ReportDialog replay={session.replay} viewer={seated} onClose={closeReport} /> : null}
       {showGate ? (
         <PassDeviceGate

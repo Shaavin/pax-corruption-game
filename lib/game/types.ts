@@ -11,6 +11,9 @@ export const PLAYERS: readonly PlayerId[] = [0, 1];
 
 export const GameMode = {
   Standard: "standard",
+  Tourney: "tourney",
+  Chaotic: "chaotic",
+  Epic: "epic",
 } as const;
 export type GameModeId = (typeof GameMode)[keyof typeof GameMode];
 

@@ -14,7 +14,8 @@ import type { TableModel } from "./table-model";
 import { TableTour } from "./TableTour";
 import { ZoomPreview } from "./ZoomPreview";
 import type { DistrictId } from "@/lib/cards/schema";
-import type { GameEvent, PlayerId } from "@/lib/game";
+import type { GameEvent, GameModeId, PlayerId } from "@/lib/game";
+import { GAME_MODES } from "@/lib/game/setup";
 
 export type { DockBanner, ExtraAction };
 
@@ -45,6 +46,7 @@ export type TableInteraction = {
 type TableProps = {
   model: TableModel;
   seed: number;
+  mode?: GameModeId;
   showTour: boolean;
   veiled: boolean;
   hotseat: PlayerId;
@@ -62,6 +64,7 @@ type TableProps = {
 export function Table({
   model,
   seed,
+  mode = "standard",
   showTour,
   veiled,
   hotseat,
@@ -142,8 +145,8 @@ export function Table({
                   Report
                 </button>
               ) : null}
-              <span className="tabular-nums" title="Deterministic setup seed">
-                Seed {seed}
+              <span className="tabular-nums" title="Draw-deck mode and deterministic setup seed">
+                {GAME_MODES.find((entry) => entry.id === mode)?.name ?? mode} · Seed {seed}
               </span>
               <Link href={menuHref} className="tracking-[0.14em] uppercase hover:text-stone-300">
                 Menu

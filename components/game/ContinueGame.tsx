@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { parseSavedGame, useSavedGameRaw } from "./saved-game";
+import { GAME_MODES } from "@/lib/game/setup";
 
 /** Menu button for the game saved in this browser, if one is still in progress. */
 export function ContinueGame() {
@@ -15,7 +16,8 @@ export function ContinueGame() {
     >
       Continue game
       <span className="ml-2 text-xs font-normal text-stone-400 tabular-nums">
-        Seed {saved.record.seed} · {saved.record.actions.length} moves
+        {GAME_MODES.find((mode) => mode.id === (saved.record.mode ?? "standard"))?.name} · Seed {saved.record.seed} ·{" "}
+        {saved.record.actions.length} moves
       </span>
     </a>
   );

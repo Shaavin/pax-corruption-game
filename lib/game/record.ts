@@ -1,8 +1,8 @@
 import { apply, currentActor } from "./engine.ts";
 import { IllegalActionError } from "./errors.ts";
 import { createSeededRng, type Rng } from "./rng.ts";
-import { createGame } from "./setup.ts";
-import { Phase, type Action, type GameEvent, type GameState } from "./types.ts";
+import { createGame, isGameMode } from "./setup.ts";
+import { GameMode, Phase, type Action, type GameEvent, type GameModeId, type GameState } from "./types.ts";
 
 /**
  * A game is fully described by its seed and its action list: the engine is
@@ -19,6 +19,8 @@ export const ENGINE_VERSION = "2026-11-13";
 export type GameRecord = {
   version: typeof RECORD_VERSION;
   seed: number;
+  /** Draw-deck mode. Absent means Standard (records from before modes existed). */
+  mode?: GameModeId;
   actions: Action[];
   /** `ENGINE_VERSION` of the build that recorded the game. */
   engineVersion?: string;
@@ -48,6 +50,7 @@ export type ReplayStep = {
 
 export type Replay = {
   seed: number;
+  mode: GameModeId;
   /** Seeded RNG positioned after the last step. Mutated by `step`. */
   rng: Rng;
   state: GameState;
@@ -67,9 +70,9 @@ export class ReplayError extends Error {
   }
 }
 
-export function newReplay(seed: number): Replay {
+export function newReplay(seed: number, mode: GameModeId = GameMode.Standard): Replay {
   const rng = createSeededRng(seed);
-  return { seed, rng, state: createGame(rng, { seed }), steps: [] };
+  return { seed, mode, rng, state: createGame(rng, { seed, mode }), steps: [] };
 }
 
 /** Apply one action. Throws `IllegalActionError` and leaves the replay unchanged if it is illegal. */
@@ -86,7 +89,7 @@ export function stepReplay(replay: Replay, action: Action): Replay {
 
 /** Rebuild a game from its record. Throws `ReplayError` naming the first action that fails. */
 export function replayRecord(record: GameRecord): Replay {
-  let replay = newReplay(record.seed);
+  let replay = newReplay(record.seed, record.mode);
   record.actions.forEach((action, index) => {
     try {
       replay = stepReplay(replay, action);
@@ -101,6 +104,7 @@ export function toRecord(replay: Replay, build?: string): GameRecord {
   return {
     version: RECORD_VERSION,
     seed: replay.seed,
+    ...(replay.mode !== GameMode.Standard ? { mode: replay.mode } : {}),
     actions: replay.steps.map((step) => step.action),
     engineVersion: ENGINE_VERSION,
     ...(build ? { build } : {}),
@@ -148,6 +152,7 @@ export function undoReplay(replay: Replay): Replay {
   return replayRecord({
     version: RECORD_VERSION,
     seed: replay.seed,
+    mode: replay.mode,
     actions: replay.steps.slice(0, -1).map((step) => step.action),
   });
 }
@@ -163,12 +168,14 @@ export function parseRecord(value: unknown): GameRecord | null {
   if (candidate.version !== RECORD_VERSION) return null;
   if (typeof candidate.seed !== "number" || !Number.isInteger(candidate.seed) || candidate.seed < 0) return null;
   if (!Array.isArray(candidate.actions)) return null;
+  if (candidate.mode !== undefined && !isGameMode(candidate.mode)) return null;
   if (!candidate.actions.every((action) => action && typeof action === "object" && typeof action.type === "string")) {
     return null;
   }
   return {
     version: RECORD_VERSION,
     seed: candidate.seed >>> 0,
+    ...(candidate.mode && candidate.mode !== GameMode.Standard ? { mode: candidate.mode } : {}),
     actions: candidate.actions as Action[],
     ...(typeof candidate.engineVersion === "string" ? { engineVersion: candidate.engineVersion } : {}),
     ...(typeof candidate.build === "string" ? { build: candidate.build } : {}),

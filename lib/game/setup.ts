@@ -12,6 +12,7 @@ import { SENATE_SIZE } from "./senate.ts";
 import type { Rng } from "./rng.ts";
 import {
   GameMode,
+  type GameModeId,
   Phase,
   SetupStep,
   type CardInstance,
@@ -27,14 +28,57 @@ import {
   otherPlayer,
 } from "./zones.ts";
 
-/** Printed Standard A–E. `cards` is non-GE count; elections are shuffled in (`X & Y`). */
-export const STANDARD_DRAW_PLAN = [
-  { name: "A", cards: 5, elections: 0 },
-  { name: "B", cards: 9, elections: 1 },
-  { name: "C", cards: 24, elections: 1 },
-  { name: "D", cards: 44, elections: 2 },
-  { name: "E", cards: 5, elections: 0 },
-] as const;
+/**
+ * One draw pile, top (A) to bottom (E). `cards` is the non-election count.
+ * - `shuffled`: `X & Y` — the Y General Elections are shuffled into the X cards
+ * - `bottom`: `X + 1` — the General Election goes at the bottom of the pile
+ */
+export type DrawPilePlan = {
+  name: string;
+  cards: number;
+  elections: number;
+  placement: "shuffled" | "bottom";
+};
+
+const pile = (name: string, cards: number, elections = 0, placement: DrawPilePlan["placement"] = "shuffled"): DrawPilePlan => ({
+  name,
+  cards,
+  elections,
+  placement,
+});
+
+/** The rulebook's draw-deck modes. Every mode is 87 cards + 4 General Elections. */
+export const DRAW_PLANS: Record<GameModeId, readonly DrawPilePlan[]> = {
+  [GameMode.Standard]: [pile("A", 5), pile("B", 9, 1), pile("C", 24, 1), pile("D", 44, 2), pile("E", 5)],
+  [GameMode.Tourney]: [
+    pile("A", 10, 1, "bottom"),
+    pile("B", 22, 1, "bottom"),
+    pile("C", 20, 1, "bottom"),
+    pile("D", 18, 1, "bottom"),
+    pile("E", 17),
+  ],
+  // C and D are one pile.
+  [GameMode.Chaotic]: [pile("A", 8, 1, "bottom"), pile("B", 10), pile("C+D", 64, 3), pile("E", 5)],
+  [GameMode.Epic]: [
+    pile("A", 4, 1, "bottom"),
+    pile("B", 20, 1, "bottom"),
+    pile("C", 8),
+    pile("D", 35, 1),
+    pile("E", 20, 1),
+  ],
+};
+
+export const GAME_MODES: readonly { id: GameModeId; name: string; term: string; blurb: string }[] = [
+  { id: GameMode.Standard, name: "Standard", term: "Random", blurb: "General Elections shuffled into the middle piles." },
+  { id: GameMode.Tourney, name: "Tourney", term: "Fixed", blurb: "Elections at fixed depths: a steady, predictable pace." },
+  { id: GameMode.Chaotic, name: "Chaotic", term: "Hybrid", blurb: "An early election, then three hidden in one big pile." },
+  { id: GameMode.Epic, name: "Epic", term: "Hybrid", blurb: "Two quick elections, then a long game to the end." },
+];
+
+export function isGameMode(value: unknown): value is GameModeId {
+  return typeof value === "string" && value in DRAW_PLANS;
+}
+
 
 /** 104 non-election − 7 starting − 5 Senate − 5 Market. */
 export const PILE_CARD_COUNT = 87;
@@ -47,8 +91,13 @@ export type DrawPileSlice = {
 };
 
 export function standardPileSlices(): DrawPileSlice[] {
+  return pileSlices(GameMode.Standard);
+}
+
+/** Where each pile sits in the built deck (index 0 = top). */
+export function pileSlices(mode: GameModeId): DrawPileSlice[] {
   let start = 0;
-  return STANDARD_DRAW_PLAN.map((pile) => {
+  return DRAW_PLANS[mode].map((pile) => {
     const length = pile.cards + pile.elections;
     const slice = {
       name: pile.name,
@@ -61,7 +110,9 @@ export function standardPileSlices(): DrawPileSlice[] {
   });
 }
 
-export function createGame(rng: Rng, options: { seed: number }): GameState {
+export type GameOptions = { seed: number; mode?: GameModeId };
+
+export function createGame(rng: Rng, options: GameOptions): GameState {
   const districtOrder = rng.shuffle(DISTRICTS);
   const parties = rng.shuffle(PARTIES.map((party) => party.id));
   const dealtParties: Record<PlayerId, PartyIdValue[]> = {
@@ -76,7 +127,7 @@ export function createGame(rng: Rng, options: { seed: number }): GameState {
   ).map((card) => instantiate(card.id));
 
   return {
-    mode: GameMode.Standard,
+    mode: options.mode ?? GameMode.Standard,
     seed: options.seed,
     phase: Phase.Setup,
     setup: {
@@ -230,7 +281,7 @@ export function finishSetup(state: GameState, rng: Rng): GameEvent[] {
 
   state.senate = senate;
   state.market = market;
-  state.deck = buildStandardDrawDeck(pileCards, setup.electionCards, rng);
+  state.deck = buildDrawDeck(state.mode, pileCards, setup.electionCards, rng);
   events.push({ type: "senateDealt", cardIds: senate.map((card) => card.cardId) });
   events.push({
     type: "marketDealt",
@@ -283,11 +334,26 @@ export function buildStandardDrawDeck(
   elections: CardInstance[],
   rng: Rng,
 ): CardInstance[] {
+  return buildDrawDeck(GameMode.Standard, pileCards, elections, rng);
+}
+
+/**
+ * Stack piles A–E from the (already shuffled) pile cards. Piles without an
+ * election are not reshuffled, so Standard consumes the RNG exactly as before
+ * and old Standard records still replay.
+ */
+export function buildDrawDeck(
+  mode: GameModeId,
+  pileCards: CardInstance[],
+  elections: CardInstance[],
+  rng: Rng,
+): CardInstance[] {
+  const plan = DRAW_PLANS[mode];
   if (pileCards.length !== PILE_CARD_COUNT) {
-    throw new Error(`Standard piles need ${PILE_CARD_COUNT} cards, got ${pileCards.length}`);
+    throw new Error(`Draw piles need ${PILE_CARD_COUNT} cards, got ${pileCards.length}`);
   }
   if (elections.length !== 4) {
-    throw new Error(`Standard piles need 4 general elections, got ${elections.length}`);
+    throw new Error(`Draw piles need 4 general elections, got ${elections.length}`);
   }
 
   let cards = [...pileCards];
@@ -303,15 +369,17 @@ export function buildStandardDrawDeck(
     return chunk;
   };
 
-  const A = take(5);
-  const B = rng.shuffle([...take(9), ...takeGE(1)]);
-  const C = rng.shuffle([...take(24), ...takeGE(1)]);
-  const D = rng.shuffle([...take(44), ...takeGE(2)]);
-  const E = take(5);
-
-  if (cards.length !== 0 || ges.length !== 0) {
-    throw new Error("Standard pile construction leftover cards");
+  const deck: CardInstance[] = [];
+  for (const pile of plan) {
+    const body = take(pile.cards);
+    const piles = takeGE(pile.elections);
+    if (pile.elections === 0) deck.push(...body);
+    else if (pile.placement === "bottom") deck.push(...body, ...piles);
+    else deck.push(...rng.shuffle([...body, ...piles]));
   }
 
-  return [...A, ...B, ...C, ...D, ...E];
+  if (cards.length !== 0 || ges.length !== 0) {
+    throw new Error(`${mode} pile construction left cards over`);
+  }
+  return deck;
 }
