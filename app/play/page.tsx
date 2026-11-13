@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { HotseatSession } from "@/components/game/HotseatSession";
+import { ResumeGame } from "@/components/game/ResumeGame";
 import { randomUint32 } from "@/lib/game/rng";
 
 export const dynamic = "force-dynamic";
@@ -14,6 +15,7 @@ export default async function PlayPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const params = await searchParams;
+  if (params.resume !== undefined) return <ResumeGame />;
   const raw = params.seed;
   const value = Array.isArray(raw) ? raw[0] : raw;
   const seed =

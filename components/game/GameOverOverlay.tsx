@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { playerLabel } from "./players";
-import { VictoryKind, type Victory } from "@/lib/game";
+import type { DistrictId } from "@/lib/cards/schema";
+import { MILITARY_LEAD, POPULARITY_LEAD, VictoryKind, type Victory } from "@/lib/game";
 
 const KIND_LABEL: Record<Victory["kind"], string> = {
   [VictoryKind.Military]: "Military Victory",
@@ -12,23 +14,79 @@ const KIND_LABEL: Record<Victory["kind"], string> = {
   [VictoryKind.Political]: "Political Victory",
 };
 
+const DISTRICT_NAME: Record<DistrictId, string> = {
+  dragonara: "Dragonara",
+  horsard: "Horsard",
+  shavvinne: "Shavvinne",
+  smarbbit: "Smarbbit",
+};
+
+function victoryReason(victory: Victory): string {
+  switch (victory.kind) {
+    case VictoryKind.Military:
+      return `Led by ${MILITARY_LEAD} or more partisans.`;
+    case VictoryKind.Popularity:
+      return `Led by ${POPULARITY_LEAD} or more support${victory.district ? ` in ${DISTRICT_NAME[victory.district]}` : ""}.`;
+    case VictoryKind.Ideological:
+      return `More ${victory.symbol ?? "ideology"} symbols, the ideology with the most total copies.`;
+    case VictoryKind.Political:
+      return "Met two active decree objectives at once.";
+    case VictoryKind.Civil:
+      return "Won the final election, or three elections with Roman Basilica.";
+  }
+}
+
 export function GameOverOverlay({ victory }: { victory: Victory }) {
+  const [reviewing, setReviewing] = useState(false);
+
+  if (reviewing) {
+    return (
+      <button
+        type="button"
+        onClick={() => setReviewing(false)}
+        className="absolute top-14 left-1/2 z-50 -translate-x-1/2 cursor-pointer rounded-full glass-strong px-4 py-1.5 text-xs font-semibold text-[var(--brass)] shadow-xl ring-1 ring-[var(--brass)]/50 hover:brightness-110"
+      >
+        ★ {playerLabel(victory.player)} won · {KIND_LABEL[victory.kind]} — show result
+      </button>
+    );
+  }
+
   return (
     <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center bg-black/75 px-4">
-      <div className="pointer-events-auto max-w-md rounded-2xl glass-strong px-6 py-8 text-center shadow-2xl ring-1 ring-white/10">
+      <div
+        role="dialog"
+        aria-labelledby="game-over-title"
+        className="pointer-events-auto max-w-md rounded-2xl glass-strong px-6 py-8 text-center shadow-2xl ring-1 ring-[var(--brass)]/40"
+      >
         <p className="text-[0.65rem] font-semibold tracking-[0.18em] text-[var(--brass)] uppercase">
           Game over
         </p>
-        <h2 className="mt-2 text-3xl font-semibold text-stone-100">
+        <h2 id="game-over-title" className="mt-2 text-3xl font-semibold text-stone-100">
           {playerLabel(victory.player)} wins
         </h2>
-        <p className="mt-2 text-sm text-stone-300">{KIND_LABEL[victory.kind]}</p>
-        <Link
-          href="/"
-          className="mt-6 inline-block rounded-xl bg-[var(--act)] px-6 py-2.5 text-sm font-semibold text-stone-950 hover:brightness-110"
-        >
-          Back to menu
-        </Link>
+        <p className="mt-2 text-lg font-semibold text-[var(--brass)]">★ {KIND_LABEL[victory.kind]}</p>
+        <p className="mt-1 text-sm text-stone-300">{victoryReason(victory)}</p>
+        <div className="mt-6 flex flex-wrap justify-center gap-2">
+          <button
+            type="button"
+            onClick={() => setReviewing(true)}
+            className="cursor-pointer rounded-xl px-4 py-2.5 text-sm font-semibold text-stone-200 ring-1 ring-white/20 hover:bg-white/8"
+          >
+            Review the table
+          </button>
+          <a
+            href="/play"
+            className="rounded-xl bg-[var(--act)] px-5 py-2.5 text-sm font-semibold text-stone-950 hover:brightness-110"
+          >
+            New game
+          </a>
+          <Link
+            href="/"
+            className="rounded-xl px-4 py-2.5 text-sm font-semibold text-stone-200 ring-1 ring-white/20 hover:bg-white/8"
+          >
+            Menu
+          </Link>
+        </div>
       </div>
     </div>
   );

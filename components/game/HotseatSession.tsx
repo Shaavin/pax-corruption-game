@@ -6,14 +6,14 @@ import { DecreeChoice } from "./DecreeChoice";
 import { GameOverOverlay } from "./GameOverOverlay";
 import { PassDeviceGate } from "./PassDeviceGate";
 import { playerLabel } from "./players";
+import { saveGame } from "./saved-game";
 import { SetupOverlay } from "./SetupOverlay";
-import { Table, type ExtraAction } from "./Table";
+import { Table, type DockBanner, type ExtraAction } from "./Table";
 import { tableModel } from "./table-model";
 import { getCard } from "@/lib/cards/catalog";
 import { CardKind, type DistrictId, type PolicyIdValue } from "@/lib/cards/schema";
 import {
   alliancesInPlay,
-  apply,
   ARCHITECTURE_COST,
   CONSTRUCT_COST,
   freeActions,
@@ -23,8 +23,7 @@ import {
   type FreeActionAction,
   convincedSenators,
   convincedVotes,
-  createGame,
-  createSeededRng,
+  canUndo,
   currentActor,
   declarableVictories,
   inactiveDecrees,
@@ -37,24 +36,27 @@ import {
   recruitBlockReason,
   constructBlockReason,
   revealPasses,
+  newReplay,
   RECRUIT_COST,
+  replayRecord,
   SetupStep,
+  stepReplay,
+  undoReplay,
   VictoryKind,
   type Action,
   type GameEvent,
+  type GameRecord,
   type GameState,
   type PlayerId,
-  type Rng,
+  type Replay,
   type Victory,
 } from "@/lib/game";
 
 type Session = {
-  seed: number;
-  rng: Rng;
-  state: GameState;
+  /** Seed + every action so far; rebuilt by replay for undo and resume. */
+  replay: Replay;
+  /** Events since the current player's turn began, for the pass-device hint. */
   lastEvents: GameEvent[];
-  /** Every event this game, for the history rail. */
-  history: GameEvent[];
 };
 
 const DISTRICT_NAME: Record<DistrictId, string> = {
@@ -88,8 +90,16 @@ const START_OF_TURN = new Set<Action["type"]>([
 ]);
 
 
-export function HotseatSession({ seed }: { seed: number }) {
-  const [session, setSession] = useState<Session>(() => startSession(seed));
+type HotseatSessionProps =
+  | { seed: number; record?: undefined }
+  /** Resume a saved game. The caller has already checked that it replays. */
+  | { record: GameRecord; seed?: undefined };
+
+export function HotseatSession(props: HotseatSessionProps) {
+  const [session, setSession] = useState<Session>(() => ({
+    replay: props.record ? replayRecord(props.record) : newReplay(props.seed),
+    lastEvents: [],
+  }));
   const [seated, setSeated] = useState<PlayerId | null>(null);
   const [selectedHandIds, setSelectedHandIds] = useState<string[]>([]);
   const [spendKind, setSpendKind] = useState<SpendKind | null>(null);
@@ -97,7 +107,8 @@ export function HotseatSession({ seed }: { seed: number }) {
   /** Free-action source driving the current mode (Rebel, Architecture, Capitol, Foreign, Century). */
   const [via, setVia] = useState<string | null>(null);
 
-  const { state } = session;
+  const { state } = session.replay;
+  const history = useMemo(() => session.replay.steps.flatMap((step) => step.events), [session.replay]);
   const actor = currentActor(state);
   const veiled = seated !== null && seated !== actor && !state.victory;
   const waitingFirstSeat = seated === null;
@@ -128,18 +139,36 @@ export function HotseatSession({ seed }: { seed: number }) {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  function dispatch(action: Action) {
-    const result = apply(session.state, action, session.rng);
+  function commit(replay: Replay, lastEvents: GameEvent[]) {
     resetSelection();
-    setSession({
-      ...session,
-      state: result.state,
-      lastEvents: START_OF_TURN.has(action.type)
-        ? result.events
-        : [...session.lastEvents, ...result.events],
-      history: [...session.history, ...result.events],
-    });
+    setSession({ replay, lastEvents });
+    if (replay.steps.length > 0) saveGame(replay);
   }
+
+  function dispatch(action: Action) {
+    const replay = stepReplay(session.replay, action);
+    const events = replay.steps.at(-1)!.events;
+    commit(replay, START_OF_TURN.has(action.type) ? events : [...session.lastEvents, ...events]);
+  }
+
+  const undoAvailable = canUndo(session.replay) && !veiled && !waitingFirstSeat && actor === viewer;
+
+  function undo() {
+    if (!canUndo(session.replay)) return;
+    commit(undoReplay(session.replay), []);
+  }
+
+  useEffect(() => {
+    if (!undoAvailable) return;
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === "z") {
+        event.preventDefault();
+        undo();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
 
   // Cards usable "as if in hand": hand, set-aside zones, and (State Enterprise) Market civils.
   const pool = useMemo(() => handLikeCards(state, viewer, { market: true }), [state, viewer]);
@@ -451,6 +480,17 @@ export function HotseatSession({ seed }: { seed: number }) {
     }
   }
 
+  if (undoAvailable && !spendKind) {
+    extraActions.push({
+      label: "Undo",
+      tone: "ghost",
+      title: "Take back your last action (Ctrl+Z). Not available once cards are revealed or the turn passes.",
+      onClick: undo,
+    });
+  }
+
+  const banner = victoryBanner(state, viewer, declarable);
+
   const pendingDecrees = state.phase === Phase.DecreeChoice ? state.pendingDecrees : null;
 
   const interaction =
@@ -473,6 +513,7 @@ export function HotseatSession({ seed }: { seed: number }) {
             else if (kind === CardKind.Conspiracy) dispatch({ type: "playConspiracy", player: viewer, instanceId });
           },
           takeableMarketIds: marketIds,
+          marketMode: state.phase === Phase.Income ? ("take" as const) : ("use" as const),
           onTakeMarket: (instanceId: string) => {
             if (state.phase === Phase.Income) dispatch({ type: "takeMarket", player: viewer, instanceId });
             else selectCard(instanceId);
@@ -489,6 +530,8 @@ export function HotseatSession({ seed }: { seed: number }) {
                   monumentInstanceId: instanceId,
                 })
               : dispatch({ type: "construct", player: viewer, instanceIds: selectedHandIds, monumentInstanceId: instanceId }),
+          seatArmed,
+          banner,
           convincedSenators: convinced,
           revealVotes,
           prompt: turnPrompt(state, {
@@ -512,8 +555,8 @@ export function HotseatSession({ seed }: { seed: number }) {
   return (
     <Table
       model={model}
-      seed={session.seed}
-      history={session.history}
+      seed={session.replay.seed}
+      history={history}
       idlePrompt={statusLine(state)}
       showTour={!veiled && !waitingFirstSeat && !inSetup && !state.victory}
       veiled={veiled || waitingFirstSeat}
@@ -548,13 +591,26 @@ export function HotseatSession({ seed }: { seed: number }) {
   );
 }
 
-function startSession(seed: number): Session {
-  const rng = createSeededRng(seed);
-  return { seed, rng, state: createGame(rng, { seed }), lastEvents: [], history: [] };
-}
-
 function policyName(policyId: PolicyIdValue | null): string {
   return policyId ? getCard(policyId).name : "Neutral";
+}
+
+/** Victory prompts for the turn dock: yours to declare, or the opponent's threat. */
+function victoryBanner(state: GameState, viewer: PlayerId, declarable: Victory[]): DockBanner | null {
+  if (state.phase !== Phase.Action && state.phase !== Phase.Politics) return null;
+  const labels = (list: Victory[]) => list.map(victoryLabel).join(", ");
+  if (state.phase === Phase.Politics && declarable.length > 0) {
+    return { tone: "win", text: `You can declare ${labels(declarable)} now.` };
+  }
+  const yours = state.phase === Phase.Action ? declarableVictories(state, viewer) : [];
+  if (yours.length > 0) {
+    return { tone: "win", text: `Victory in reach: ${labels(yours)}. Declare it in your Politics step.` };
+  }
+  const theirs = declarableVictories(state, otherPlayer(viewer));
+  if (theirs.length > 0) {
+    return { tone: "warn", text: `${playerLabel(otherPlayer(viewer))} can declare ${labels(theirs)} in their next Politics step.` };
+  }
+  return null;
 }
 
 function victoryLabel(victory: Victory): string {

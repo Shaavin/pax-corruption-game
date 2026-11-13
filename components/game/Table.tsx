@@ -6,16 +6,17 @@ import { Hand } from "./Hand";
 import { HistoryRail } from "./HistoryRail";
 import { Lane } from "./Lane";
 import { PeekContext, type PeekCard } from "./peek";
+import { PlayerAid } from "./PlayerAid";
 import { PlayerBar } from "./PlayerBar";
 import { playerLabel } from "./players";
-import { SidePanel, TurnDock, type ExtraAction } from "./SidePanel";
+import { SidePanel, TurnDock, type DockBanner, type ExtraAction } from "./SidePanel";
 import type { TableModel } from "./table-model";
 import { TableTour } from "./TableTour";
 import { ZoomPreview } from "./ZoomPreview";
 import type { DistrictId } from "@/lib/cards/schema";
 import type { GameEvent, PlayerId } from "@/lib/game";
 
-export type { ExtraAction };
+export type { DockBanner, ExtraAction };
 
 export type TableInteraction = {
   playableHandIds: ReadonlySet<string>;
@@ -26,9 +27,14 @@ export type TableInteraction = {
   targetLabel: string;
   onSelectDistrict: (district: DistrictId) => void;
   takeableMarketIds: ReadonlySet<string>;
+  marketMode?: "take" | "use";
   onTakeMarket: (instanceId: string) => void;
   claimableMonumentIds: ReadonlySet<string>;
   onClaimMonument: (instanceId: string) => void;
+  /** A card is selected to seat in the Senate: mark the Senator who will leave. */
+  seatArmed?: boolean;
+  /** Victory prompt above the turn controls. */
+  banner?: DockBanner | null;
   /** Propose Policy: Senators the current reveal convinces, and its vote total. */
   convincedSenators?: ReadonlySet<number>;
   revealVotes?: number | null;
@@ -62,6 +68,8 @@ export function Table({
 }: TableProps) {
   const [peek, setPeek] = useState<PeekCard | null>(null);
   const [tourOpen, setTourOpen] = useState(false);
+  const [aidOpen, setAidOpen] = useState(false);
+  const closeAid = useCallback(() => setAidOpen(false), []);
   if (veiled && peek !== null) setPeek(null);
   const setPeekSafe = useCallback(
     (card: PeekCard | null) => {
@@ -103,6 +111,18 @@ export function Table({
                   }}
                 />
               ) : null}
+              {veiled ? null : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPeek(null);
+                    setAidOpen(true);
+                  }}
+                  className="cursor-pointer tracking-[0.14em] uppercase hover:text-stone-300"
+                >
+                  Player aid
+                </button>
+              )}
               <span className="tabular-nums" title="Deterministic setup seed">
                 Seed {seed}
               </span>
@@ -177,6 +197,7 @@ export function Table({
           senateVotesNeeded={model.senateVotesNeeded}
           convinced={interaction?.convincedSenators}
           revealVotes={interaction?.revealVotes ?? null}
+          seatArmed={interaction?.seatArmed ?? false}
           decrees={model.decrees}
           market={model.market}
           electionActive={model.electionActive}
@@ -184,6 +205,7 @@ export function Table({
           monuments={model.availableMonuments}
           deckCount={model.deckCount}
           takeableIds={interaction?.takeableMarketIds}
+          marketMode={interaction?.marketMode}
           selectedIds={interaction?.selectedHandIds}
           onTake={interaction?.onTakeMarket}
           claimableIds={interaction?.claimableMonumentIds}
@@ -193,13 +215,15 @@ export function Table({
               phase={model.phase}
               seatColor={yourTurn ? "var(--you)" : "var(--opp)"}
               prompt={interaction?.prompt ?? idlePrompt}
+              banner={interaction?.banner ?? null}
               actions={interaction?.extraActions ?? []}
             />
           }
         />
 
         {children}
-        {tourOpen || veiled ? null : <ZoomPreview card={peek} />}
+        {aidOpen && !veiled ? <PlayerAid onClose={closeAid} /> : null}
+        {tourOpen || veiled || aidOpen ? null : <ZoomPreview card={peek} />}
       </div>
     </PeekContext.Provider>
   );

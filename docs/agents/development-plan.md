@@ -2,9 +2,9 @@
 
 Local hotseat simulator first. The same rules engine should later run a networked match without a rewrite.
 
-## Where things stand (2026-11-11)
+## Where things stand (2026-11-13)
 
-**Phase R (rules migration) and Phase 6 (card abilities) are done.** Engine, catalog, art, tests, and hotseat UI follow the current rulebook, and every base-game card ability works. Next up is **Phase 7 — hotseat finish**.
+**Phase R (rules migration), Phase 6 (card abilities), and Phase 7 (hotseat finish) are done.** Engine, catalog, art, tests, and hotseat UI follow the current rulebook, every base-game card ability works, and a hotseat game saves, resumes, and supports undo. Next up is **Phase 8 — troubleshooting**.
 
 | Area | State |
 | --- | --- |
@@ -16,7 +16,8 @@ Local hotseat simulator first. The same rules engine should later run a networke
 | Victory (`victory.ts`, `decrees.ts`) | All victories declared in Politics except Civil at the final election. Political via decrees; new Ideological math; Roman Basilica and Smart Doctrine (victory-related) implemented. |
 | Abilities | All base-game abilities implemented (Phase 6). |
 | UI (`components/game`) | Senate + decree row (`SenateRow`), propose flow (reveal → policy → discard), Seat in the Senate, Declare buttons, `DecreeChoice` overlay. Executive, referendum, and first-player UI removed. |
-| Action log | Stashed (`git stash list`: "WIP: action log (pre-2026-11 rules)"). Re-apply and rename events to the new `GameEvent` types. |
+| Action log (`action-log.ts`, `HistoryRail`) | Live: the left rail lists every public action; deck draws stay hidden. |
+| Records (`record.ts`, `saved-game.ts`) | A game is its seed + action list. Replay rebuilds it; the browser saves it after every action; the menu offers **Continue game**; Undo replays all but the last action. |
 | Lint | Two pre-existing `react-hooks/set-state-in-effect` errors in `TableTour.tsx` (not from the migration). |
 
 ## Principles
@@ -77,6 +78,7 @@ lib/
     decrees.ts              # NEW: decree conditions
     victory.ts              # declarable victories, Civil at final election, ideological math
     action-log.ts
+    record.ts               # game records: replay, undo rules, record parsing
     abilities/              # one file per effect id or family
   cards/
     catalog.ts, deck.ts, setup-cards.ts, schema.ts, effects.ts
@@ -134,15 +136,28 @@ Tests: `abilities.test.ts` (continuous) and `free-actions.test.ts` (free actions
 
 Each ability gets at least one engine test. An unimplemented ability is unusable (cannot activate). If the card can still be played for its slot/symbols, show "ability not implemented" and allow the play.
 
-### Phase 7 — Hotseat finish
+### Phase 7 — Hotseat finish (done 2026-11-13)
 
-- Legal-action highlighting everywhere
-- Victory banners and declare prompts
-- Log / replay (action log)
-- Undo last action (local only)
-- Player aids as overlay (current Victories / Actions art)
+- Legal-action highlighting everywhere: hand, lanes, Market (labelled **Use** for State Enterprise in the action step, **Take** at income), monuments, and the Senator who leaves when you seat a card
+- Victory banners and declare prompts: the turn dock shows a victory you can declare now, one in reach for your Politics step, or the opponent's threat; the game-over screen names the victory and why, and can be dismissed to review the table
+- Log / replay: the history rail is the action log; `lib/game/record.ts` replays a seed + action list into the same state (RNG included). The browser keeps the current game (`localStorage`, `pax-hotseat-game-v1`), and `/play?resume=1` (menu: **Continue game**) rebuilds it
+- Undo (local only): **Undo** button or Ctrl+Z. Only while the same player is still acting and the action revealed nothing hidden (no deck draws, Market or monument refills, General Elections, Intel Network); never during setup or after the game ends
+- Player aid overlay (Actions and Victories art) from the top bar
 
-### Phase 8 — Later, not now
+Tests: `record.test.ts` (replay determinism, JSON round trip, `ReplayError` index, undo rules).
+
+### Phase 8 — Troubleshooting
+
+Tools to reproduce and diagnose games that players report as broken. Everything builds on deterministic replay: a game is fully described by its seed and its action list.
+
+- Manual seed entry: start a new game from a typed seed (the menu and `/play?seed=`)
+- Game records: export the current game (record version, seed, action list, app build) as a JSON file or copyable code; import one to load that game
+- Re-simulate: rebuild a game from its record and step forward and back through its actions, or jump to any action, with every seat's hidden information visible
+- Divergence checks: replay validates every action and reports the first one that is illegal or throws, plus engine invariants (card conservation, zone sizes) after each step
+- Bug report: one button that bundles the record, the current step, and a short description for the player to send
+- Version stamp: records carry the engine version so a record from an older rules build is flagged instead of silently replaying differently
+
+### Phase 9 — Later, not now
 
 - Online: host the engine on a server, two clients, same actions
 - Tourney / Chaotic / Epic as setup options (Chaotic C+D is one `64 & 3` pile)

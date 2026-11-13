@@ -19,6 +19,8 @@ export type ExtraAction = {
   tone?: "primary" | "neutral" | "ghost";
 };
 
+export type DockBanner = { tone: "win" | "warn"; text: string };
+
 export type PhaseStep = "action" | "politics" | "income" | "decree" | "setup" | "over";
 
 type SidePanelProps = {
@@ -27,6 +29,8 @@ type SidePanelProps = {
   senateVotesNeeded: number;
   convinced?: ReadonlySet<number>;
   revealVotes: number | null;
+  /** Seating a card: the rightmost Senator leaves to your support pile. */
+  seatArmed?: boolean;
   decrees: DecreeView[];
   market: CardInstance[];
   electionActive: boolean;
@@ -34,6 +38,8 @@ type SidePanelProps = {
   monuments: CardInstance[];
   deckCount: number;
   takeableIds?: ReadonlySet<string>;
+  /** "take" at income; "use" for State Enterprise (as if in hand). */
+  marketMode?: "take" | "use";
   /** Market cards currently selected (State Enterprise plays them as if in hand). */
   selectedIds?: ReadonlySet<string>;
   onTake?: (instanceId: string) => void;
@@ -129,6 +135,7 @@ function SenateSection({
   senateVotesNeeded,
   convinced,
   revealVotes,
+  seatArmed,
 }: SidePanelProps) {
   const proposing = revealVotes !== null;
   const passing = proposing && revealVotes >= senateVotesNeeded;
@@ -160,6 +167,7 @@ function SenateSection({
           const def = getCard(entry.cardId);
           const votes = senatorVotes(entry.cardId);
           const isConvinced = convinced?.has(index) ?? false;
+          const leaving = Boolean(seatArmed) && index === senate.length - 1;
           return (
             <li key={entry.instanceId} className="relative">
               <CardView
@@ -168,8 +176,13 @@ function SenateSection({
                 size="panel"
                 cardId={entry.cardId}
                 selected={isConvinced}
-                dimmed={proposing && !isConvinced}
+                dimmed={(proposing && !isConvinced) || leaving}
               />
+              {leaving ? (
+                <span className="pointer-events-none absolute top-1 left-1/2 -translate-x-1/2 rounded-full bg-[var(--act)] px-1.5 py-0.5 text-[0.5rem] font-bold tracking-wide text-stone-950 uppercase shadow">
+                  Leaves
+                </span>
+              ) : null}
               <span
                 className={[
                   "pointer-events-none absolute -right-1 -bottom-1 rounded-md px-1 text-[0.6rem] font-bold tabular-nums ring-1",
@@ -245,7 +258,7 @@ function Dot({ on, color }: { on: boolean; color: string }) {
   );
 }
 
-function MarketSection({ market, electionActive, takeableIds, selectedIds, onTake }: SidePanelProps) {
+function MarketSection({ market, electionActive, takeableIds, selectedIds, onTake, marketMode = "take" }: SidePanelProps) {
   return (
     <Section
       title="Market"
@@ -269,7 +282,13 @@ function MarketSection({ market, electionActive, takeableIds, selectedIds, onTak
                   cardId={entry.cardId}
                   playable={takeable}
                   selected={selectedIds?.has(entry.instanceId) ?? false}
-                  selectLabel={takeable ? `Take ${catalog.name}` : undefined}
+                  selectLabel={
+                    takeable
+                      ? marketMode === "take"
+                        ? `Take ${catalog.name}`
+                        : `${selectedIds?.has(entry.instanceId) ? "Deselect" : "Use"} ${catalog.name} (State Enterprise)`
+                      : undefined
+                  }
                   onSelect={takeable && onTake ? () => onTake(entry.instanceId) : undefined}
                 />
               </li>
@@ -323,11 +342,13 @@ export function TurnDock({
   phase,
   seatColor,
   prompt,
+  banner,
   actions,
 }: {
   phase: PhaseStep;
   seatColor: string;
   prompt: string;
+  banner?: DockBanner | null;
   actions: ExtraAction[];
 }) {
   return (
@@ -352,6 +373,20 @@ export function TurnDock({
           );
         })}
       </ol>
+      {banner ? (
+        <p
+          role="status"
+          className={[
+            "rounded-lg px-2.5 py-1.5 text-[0.72rem] leading-snug font-semibold ring-1",
+            banner.tone === "win"
+              ? "bg-[var(--brass)]/15 text-[var(--brass)] ring-[var(--brass)]/50"
+              : "bg-[var(--opp)]/15 text-stone-100 ring-[var(--opp)]/50",
+          ].join(" ")}
+        >
+          {banner.tone === "win" ? "★ " : "⚠ "}
+          {banner.text}
+        </p>
+      ) : null}
       <p className="min-h-[2.4em] text-[0.78rem] leading-snug text-stone-200">{prompt}</p>
       {actions.length > 0 ? (
         <div className="flex flex-wrap gap-1.5">

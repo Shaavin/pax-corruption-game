@@ -1,5 +1,5 @@
 import { getCard, getParty } from "../cards/catalog.ts";
-import { CardKind, DISTRICTS, District, PartyId, type PartyIdValue } from "../cards/schema.ts";
+import { CardKind, DISTRICTS, PartyId, type PartyIdValue } from "../cards/schema.ts";
 import {
   apply,
   createGame,

@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { ContinueGame } from "@/components/game/ContinueGame";
 
 export default function Home() {
   return (
@@ -26,6 +27,7 @@ export default function Home() {
         >
           New local game
         </Link>
+        <ContinueGame />
         <p className="text-sm text-stone-500">
           Standard · play civil, draw, pass the device
         </p>
