@@ -9,6 +9,8 @@ import { playerLabel } from "./players";
 import { ReportDialog } from "./ReportDialog";
 import { saveGame } from "./saved-game";
 import { SetupOverlay } from "./SetupOverlay";
+import { BuyEventDialog } from "./BuyEventDialog";
+import { getEvent, isEventId } from "@/lib/cards/expansion";
 import { Table, type DockBanner, type ExtraAction } from "./Table";
 import { tableModel } from "./table-model";
 import { getCard } from "@/lib/cards/catalog";
@@ -17,6 +19,7 @@ import {
   alliancesInPlay,
   ARCHITECTURE_COST,
   CONSTRUCT_COST,
+  eastTakeTargets,
   freeActions,
   freeActionSources,
   handLikeCards,
@@ -68,7 +71,7 @@ const DISTRICT_NAME: Record<DistrictId, string> = {
   smarbbit: "Smarbbit",
 };
 
-type SpendKind = "recruit" | "construct" | "propose" | "foreign" | "century";
+type SpendKind = "recruit" | "construct" | "propose" | "foreign" | "century" | "eastTake";
 
 const FREE_LABEL: Record<FreeActionAction["ability"], (name: string, district: DistrictId | null) => string> = {
   kybernetik: () => "Kybernetik: draw to limit",
@@ -78,9 +81,16 @@ const FREE_LABEL: Record<FreeActionAction["ability"], (name: string, district: D
   rebelInc: () => "Rebel Inc.: recruit",
   capitolInc: () => "Capitol Inc.: propose",
   intelNetwork: () => "Intel Network: inspect deck",
+  eastTake: (name, district) => `${name}: take a ${district ? DISTRICT_NAME[district] : ""} Market card`,
 };
 
 type PolicyTarget = { district: DistrictId; policyId: PolicyIdValue | null };
+
+const SET_ASIDE_LABEL = {
+  planetNextBank: "Bank in Planet Next",
+  consultativeOffice: "Move to Consultative Office",
+  eastReveal: "Reveal (outside the hand limit)",
+} as const;
 
 const START_OF_TURN = new Set<Action["type"]>([
   "playCivil",
@@ -93,13 +103,15 @@ const START_OF_TURN = new Set<Action["type"]>([
 
 
 type HotseatSessionProps =
-  | { seed: number; mode?: GameModeId; record?: undefined }
+  | { seed: number; mode?: GameModeId; expansion?: boolean; foreignInfluence?: boolean; record?: undefined }
   /** Resume a saved game. The caller has already checked that it replays. */
-  | { record: GameRecord; seed?: undefined; mode?: undefined };
+  | { record: GameRecord; seed?: undefined; mode?: undefined; expansion?: undefined; foreignInfluence?: undefined };
 
 export function HotseatSession(props: HotseatSessionProps) {
   const [session, setSession] = useState<Session>(() => ({
-    replay: props.record ? replayRecord(props.record) : newReplay(props.seed, props.mode),
+    replay: props.record
+      ? replayRecord(props.record)
+      : newReplay(props.seed, { mode: props.mode, expansion: props.expansion, foreignInfluence: props.foreignInfluence }),
     lastEvents: [],
   }));
   const [seated, setSeated] = useState<PlayerId | null>(null);
@@ -109,6 +121,8 @@ export function HotseatSession(props: HotseatSessionProps) {
   /** Free-action source driving the current mode (Rebel, Architecture, Capitol, Foreign, Century). */
   const [via, setVia] = useState<string | null>(null);
   const [reportOpen, setReportOpen] = useState(false);
+  /** Expansion: the event being bought (income). */
+  const [buying, setBuying] = useState<string | null>(null);
   const closeReport = useCallback(() => setReportOpen(false), []);
 
   const { state } = session.replay;
@@ -125,6 +139,7 @@ export function HotseatSession(props: HotseatSessionProps) {
   );
 
   function resetSelection() {
+    setBuying(null);
     setSelectedHandIds([]);
     setSpendKind(null);
     setProposeTarget(null);
@@ -272,8 +287,13 @@ export function HotseatSession(props: HotseatSessionProps) {
   }, [spendKind, spendReady, selectedDistrict, state.availableMonuments]);
 
   // Market cards you can act on: take at income, or (State Enterprise) use as if in hand.
+  const eastSource = spendKind === "eastTake" ? freeSources.find((source) => source.source === via) : undefined;
   const marketIds = useMemo(() => {
     const ids = new Set<string>();
+    if (spendKind === "eastTake") {
+      for (const id of eastTakeTargets(state, viewer, eastSource?.district ?? null)) ids.add(id);
+      return ids;
+    }
     for (const action of legal) {
       if (action.type === "takeMarket") ids.add(action.instanceId);
     }
@@ -287,7 +307,12 @@ export function HotseatSession(props: HotseatSessionProps) {
       }
     }
     return ids;
-  }, [legal, inAction, choice, state.market, pool, spendKind, selectableHandIds, playableHandIds]);
+  }, [legal, inAction, choice, state, viewer, eastSource, pool, spendKind, selectableHandIds, playableHandIds]);
+
+  const buyableEventIds = useMemo(
+    () => new Set(legal.flatMap((action) => (action.type === "buyEvent" ? [action.instanceId] : []))),
+    [legal],
+  );
 
   const canEndAction = legal.some((action) => action.type === "endAction");
   const recruitReason = recruitBlockReason(state, viewer);
@@ -395,7 +420,7 @@ export function HotseatSession(props: HotseatSessionProps) {
       });
     }
     for (const source of freeSources) {
-      const name = getCard(source.cardId).name;
+      const name = isEventId(source.cardId) ? getEvent(source.cardId).name : getCard(source.cardId).name;
       const label = FREE_LABEL[source.ability](name, source.district);
       extraActions.push({
         label,
@@ -421,13 +446,16 @@ export function HotseatSession(props: HotseatSessionProps) {
             case "capitolInc":
               startMode("propose", source.source);
               return;
+            case "eastTake":
+              startMode("eastTake", source.source);
+              return;
           }
         },
       });
     }
     for (const action of setAsideFor) {
       extraActions.push({
-        label: action.zone === "planetNextBank" ? "Bank in Planet Next" : "Move to Consultative Office",
+        label: SET_ASIDE_LABEL[action.zone],
         tone: "neutral",
         onClick: () => dispatch(action),
       });
@@ -449,7 +477,7 @@ export function HotseatSession(props: HotseatSessionProps) {
     }
     for (const action of setAsideFor) {
       extraActions.push({
-        label: action.zone === "planetNextBank" ? "Bank in Planet Next" : "Move to Consultative Office",
+        label: SET_ASIDE_LABEL[action.zone],
         tone: "neutral",
         onClick: () => dispatch(action),
       });
@@ -477,7 +505,7 @@ export function HotseatSession(props: HotseatSessionProps) {
   } else if (state.phase === Phase.Income) {
     for (const action of setAsideFor) {
       extraActions.push({
-        label: action.zone === "planetNextBank" ? "Bank in Planet Next" : "Move to Consultative Office",
+        label: SET_ASIDE_LABEL[action.zone],
         tone: "neutral",
         onClick: () => dispatch(action),
       });
@@ -517,11 +545,15 @@ export function HotseatSession(props: HotseatSessionProps) {
             else if (kind === CardKind.Conspiracy) dispatch({ type: "playConspiracy", player: viewer, instanceId });
           },
           takeableMarketIds: marketIds,
-          marketMode: state.phase === Phase.Income ? ("take" as const) : ("use" as const),
+          marketMode: state.phase === Phase.Income || spendKind === "eastTake" ? ("take" as const) : ("use" as const),
           onTakeMarket: (instanceId: string) => {
-            if (state.phase === Phase.Income) dispatch({ type: "takeMarket", player: viewer, instanceId });
+            if (spendKind === "eastTake" && via) {
+              dispatch({ type: "freeAction", player: viewer, source: via, ability: "eastTake", instanceId });
+            } else if (state.phase === Phase.Income) dispatch({ type: "takeMarket", player: viewer, instanceId });
             else selectCard(instanceId);
           },
+          buyableEventIds,
+          onBuyEvent: (instanceId: string) => setBuying(instanceId),
           claimableMonumentIds,
           onClaimMonument: (instanceId: string) =>
             via
@@ -561,6 +593,7 @@ export function HotseatSession(props: HotseatSessionProps) {
       model={model}
       seed={session.replay.seed}
       mode={session.replay.mode}
+      expansion={session.replay.expansion}
       history={history}
       idlePrompt={statusLine(state)}
       showTour={!veiled && !waitingFirstSeat && !inSetup && !state.victory}
@@ -581,10 +614,18 @@ export function HotseatSession(props: HotseatSessionProps) {
           onChoose={(decreeId) => dispatch({ type: "activateDecree", player: viewer, decreeId })}
         />
       ) : null}
+      {buying && state.market.some((card) => card.instanceId === buying) && !veiled && !waitingFirstSeat ? (
+        <BuyEventDialog state={state} viewer={viewer} instanceId={buying} onAction={dispatch} onClose={() => setBuying(null)} />
+      ) : null}
       {choice && choice.player === viewer && !veiled && !waitingFirstSeat ? (
         <ChoiceOverlay state={state} choice={choice} viewer={viewer} onAction={dispatch} />
       ) : null}
-      {state.victory ? <GameOverOverlay victory={state.victory} mode={session.replay.mode} /> : null}
+      {state.victory ? (
+        <GameOverOverlay
+          victory={state.victory}
+          newGameHref={`/play?mode=${session.replay.mode}${session.replay.expansion ? "&expansion=1" : ""}${session.replay.foreignInfluence ? "&fi=1" : ""}`}
+        />
+      ) : null}
       {reportOpen ? <ReportDialog replay={session.replay} viewer={seated} onClose={closeReport} /> : null}
       {showGate ? (
         <PassDeviceGate
@@ -632,6 +673,10 @@ function victoryLabel(victory: Victory): string {
       return `Popularity Victory${victory.district ? ` (${DISTRICT_NAME[victory.district]})` : ""}`;
     case VictoryKind.Ideological:
       return `Ideological Victory${victory.symbol ? ` (${victory.symbol})` : ""}`;
+    case VictoryKind.Cultural:
+      return "Cultural Victory";
+    case VictoryKind.Diplomatic:
+      return "Diplomatic Victory";
   }
 }
 
@@ -704,10 +749,12 @@ function turnPrompt(
 ): string {
   const election = state.election.active ? "Election · " : "";
   if (state.phase === Phase.Income) {
+    const buy = state.expansion ? ", or buy an event (◆ cost)" : "";
     return state.election.active
-      ? "Election income · take one market card (the market does not refill)"
-      : "Income · take one market card";
+      ? `Election income · take one market card${buy} (the market does not refill)`
+      : `Income · take one market card${buy}`;
   }
+  if (opts.spendKind === "eastTake") return "East · pick a highlighted Market card to take into your hand";
   if (opts.spendKind === "propose") {
     if (opts.proposeTarget) {
       return `Propose · click one revealed card to discard (sets ${DISTRICT_NAME[opts.proposeTarget.district]} to ${policyName(opts.proposeTarget.policyId)})`;

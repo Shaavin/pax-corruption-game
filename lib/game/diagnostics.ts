@@ -28,7 +28,7 @@ export type Simulation = {
 };
 
 export function simulate(record: GameRecord): Simulation {
-  const replay = newReplay(record.seed, record.mode);
+  const replay = newReplay(record.seed, { mode: record.mode, expansion: record.expansion, foreignInfluence: record.foreignInfluence });
   const states: GameState[] = [replay.state];
   const steps: ReplayStep[] = [];
   const issues: StepIssue[] = [];
@@ -115,7 +115,11 @@ export function invariantIssues(state: GameState, baseline: number | null): stri
 
   if (state.phase !== Phase.Setup) {
     if (state.senate.length !== 5) issues.push(`Senate holds ${state.senate.length} cards, expected 5`);
-    if (state.market.length > 8) issues.push(`Market holds ${state.market.length} cards, more than 8`);
+    const marketMax = state.expansion ? 10 : 8;
+    if (state.market.length > marketMax) issues.push(`Market holds ${state.market.length} cards, more than ${marketMax}`);
+    if (state.expansion && state.expansion.rowBreak !== null && state.expansion.rowBreak > state.market.length) {
+      issues.push(`Market row break ${state.expansion.rowBreak} is past the end of the Market`);
+    }
   }
   state.players.forEach((player, seat) => {
     if (player.partisans < 0) issues.push(`Player ${seat + 1} has ${player.partisans} partisans`);

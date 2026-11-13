@@ -22,37 +22,52 @@ export default function Home() {
             Two players, one device. Local hotseat first.
           </p>
         </div>
-        <section aria-labelledby="new-game" className="w-full">
-          <h2 id="new-game" className="mb-3 text-xs font-semibold tracking-[0.16em] text-stone-400 uppercase">
+        <form action="/play" method="get" aria-labelledby="new-game" className="flex w-full flex-col gap-3">
+          <h2 id="new-game" className="text-xs font-semibold tracking-[0.16em] text-stone-400 uppercase">
             New local game
           </h2>
-          <ul className="grid grid-cols-2 gap-2 text-left">
+          <fieldset className="grid grid-cols-2 gap-2 text-left">
+            <legend className="sr-only">Draw-deck mode</legend>
             {GAME_MODES.map((mode, index) => (
-              <li key={mode.id}>
-                <Link
-                  href={`/play?mode=${mode.id}`}
-                  prefetch={false}
-                  className={[
-                    "flex h-full flex-col rounded-xl px-3.5 py-3 ring-1 transition-colors",
-                    index === 0
-                      ? "bg-[var(--brass,#c6a56c)] text-stone-950 ring-transparent hover:bg-[#d4b57c]"
-                      : "bg-white/[0.04] text-stone-100 ring-white/12 hover:bg-white/[0.08]",
-                  ].join(" ")}
-                >
-                  <span className="text-sm font-semibold">
-                    {mode.name}
-                    <span className={index === 0 ? "ml-1.5 text-xs font-normal text-stone-800" : "ml-1.5 text-xs font-normal text-stone-500"}>
-                      {mode.term}
-                    </span>
-                  </span>
-                  <span className={index === 0 ? "mt-0.5 text-xs text-stone-800" : "mt-0.5 text-xs text-stone-400"}>
-                    {mode.blurb}
-                  </span>
-                </Link>
-              </li>
+              <label
+                key={mode.id}
+                className="flex h-full cursor-pointer flex-col rounded-xl bg-white/[0.04] px-3.5 py-3 text-stone-100 ring-1 ring-white/12 transition-colors hover:bg-white/[0.08] has-[:checked]:bg-[var(--brass,#c6a56c)] has-[:checked]:text-stone-950 has-[:checked]:ring-transparent has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-white"
+              >
+                <input type="radio" name="mode" value={mode.id} defaultChecked={index === 0} className="sr-only" />
+                <span className="text-sm font-semibold">
+                  {mode.name}
+                  <span className="ml-1.5 text-xs font-normal opacity-70">{mode.term}</span>
+                </span>
+                <span className="mt-0.5 text-xs opacity-80">{mode.blurb}</span>
+              </label>
             ))}
-          </ul>
-        </section>
+          </fieldset>
+          <fieldset className="flex flex-col gap-1.5 rounded-xl bg-white/[0.03] px-3.5 py-3 text-left text-sm ring-1 ring-white/10">
+            <legend className="sr-only">Expansion</legend>
+            <label className="flex cursor-pointer items-start gap-2">
+              <input type="checkbox" name="expansion" value="1" className="mt-1 accent-[var(--brass,#c6a56c)]" />
+              <span>
+                <span className="font-semibold text-stone-100">Legacy &amp; Diplomacy</span>
+                <span className="block text-xs text-stone-400">
+                  Expansion: buy World Power events, build relations, and unlock victories with legacy events.
+                </span>
+              </span>
+            </label>
+            <label className="flex cursor-pointer items-start gap-2 pl-6">
+              <input type="checkbox" name="fi" value="1" className="mt-1 accent-[var(--brass,#c6a56c)]" />
+              <span>
+                <span className="text-stone-200">Foreign Influence variant</span>
+                <span className="block text-xs text-stone-400">Start with 3 random events already in play.</span>
+              </span>
+            </label>
+          </fieldset>
+          <button
+            type="submit"
+            className="cursor-pointer rounded-full bg-[var(--brass,#c6a56c)] px-6 py-3 text-sm font-semibold tracking-wide text-stone-950 transition-colors hover:bg-[#d4b57c]"
+          >
+            Start game
+          </button>
+        </form>
         <ContinueGame />
         <p className="text-sm text-stone-500">Play civil, draw, pass the device</p>
         <details className="w-full text-sm text-stone-400">

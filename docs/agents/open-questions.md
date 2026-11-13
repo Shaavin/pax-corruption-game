@@ -4,7 +4,22 @@ Do not invent answers. If a task depends on one of these, stop and ask, then mov
 
 ## Still open (rules revision 2026-11)
 
-None right now. If new card text or a rulebook update conflicts with this file, ask before coding.
+| Topic | Current answer (provisional, 2026-11-13) |
+| --- | --- |
+| East "Revealed <district> cards do not occupy hand limit" (expansion) | Implemented **like Planet Next**: during your own turn (action, politics, or income) the event's buyer may move cards of that district from hand to a face-up area. They are usable as if in hand and don't count toward the hand limit. If the event leaves play, those cards go back to the hand. Ian marked this as an **open option**: confirm with Joe before relying on it. |
+| Foreign Influence setup (expansion) | The 3 starting events are drawn from the 20 regular events left **after** removing 3 per power (legacy events are never among them). Engine interpretation; confirm with Joe. |
+| Market after an election (expansion) | "Replenish Market after, putting an Event card at the last slot": leftover events leave the game, the Market refills to 4 main cards, and a new event takes the 5th spot. Engine interpretation; confirm with Joe. |
+| Events entering mid-turn (expansion) | An event that enters the Market during a turn (election rows formed mid-turn, the income refill) is never removed by the "last 2 spots" check in that same turn; spots are read from the start-of-turn snapshot. Engine interpretation. |
+| Party symbol district (expansion, West "disable icons") | A party's ideological symbol belongs to the district whose color it is printed in, which always matches its guaranteed monument's district (Trinity's green crown = Shavvinne). Decrees (printed purple) are never disabled. Inferred from the card art; confirm with Joe. |
+| South "influence reduced to support" (expansion) | Influence there = the support count only: civil values, Planet Next bank, Order of Knights, Economic Reform, and Secularism bonuses drop out. Populist Forum's double-counted support still doubles. Engine interpretation. |
+| "Last 2 spots" (expansion) | A row has 5 spots; an event counts as in the last 2 if it sat in spot 4 or 5 of that row at the **start of the turn**. Outside an election the check (and the whole refill) only happens when the Market has fewer than 5 cards, as the rulebook's "If there are fewer than 5 cards" reads. Engine interpretation. |
+| Election rows with 2 events (expansion) | The later event moves to row 2 at the **same spot index** it had in the Market (capped at the 5th spot), and row 2's other spots fill from the main deck around it. Engine interpretation. |
+| Market at game start (expansion) | The Market starts with 5 main-deck cards and **no** event; the first event arrives at the first income refill. The setup steps don't place one. Engine interpretation. |
+| Event-effect draw (expansion house rule) | The extra card is drawn right after the purchase, even if it takes the buyer over the hand limit. The normal end-of-income draw still needs room. Engine interpretation. |
+| Income with only unaffordable events (expansion) | If the Market holds only events and the player can't pay for any, the income take is skipped (straight to refill and draw). Engine interpretation. |
+| Legacy activation when all are active (expansion) | A legacy event can only activate a victory that is still inactive; if all five are active, the only option is "discard played <power> cards". Engine interpretation. |
+| Proposals and "always convinced" Senators (expansion) | A Propose Policy still needs at least one revealed card (and the policy must relate to a revealed card's district), even if South events alone would convince enough Senators. Engine interpretation. |
+| North decree flip vs. activation (expansion) | While a North event flips a decree, the election winner chooses among decrees whose **current** side is inactive. Activating one flips its printed side, so when the event leaves the decree shows the other side again. This is an engine interpretation of an edge case; confirm with Joe. |
 
 ## Resolved
 
@@ -44,6 +59,24 @@ None right now. If new card text or a rulebook update conflicts with this file, 
 | Propose Policy reveals | Revealed cards go back to your hand (except the one you discard); cards you didn't reveal never leave it. |
 | Propose Policy target | The changed policy must be in a district of one of the **revealed** cards. Example: revealing a Smarbbit alliance and a Shavvinne civil lets you change Smarbbit's or Shavvinne's policy, not Horsard's. (Interpretation of "must relate to the revealed cards"; implemented.) |
 | Buying an event for its effect (expansion; not yet in the rulebook) | When you purchase an event and play it **for its event effect** (not as a civil card), **draw a card**. This makes playing an event for its effect effectively 1 card cheaper than playing it as a civil card. |
+
+### 2026-11-13 (Ian): Legacy & Diplomacy
+
+Card text is in `lib/cards/expansion.ts`; the rulebook summary is in [game-rules.md](game-rules.md#expansion-legacy--diplomacy).
+
+| Topic | Decision |
+| --- | --- |
+| West "District support in <district> remains at zero" | Cards still go to support piles there, but **both** players' support in that district **counts as 0** while the event is in play (influence, Popularity, Recruit precondition, everything). Back to normal when the event leaves. |
+| West "Disable all icons in <district> for ideological victory" | Every ideological symbol **of that district** stops counting, for both players: the district's policy, monuments of that district (including Smart Doctrine's per-decree copies, since it is a Smarbbit monument), and **party cards whose symbol is printed in that district's color**. A party's symbol color always matches its guaranteed monument's district (Trinity's green crown = Shavvinne, and so on). Decrees are printed purple and are never disabled. |
+| North "Flip over Pax <decree> to the other side, when in effect" | **Toggle while in play**: an active decree shows inactive, an inactive one shows active. When the event leaves play it flips back. |
+| North "Military victory now requires +1 partisans" | The events **stack**: each one in play adds +1 to the lead needed. |
+| South "<district> cards in Senate are always convinced" | **Every** Senator of that district counts as convinced for any proposal by either player, with no matching card revealed, **including conspiracy Senators**. |
+| South "Influence in <district> is now reduced to player's support" | Influence there equals the player's support count for that district only (after any West "remains at zero"). |
+| Event payment | The cards paid to buy an event come from **hand** (or anything usable as if in hand). Each goes to the payer's **support pile** of its district, like any discard (United Front, Space Agency, Martial Law apply). |
+| Buying needs room | Buying an event, like taking a Market card, is only possible while **under the hand limit**. |
+| East "As a free action, take a <district> card from Market" | Like other free actions: the **buyer only**, once per turn per event, during the action step, and only while **under the hand limit**. Never an event card. The Market stays short until the next refill. |
+| Legacy "Activate a Victory Condition" | The **buyer** chooses any one inactive victory (Military, Popularity, Ideological, Cultural, Diplomatic) and flips it active. |
+| Events played as civil cards | **Fully civil cards** of the event's district, with the printed value: influence, electors, Civil Service, Diet of Saints, Currency Ballots, Urban Aristocrats swaps, conspiracies, and so on. The only difference: when discarded, they leave the game (see "Discarding events" above). |
 
 ### Earlier rulings still valid under the current rules
 

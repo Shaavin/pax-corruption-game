@@ -31,6 +31,9 @@ export type TableInteraction = {
   marketMode?: "take" | "use";
   onTakeMarket: (instanceId: string) => void;
   claimableMonumentIds: ReadonlySet<string>;
+  /** Expansion: events the active player can buy now, and what clicking one does. */
+  buyableEventIds?: ReadonlySet<string>;
+  onBuyEvent?: (instanceId: string) => void;
   onClaimMonument: (instanceId: string) => void;
   /** A card is selected to seat in the Senate: mark the Senator who will leave. */
   seatArmed?: boolean;
@@ -47,6 +50,8 @@ type TableProps = {
   model: TableModel;
   seed: number;
   mode?: GameModeId;
+  /** Legacy & Diplomacy is in play (expansion player aid, labels). */
+  expansion?: boolean;
   showTour: boolean;
   veiled: boolean;
   hotseat: PlayerId;
@@ -65,6 +70,7 @@ export function Table({
   model,
   seed,
   mode = "standard",
+  expansion = false,
   showTour,
   veiled,
   hotseat,
@@ -146,7 +152,8 @@ export function Table({
                 </button>
               ) : null}
               <span className="tabular-nums" title="Draw-deck mode and deterministic setup seed">
-                {GAME_MODES.find((entry) => entry.id === mode)?.name ?? mode} · Seed {seed}
+                {GAME_MODES.find((entry) => entry.id === mode)?.name ?? mode}
+                {expansion ? " + L&D" : ""} · Seed {seed}
               </span>
               <Link href={menuHref} className="tracking-[0.14em] uppercase hover:text-stone-300">
                 Menu
@@ -231,6 +238,9 @@ export function Table({
           selectedIds={interaction?.selectedHandIds}
           onTake={interaction?.onTakeMarket}
           claimableIds={interaction?.claimableMonumentIds}
+          expansion={model.expansion}
+          buyableIds={interaction?.buyableEventIds}
+          onBuy={interaction?.onBuyEvent}
           onClaimMonument={interaction?.onClaimMonument}
           dock={
             <TurnDock
@@ -244,7 +254,7 @@ export function Table({
         />
 
         {children}
-        {aidOpen && !veiled ? <PlayerAid onClose={closeAid} /> : null}
+        {aidOpen && !veiled ? <PlayerAid onClose={closeAid} expansion={expansion} /> : null}
         {tourOpen || veiled || aidOpen ? null : <ZoomPreview card={peek} />}
       </div>
     </PeekContext.Provider>

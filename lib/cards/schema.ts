@@ -27,6 +27,8 @@ export const CardKind = {
   Monument: "monument",
   Policy: "policy",
   Decree: "decree",
+  /** Expansion legacy event (regular events are catalogued as civil cards: their civil side). */
+  Event: "event",
 } as const;
 export type CardKindId = (typeof CardKind)[keyof typeof CardKind];
 
@@ -187,9 +189,15 @@ export type DecreeCard = CardBase & {
   inactiveArt: string;
 };
 
+/** Expansion legacy event: never in a tableau, so it only needs a name and art. */
+export type LegacyEventCatalogCard = CardBase & {
+  kind: typeof CardKind.Event;
+};
+
 export type CatalogCard =
   | MainDeckCard
   | PartyCard
   | MonumentCard
   | PolicyCard
-  | DecreeCard;
+  | DecreeCard
+  | LegacyEventCatalogCard;

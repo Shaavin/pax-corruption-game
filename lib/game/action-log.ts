@@ -1,4 +1,5 @@
 import { getCard } from "../cards/catalog.ts";
+import { getEvent, isEventId, WORLD_POWER_NAME } from "../cards/expansion.ts";
 import { CardKind, type DistrictId } from "../cards/schema.ts";
 import { VictoryKind, type GameEvent, type PlayerId, type VictoryKindId } from "./types.ts";
 
@@ -48,7 +49,21 @@ const VICTORY_LABEL: Record<VictoryKindId, string> = {
   [VictoryKind.Military]: "Military",
   [VictoryKind.Popularity]: "Popularity",
   [VictoryKind.Ideological]: "Ideological",
+  [VictoryKind.Cultural]: "Cultural",
+  [VictoryKind.Diplomatic]: "Diplomatic",
 };
+
+const EVENT_USE_LABEL = {
+  effect: "for its effect",
+  civil: "as a civil card",
+  legacyDiscard: "to discard that power's events",
+  legacyActivate: "to activate a victory",
+} as const;
+
+/** An event's own name (catalog names a regular event by its civil side). */
+function eventName(cardId: string): string {
+  return isEventId(cardId) ? getEvent(cardId).name : cardName(cardId);
+}
 
 type Draft = ActionLogEntry & {
   /** Discards that follow belong to this entry (a wipe, a cost, a pushed-out Senator). */
@@ -294,6 +309,44 @@ export function buildActionLog(events: readonly GameEvent[], viewer: PlayerId): 
           summary: `${who(event.player, viewer)} rerouted ${event.moves.length} discard${event.moves.length === 1 ? "" : "s"} (Space Agency).`,
           primary: face(event.moves[0]!.cardId),
           related: event.moves.slice(1).map((move) => face(move.cardId)),
+        });
+        break;
+      case "eventBought":
+        push({
+          kind: ActionLogKind.Market,
+          player: event.player,
+          summary: `${who(event.player, viewer)} bought ${eventName(event.cardId)} ${EVENT_USE_LABEL[event.use]}${event.use === "civil" ? ` (${cardName(event.cardId)})` : ""}, paying ${event.cost}.`,
+          primary: face(event.cardId),
+          related: [],
+          relatedLabel: "Paid",
+          absorb: "cost",
+        });
+        break;
+      case "relationGained":
+        push({
+          kind: ActionLogKind.Ability,
+          player: event.player,
+          summary: `${who(event.player, viewer)} gained a relation with ${WORLD_POWER_NAME[event.power]} (now ${event.relation}).`,
+          primary: null,
+          related: [],
+        });
+        break;
+      case "victoryActivated":
+        push({
+          kind: ActionLogKind.Victory,
+          player: event.player,
+          summary: `${who(event.player, viewer)} activated ${VICTORY_LABEL[event.victory]} Victory.`,
+          primary: null,
+          related: [],
+        });
+        break;
+      case "eventsRemoved":
+        push({
+          kind: ActionLogKind.Discard,
+          player: null,
+          summary: `${event.cardIds.map(eventName).join(", ")} left the game.`,
+          primary: face(event.cardIds[0]!),
+          related: event.cardIds.slice(1).map(face),
         });
         break;
       case "victory":

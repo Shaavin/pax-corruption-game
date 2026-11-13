@@ -21,6 +21,10 @@ export type GameRecord = {
   seed: number;
   /** Draw-deck mode. Absent means Standard (records from before modes existed). */
   mode?: GameModeId;
+  /** Legacy & Diplomacy expansion. Absent means the base game. */
+  expansion?: boolean;
+  /** Expansion Foreign Influence variant. */
+  foreignInfluence?: boolean;
   actions: Action[];
   /** `ENGINE_VERSION` of the build that recorded the game. */
   engineVersion?: string;
@@ -48,9 +52,14 @@ export type ReplayStep = {
   undoable: boolean;
 };
 
+/** Everything besides the seed that decides how a game is set up. */
+export type GameSetupOptions = { mode?: GameModeId; expansion?: boolean; foreignInfluence?: boolean };
+
 export type Replay = {
   seed: number;
   mode: GameModeId;
+  expansion: boolean;
+  foreignInfluence: boolean;
   /** Seeded RNG positioned after the last step. Mutated by `step`. */
   rng: Rng;
   state: GameState;
@@ -70,9 +79,25 @@ export class ReplayError extends Error {
   }
 }
 
-export function newReplay(seed: number, mode: GameModeId = GameMode.Standard): Replay {
+export function newReplay(seed: number, options: GameModeId | GameSetupOptions = {}): Replay {
+  const opts = typeof options === "string" ? { mode: options } : options;
+  const mode = opts.mode ?? GameMode.Standard;
+  const expansion = Boolean(opts.expansion);
+  const foreignInfluence = expansion && Boolean(opts.foreignInfluence);
   const rng = createSeededRng(seed);
-  return { seed, mode, rng, state: createGame(rng, { seed, mode }), steps: [] };
+  return {
+    seed,
+    mode,
+    expansion,
+    foreignInfluence,
+    rng,
+    state: createGame(rng, { seed, mode, expansion, foreignInfluence }),
+    steps: [],
+  };
+}
+
+function setupOf(record: GameRecord): GameSetupOptions {
+  return { mode: record.mode, expansion: record.expansion, foreignInfluence: record.foreignInfluence };
 }
 
 /** Apply one action. Throws `IllegalActionError` and leaves the replay unchanged if it is illegal. */
@@ -89,7 +114,7 @@ export function stepReplay(replay: Replay, action: Action): Replay {
 
 /** Rebuild a game from its record. Throws `ReplayError` naming the first action that fails. */
 export function replayRecord(record: GameRecord): Replay {
-  let replay = newReplay(record.seed, record.mode);
+  let replay = newReplay(record.seed, setupOf(record));
   record.actions.forEach((action, index) => {
     try {
       replay = stepReplay(replay, action);
@@ -105,6 +130,8 @@ export function toRecord(replay: Replay, build?: string): GameRecord {
     version: RECORD_VERSION,
     seed: replay.seed,
     ...(replay.mode !== GameMode.Standard ? { mode: replay.mode } : {}),
+    ...(replay.expansion ? { expansion: true } : {}),
+    ...(replay.foreignInfluence ? { foreignInfluence: true } : {}),
     actions: replay.steps.map((step) => step.action),
     engineVersion: ENGINE_VERSION,
     ...(build ? { build } : {}),
@@ -119,6 +146,8 @@ const REVEALING_EVENTS = new Set<GameEvent["type"]>([
   "electionStarted",
   "electionSetAside",
   "partiesRevealed",
+  // Expansion: a new event flipped from the event deck.
+  "eventRevealed",
 ]);
 
 /**
@@ -153,6 +182,8 @@ export function undoReplay(replay: Replay): Replay {
     version: RECORD_VERSION,
     seed: replay.seed,
     mode: replay.mode,
+    expansion: replay.expansion,
+    foreignInfluence: replay.foreignInfluence,
     actions: replay.steps.slice(0, -1).map((step) => step.action),
   });
 }
@@ -176,6 +207,8 @@ export function parseRecord(value: unknown): GameRecord | null {
     version: RECORD_VERSION,
     seed: candidate.seed >>> 0,
     ...(candidate.mode && candidate.mode !== GameMode.Standard ? { mode: candidate.mode } : {}),
+    ...(candidate.expansion === true ? { expansion: true } : {}),
+    ...(candidate.expansion === true && candidate.foreignInfluence === true ? { foreignInfluence: true } : {}),
     actions: candidate.actions as Action[],
     ...(typeof candidate.engineVersion === "string" ? { engineVersion: candidate.engineVersion } : {}),
     ...(typeof candidate.build === "string" ? { build: candidate.build } : {}),

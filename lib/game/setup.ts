@@ -7,6 +7,8 @@ import {
 } from "../cards/catalog.ts";
 import { CardKind, DISTRICTS, type PartyIdValue } from "../cards/schema.ts";
 import { initialDecrees } from "./decrees.ts";
+import { snapshotMarket } from "./draw.ts";
+import { setUpExpansion } from "./events.ts";
 import { createEmptyElection } from "./election.ts";
 import { SENATE_SIZE } from "./senate.ts";
 import type { Rng } from "./rng.ts";
@@ -110,7 +112,14 @@ export function pileSlices(mode: GameModeId): DrawPileSlice[] {
   });
 }
 
-export type GameOptions = { seed: number; mode?: GameModeId };
+export type GameOptions = {
+  seed: number;
+  mode?: GameModeId;
+  /** Legacy & Diplomacy expansion. */
+  expansion?: boolean;
+  /** Expansion variant: 3 random events start in play. */
+  foreignInfluence?: boolean;
+};
 
 export function createGame(rng: Rng, options: GameOptions): GameState {
   const districtOrder = rng.shuffle(DISTRICTS);
@@ -137,6 +146,7 @@ export function createGame(rng: Rng, options: GameOptions): GameState {
       startingOffers: { 0: [], 1: [] },
       nonElectionPool,
       electionCards,
+      expansion: options.expansion ? { foreignInfluence: Boolean(options.foreignInfluence) } : null,
     },
     activePlayer: 0,
     firstPlayer: null,
@@ -158,6 +168,7 @@ export function createGame(rng: Rng, options: GameOptions): GameState {
     pending: [],
     resume: null,
     victory: null,
+    expansion: null,
   };
 }
 
@@ -289,9 +300,13 @@ export function finishSetup(state: GameState, rng: Rng): GameEvent[] {
   });
   events.push({ type: "deckBuilt", size: state.deck.length });
 
+  // Legacy & Diplomacy: after the base setup has used the RNG, so base games are unchanged.
+  if (setup.expansion) events.push(...setUpExpansion(state, rng, setup.expansion.foreignInfluence));
+
   state.phase = Phase.Action;
   state.activePlayer = firstPlayer;
   state.setup = null;
+  snapshotMarket(state);
   events.push({ type: "setupComplete", firstPlayer });
   return events;
 }

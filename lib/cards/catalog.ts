@@ -1,4 +1,5 @@
 import { MAIN_DECK } from "./deck.ts";
+import { EVENTS } from "./expansion.ts";
 import { DECREES, MONUMENTS, PARTIES, POLICIES } from "./setup-cards.ts";
 import {
   CardKind,
@@ -11,12 +12,31 @@ import {
   type PartyIdValue,
 } from "./schema.ts";
 
+/**
+ * Expansion events under their event id. A regular event is catalogued as its
+ * **civil side** (civil name, value, district), because that is how it behaves
+ * once on the table; `getEvent` has the event side. Legacy events have no civil side.
+ */
+const EVENT_CATALOG: CatalogCard[] = EVENTS.map((event) =>
+  event.legacy
+    ? { id: event.id, kind: CardKind.Event, name: event.name, art: event.art }
+    : {
+        id: event.id,
+        kind: CardKind.Civil,
+        name: event.civilName,
+        art: event.art,
+        district: event.district,
+        influence: event.influence,
+      },
+);
+
 export const CATALOG: CatalogCard[] = [
   ...MAIN_DECK,
   ...PARTIES,
   ...MONUMENTS,
   ...POLICIES,
   ...DECREES,
+  ...EVENT_CATALOG,
 ];
 
 const byId = new Map(CATALOG.map((card) => [card.id, card]));

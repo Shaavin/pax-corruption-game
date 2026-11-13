@@ -7,7 +7,7 @@ import { EffectId } from "../cards/effects.ts";
 import { CardKind, District, MonumentId, PolicyId, type DistrictId } from "../cards/schema.ts";
 import { activeAlliances, alliancesInPlay, handLimit, martialLawBlocks, ownsMonument, policyActive } from "./abilities.ts";
 import { discardCards } from "./discard.ts";
-import { drawToHand } from "./draw.ts";
+import { drawToHand, removeFromMarket } from "./draw.ts";
 import { IllegalActionError } from "./errors.ts";
 import { proceed } from "./income.ts";
 import { canRecruitIn, combinations, handCardsInDistrict, handLikeCards, printedDistrict, takeHandLike } from "./main.ts";
@@ -22,6 +22,7 @@ import {
   type PlayerId,
   type SetAsideAction,
 } from "./types.ts";
+import { isEventCard, marketTakeSources, revealDistricts } from "./world.ts";
 
 export const ARCHITECTURE_COST = 4;
 
@@ -69,7 +70,20 @@ export function freeActionSources(state: GameState, player: PlayerId): FreeActio
       if (ability) sources.push({ source: monument.instanceId, cardId: monument.cardId, ability, district: def.district });
     }
   }
+  // East events (expansion): "As a free action, take a <district> card from Market."
+  for (const event of marketTakeSources(state, player)) {
+    if (used.has(event.card.instanceId)) continue;
+    sources.push({ source: event.card.instanceId, cardId: event.card.cardId, ability: "eastTake", district: event.district });
+  }
   return sources;
+}
+
+/** Market cards an East "take" may pick: non-event cards of its district, while under the hand limit. */
+export function eastTakeTargets(state: GameState, player: PlayerId, district: DistrictId | null): string[] {
+  if (state.players[player].hand.length >= handLimit(state, player)) return [];
+  return state.market
+    .filter((card) => !isEventCard(card) && printedDistrictOrNull(card.cardId) === district)
+    .map((card) => card.instanceId);
 }
 
 /**
@@ -154,6 +168,11 @@ export function freeActions(state: GameState, player: PlayerId): FreeActionActio
       case "intelNetwork":
         if (state.deck.length > 0) actions.push({ ...base, source, ability: "intelNetwork" });
         break;
+      case "eastTake":
+        for (const instanceId of eastTakeTargets(state, player, entry.district)) {
+          actions.push({ ...base, source, ability: "eastTake", instanceId });
+        }
+        break;
     }
   }
   return actions;
@@ -207,6 +226,15 @@ export function applyFreeAction(state: GameState, action: FreeActionAction, rng:
     case "rebelInc":
       recruit(state, player, action.instanceIds, events);
       break;
+    case "eastTake": {
+      if (!eastTakeTargets(state, player, entry.district).includes(action.instanceId)) {
+        throw new IllegalActionError("Take a non-event Market card of that district, while under your hand limit");
+      }
+      const card = removeFromMarket(state, action.instanceId);
+      state.players[player].hand.push({ ...card, faceUp: true });
+      events.push({ type: "marketTaken", player, instanceId: card.instanceId, cardId: card.cardId });
+      break;
+    }
     case "capitolInc":
       proposePolicy(state, player, action.revealIds, action.discardId, action.district, action.policyId, events);
       break;
@@ -262,10 +290,15 @@ function replaceAlliance(
 
 // --- Setting cards aside -------------------------------------------------------------
 
-const ZONE_DISTRICT: Record<SetAsideAction["zone"], DistrictId> = {
+const ZONE_DISTRICT: Record<"planetNextBank" | "consultativeOffice", DistrictId> = {
   planetNextBank: District.Horsard,
   consultativeOffice: District.Smarbbit,
 };
+
+/** Districts a zone accepts for `player`. East reveal: districts named by their East events. */
+function zoneDistricts(state: GameState, player: PlayerId, zone: SetAsideAction["zone"]): DistrictId[] {
+  return zone === "eastReveal" ? revealDistricts(state, player) : [ZONE_DISTRICT[zone]];
+}
 
 /** Which set-aside zones `player` may use right now (own turn, no pending choice). */
 export function setAsideZones(state: GameState, player: PlayerId): SetAsideAction["zone"][] {
@@ -277,17 +310,20 @@ export function setAsideZones(state: GameState, player: PlayerId): SetAsideActio
   const zones: SetAsideAction["zone"][] = [];
   if (ownsMonument(state, player, MonumentId.PlanetNext)) zones.push("planetNextBank");
   if (policyActive(state, PolicyId.SmarbbitB)) zones.push("consultativeOffice");
-  return zones.filter((zone) =>
-    state.players[player].hand.some((card) => printedDistrictOrNull(card.cardId) === ZONE_DISTRICT[zone]),
-  );
+  if (revealDistricts(state, player).length > 0) zones.push("eastReveal");
+  return zones.filter((zone) => {
+    const districts = zoneDistricts(state, player, zone);
+    return state.players[player].hand.some((card) => districts.includes(printedDistrictOrNull(card.cardId)!));
+  });
 }
 
 export function setAsideActions(state: GameState, player: PlayerId): SetAsideAction[] {
-  return setAsideZones(state, player).flatMap((zone) =>
-    state.players[player].hand
-      .filter((card) => printedDistrictOrNull(card.cardId) === ZONE_DISTRICT[zone])
-      .map((card) => ({ type: "setAside" as const, player, zone, instanceIds: [card.instanceId] })),
-  );
+  return setAsideZones(state, player).flatMap((zone) => {
+    const districts = zoneDistricts(state, player, zone);
+    return state.players[player].hand
+      .filter((card) => districts.includes(printedDistrictOrNull(card.cardId)!))
+      .map((card) => ({ type: "setAside" as const, player, zone, instanceIds: [card.instanceId] }));
+  });
 }
 
 export function applySetAside(state: GameState, action: SetAsideAction, events: GameEvent[]): void {
@@ -295,15 +331,17 @@ export function applySetAside(state: GameState, action: SetAsideAction, events: 
     throw new IllegalActionError("You can't set cards aside there right now");
   }
   const seat = state.players[action.player];
-  const district = ZONE_DISTRICT[action.zone];
+  const districts = zoneDistricts(state, action.player, action.zone);
   const cards = action.instanceIds.map((id) => {
     const card = seat.hand.find((entry) => entry.instanceId === id);
-    if (!card || printedDistrictOrNull(card.cardId) !== district) {
-      throw new IllegalActionError(`Only ${district} cards from your hand can go there`);
+    if (!card || !districts.includes(printedDistrictOrNull(card.cardId)!)) {
+      throw new IllegalActionError(`Only ${districts.join(" or ")} cards from your hand can go there`);
     }
     return card;
   });
   seat.hand = seat.hand.filter((card) => !action.instanceIds.includes(card.instanceId));
-  seat[action.zone].push(...cards.map((card) => ({ ...card, faceUp: true })));
+  const faceUp = cards.map((card) => ({ ...card, faceUp: true }));
+  if (action.zone === "eastReveal") state.expansion!.revealed[action.player].push(...faceUp);
+  else seat[action.zone].push(...faceUp);
   events.push({ type: "cardsSetAside", player: action.player, zone: action.zone, cardIds: cards.map((card) => card.cardId) });
 }

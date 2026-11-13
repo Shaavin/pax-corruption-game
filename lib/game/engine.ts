@@ -7,7 +7,9 @@ import { gameIsOver } from "./discard.ts";
 import { activateDecree } from "./election.ts";
 import { IllegalActionError, asIllegal } from "./errors.ts";
 import { applyFreeAction, applySetAside, freeActions, hasFreeAction, setAsideActions } from "./free-actions.ts";
-import { afterMainAction, proceed, setFreeActionCheck, takeMarketCard, underHandLimit } from "./income.ts";
+import { afterMainAction, completeIncome, proceed, setFreeActionCheck, takeMarketCard, underHandLimit } from "./income.ts";
+import { applyBuyEvent, buyEventActions } from "./events.ts";
+import { isEventCard } from "./world.ts";
 import {
   CONSTRUCT_COST,
   RECRUIT_COST,
@@ -128,10 +130,15 @@ export function apply(state: GameState, action: Action, rng: Rng): ApplyResult {
       if (!underHandLimit(next, action.player)) {
         throw new IllegalActionError("Hand is at the limit; you cannot take a market card");
       }
-      if (!next.market.some((card) => card.instanceId === action.instanceId)) {
+      if (!next.market.some((card) => card.instanceId === action.instanceId && !isEventCard(card))) {
         throw new IllegalActionError("That card is not in the market");
       }
       takeMarketCard(next, action.instanceId, events);
+      break;
+    case "buyEvent":
+      requirePhase(next, Phase.Income);
+      applyBuyEvent(next, action, events);
+      completeIncome(next, events);
       break;
     case "activateDecree":
       requirePhase(next, Phase.DecreeChoice);
@@ -216,7 +223,10 @@ export function legalActions(state: GameState, viewer: PlayerId): Action[] {
 
   if (state.phase === Phase.Income) {
     return [
-      ...state.market.map((card) => ({ type: "takeMarket" as const, player: viewer, instanceId: card.instanceId })),
+      ...state.market
+        .filter((card) => !isEventCard(card))
+        .map((card) => ({ type: "takeMarket" as const, player: viewer, instanceId: card.instanceId })),
+      ...buyEventActions(state, viewer),
       ...setAsideActions(state, viewer),
     ];
   }

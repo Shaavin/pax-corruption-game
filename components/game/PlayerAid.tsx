@@ -4,7 +4,8 @@ import Image from "next/image";
 import { useEffect } from "react";
 
 /** The printed player aid (Actions and Victories sides), side by side. */
-export function PlayerAid({ onClose }: { onClose: () => void }) {
+export function PlayerAid({ onClose, expansion = false }: { onClose: () => void; expansion?: boolean }) {
+  const base = expansion ? "/cards/expansion/aids" : "/cards/aids";
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
@@ -27,8 +28,8 @@ export function PlayerAid({ onClose }: { onClose: () => void }) {
       >
         <div className="flex min-h-0 flex-wrap items-start justify-center gap-4">
           {[
-            { src: "/cards/aids/actions.png", alt: "Player aid: actions" },
-            { src: "/cards/aids/victories.png", alt: "Player aid: victories" },
+            { src: `${base}/actions.png`, alt: "Player aid: actions" },
+            { src: `${base}/victories.png`, alt: "Player aid: victories" },
           ].map((side) => (
             <Image
               key={side.src}

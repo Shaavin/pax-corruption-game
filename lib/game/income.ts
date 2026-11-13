@@ -1,9 +1,11 @@
 import { EffectId } from "../cards/effects.ts";
 import { District, MonumentId } from "../cards/schema.ts";
 import { handLimit, hasActiveAlliance, ownsMonument } from "./abilities.ts";
-import { drawToHand, replenishMarket } from "./draw.ts";
+import { drawToHand, removeFromMarket, replenishMarket } from "./draw.ts";
+import { affordableEvents } from "./events.ts";
 import { finishTurn } from "./election.ts";
 import { Phase, type Continuation, type GameEvent, type GameState, type PlayerId } from "./types.ts";
+import { marketNonEvents } from "./world.ts";
 
 export function handSize(state: GameState, player: PlayerId): number {
   return state.players[player].hand.length;
@@ -96,7 +98,7 @@ export function beginIncome(state: GameState, events: GameEvent[]): void {
     return;
   }
   const player = state.activePlayer;
-  if (underHandLimit(state, player) && state.market.length > 0) {
+  if (underHandLimit(state, player) && hasIncomeChoice(state, player)) {
     state.phase = Phase.Income;
     events.push({ type: "incomeStarted", player });
     return;
@@ -104,13 +106,16 @@ export function beginIncome(state: GameState, events: GameEvent[]): void {
   completeIncome(state, events);
 }
 
+/** Something to do at income: a non-event Market card, or (expansion) an event to buy. */
+function hasIncomeChoice(state: GameState, player: PlayerId): boolean {
+  if (marketNonEvents(state).length > 0) return true;
+  // Only events left: worth stopping only if one is affordable.
+  return affordableEvents(state, player).length > 0;
+}
+
 export function takeMarketCard(state: GameState, instanceId: string, events: GameEvent[]): void {
   const player = state.activePlayer;
-  const index = state.market.findIndex((card) => card.instanceId === instanceId);
-  if (index < 0) {
-    throw new Error(`Market does not contain ${instanceId}`);
-  }
-  const card = state.market.splice(index, 1)[0]!;
+  const card = removeFromMarket(state, instanceId);
   state.players[player].hand.push({ ...card, faceUp: true });
   events.push({ type: "marketTaken", player, instanceId: card.instanceId, cardId: card.cardId });
   completeIncome(state, events);

@@ -3,6 +3,13 @@ import { EffectId } from "../cards/effects.ts";
 import { CardKind, District, DISTRICTS, type DistrictId } from "../cards/schema.ts";
 import { allianceLimit, hasActiveAlliance } from "./abilities.ts";
 import type { CardInstance, GameState, PlayerId } from "./types.ts";
+import { removeFromMarket } from "./draw.ts";
+import { isEventCard, supportCount } from "./world.ts";
+
+/** East "Revealed … cards do not occupy hand limit" zone (expansion), or an empty list. */
+function revealedZone(state: GameState, player: PlayerId): CardInstance[] {
+  return state.expansion ? state.expansion.revealed[player] : [];
+}
 
 export const RECRUIT_COST = 3;
 export const CONSTRUCT_COST = 5;
@@ -50,9 +57,11 @@ export function handLikeCards(
   opts: { market: boolean },
 ): CardInstance[] {
   const seat = state.players[player];
-  const cards = [...seat.hand, ...seat.consultativeOffice, ...seat.planetNextBank];
+  const cards = [...seat.hand, ...seat.consultativeOffice, ...seat.planetNextBank, ...revealedZone(state, player)];
   if (opts.market && hasActiveAlliance(state, player, EffectId.TreatMarketCivilAsHand, District.Dragonara)) {
     for (const card of state.market) {
+      // Events can't be taken outside the income step (expansion rulebook).
+      if (isEventCard(card)) continue;
       const def = getCard(card.cardId);
       if (def.kind === CardKind.Civil && def.district === District.Dragonara) cards.push(card);
     }
@@ -71,10 +80,11 @@ export function takeHandLike(
     throw new Error("That card is not in your hand");
   }
   const seat = state.players[player];
-  for (const zone of [seat.hand, seat.consultativeOffice, seat.planetNextBank, state.market]) {
+  for (const zone of [seat.hand, seat.consultativeOffice, seat.planetNextBank, revealedZone(state, player)]) {
     const index = zone.findIndex((card) => card.instanceId === instanceId);
     if (index >= 0) return zone.splice(index, 1)[0]!;
   }
+  if (state.market.some((card) => card.instanceId === instanceId)) return removeFromMarket(state, instanceId);
   throw new Error("That card is not in your hand");
 }
 
@@ -153,7 +163,7 @@ export function sameDistrictCount(
 
 /** Rulebook: recruiting needs a card you already discarded in that district. */
 export function canRecruitIn(state: GameState, player: PlayerId, district: DistrictId): boolean {
-  return state.players[player].support[district].length > 0;
+  return supportCount(state, player, district) > 0;
 }
 
 export function recruitBlockReason(state: GameState, player: PlayerId): string | null {

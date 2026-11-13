@@ -12,6 +12,8 @@ const KIND_LABEL: Record<Victory["kind"], string> = {
   [VictoryKind.Ideological]: "Ideological Victory",
   [VictoryKind.Civil]: "Civil Victory",
   [VictoryKind.Political]: "Political Victory",
+  [VictoryKind.Cultural]: "Cultural Victory",
+  [VictoryKind.Diplomatic]: "Diplomatic Victory",
 };
 
 const DISTRICT_NAME: Record<DistrictId, string> = {
@@ -33,10 +35,14 @@ function victoryReason(victory: Victory): string {
       return "Met two active decree objectives at once.";
     case VictoryKind.Civil:
       return "Won the final election, or three elections with Roman Basilica.";
+    case VictoryKind.Cultural:
+      return "Had 2 or more monuments than the opponent.";
+    case VictoryKind.Diplomatic:
+      return "Had a higher relation than the opponent with 3 of the 4 World Powers.";
   }
 }
 
-export function GameOverOverlay({ victory, mode }: { victory: Victory; mode?: string }) {
+export function GameOverOverlay({ victory, newGameHref = "/play" }: { victory: Victory; newGameHref?: string }) {
   const [reviewing, setReviewing] = useState(false);
 
   if (reviewing) {
@@ -75,7 +81,7 @@ export function GameOverOverlay({ victory, mode }: { victory: Victory; mode?: st
             Review the table
           </button>
           <a
-            href={mode ? `/play?mode=${mode}` : "/play"}
+            href={newGameHref}
             className="rounded-xl bg-[var(--act)] px-5 py-2.5 text-sm font-semibold text-stone-950 hover:brightness-110"
           >
             New game

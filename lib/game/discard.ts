@@ -2,6 +2,7 @@ import { MonumentId } from "../cards/schema.ts";
 import { ownsMonument, unitedFrontRedirect } from "./abilities.ts";
 import { landingDistrict } from "./main.ts";
 import { otherPlayer } from "./zones.ts";
+import { isEventCard } from "./world.ts";
 import { Phase, type CardInstance, type GameEvent, type GameState, type PlayerId } from "./types.ts";
 
 /**
@@ -11,10 +12,18 @@ import { Phase, type CardInstance, type GameEvent, type GameState, type PlayerId
 export function discardCards(
   state: GameState,
   discarder: PlayerId,
-  entries: readonly { card: CardInstance; owner: PlayerId }[],
+  allEntries: readonly { card: CardInstance; owner: PlayerId }[],
   events: GameEvent[],
   opts: { reroutable?: boolean } = {},
 ): void {
+  let entries = allEntries;
+  const boxed = entries.filter(({ card }) => isEventCard(card));
+  if (boxed.length > 0 && state.expansion) {
+    // Ruled 2026-11-11: a discarded event goes back to the box, never to a support pile.
+    state.expansion.box.push(...boxed.map(({ card }) => ({ ...card, faceUp: true, occupiedDistrict: undefined })));
+    events.push({ type: "eventsRemoved", cardIds: boxed.map(({ card }) => card.cardId), reason: "discard" });
+  }
+  entries = entries.filter(({ card }) => !isEventCard(card));
   for (const { card, owner } of entries) {
     const district = landingDistrict(card);
     const placed = { ...card, faceUp: true, occupiedDistrict: district };

@@ -3,6 +3,7 @@ import { EffectId } from "../cards/effects.ts";
 import { CardKind, District, PolicyId, type DistrictId } from "../cards/schema.ts";
 import { hasActiveAlliance, policyActive } from "./abilities.ts";
 import type { GameState, PlayerId } from "./types.ts";
+import { influenceIsSupport, supportCount } from "./world.ts";
 
 export type DistrictInfluence = {
   /** Printed civil values (Secularism doubles small Shavvinne civils). */
@@ -61,7 +62,9 @@ export function playerDistrictInfluence(
   if (district === District.Horsard && policyActive(state, PolicyId.HorsardA)) bonus += 3 * played;
 
   const perDiscard = district === District.Dragonara && policyActive(state, PolicyId.DragonaraB) ? 2 : 1;
-  const support = seat.support[district].length * perDiscard;
+  const support = supportCount(state, player, district) * perDiscard;
+  // South (expansion): "Influence in <district> is now reduced to player's support."
+  if (influenceIsSupport(state, district)) return { civil: 0, support, bank: 0, bonus: 0, total: support };
   const bank = district === District.Horsard ? seat.planetNextBank.length : 0;
   return { civil, support, bank, bonus, total: civil + support + bank + bonus };
 }

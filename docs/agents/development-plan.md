@@ -4,7 +4,7 @@ Local hotseat simulator first. The same rules engine should later run a networke
 
 ## Where things stand (2026-11-13)
 
-**Phases R (rules migration), 6 (card abilities), 7 (hotseat finish), and 8 (troubleshooting) are done.** Engine, catalog, art, tests, and hotseat UI follow the current rulebook, every base-game card ability works, a hotseat game saves, resumes, and supports undo, and reported games can be replayed step by step at `/troubleshoot`. **Phase 9** is under way: setup modes are done; the Legacy & Diplomacy expansion is next; online play comes later.
+**Phases R (rules migration), 6 (card abilities), 7 (hotseat finish), and 8 (troubleshooting) are done.** Engine, catalog, art, tests, and hotseat UI follow the current rulebook, every base-game card ability works, a hotseat game saves, resumes, and supports undo, and reported games can be replayed step by step at `/troubleshoot`. **Phase 9** is under way: setup modes and the Legacy & Diplomacy expansion are done; online play comes later.
 
 | Area | State |
 | --- | --- |
@@ -177,7 +177,19 @@ Tests: `diagnostics.test.ts` (clean simulation, failure index, invariants, versi
 ### Phase 9 — Modes, expansion, then online
 
 - **Done (2026-11-13):** Tourney / Chaotic / Epic as setup options (Chaotic C+D is one `64 & 3` pile). The menu offers all four; `/play?mode=`; records carry `mode` (absent = Standard). Tests: `modes.test.ts`.
-- **Next:** Expansion: Legacy & Diplomacy (event deck, relations, game board, 7 victories)
+- **Done (2026-11-13):** Expansion: Legacy & Diplomacy, as a menu option (`/play?expansion=1`, Foreign Influence `&fi=1`). Records carry `expansion` / `foreignInfluence`.
+
+  | Piece | Where |
+  | --- | --- |
+  | Card data, art | `lib/cards/expansion.ts`, `public/cards/expansion/` (ingested by `scripts/ingest-tts.py`) |
+  | State | `GameState.expansion` (`ExpansionState` in `types.ts`): event deck, box, common area, relations, active victories, East reveal zone, start-of-turn Market snapshot and event costs, election `rowBreak` |
+  | Effect queries | `world.ts`: support counts as zero, influence = support, Senate always convinced, icons disabled, military lead, decree flip, East reveal and take, victory activation, relation leads |
+  | Buying, legacy, setup | `events.ts`: `setUpExpansion`, `buyEventActions` / `applyBuyEvent`, legacy discard and activation |
+  | Event Market | `draw.ts`: spots preserved until the income collapse, events in the last 2 spots leave, 1–2 events kept in the Market, two rows of 5 during elections, reset after an election |
+  | Victories | `victory.ts`: Military / Popularity / Ideological gated by activation; Cultural (2+ monuments) and Diplomatic (higher relation with 3 of 4 powers) |
+  | UI | Menu form (mode + expansion), Market rows with ◆ cost badges, `BuyEventDialog`, World panel (events in effect, relations, victory cards), East free action and reveal, expansion player aid |
+
+  The game board is not drawn as a separate object: its tracks (support, influence, relations, symbols) are already shown on the table. Tests: `expansion.test.ts`.
 - **Later:** Online: host the engine on a server, two clients, same actions
 
 ## Testing
@@ -209,4 +221,3 @@ Must-have cases:
 - A rules interpreter that reads English card text
 - Pixel-perfect Hearthstone animations
 - Encoding an answer to anything in [open-questions.md](open-questions.md)
-- Anything from the expansion

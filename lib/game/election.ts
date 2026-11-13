@@ -3,9 +3,9 @@ import { CardKind, DISTRICTS, type DecreeIdValue, type DistrictId } from "../car
 import { EffectId } from "../cards/effects.ts";
 import { District, MonumentId } from "../cards/schema.ts";
 import { activeAlliances, hasActiveAlliance, ownsMonument } from "./abilities.ts";
-import { inactiveDecrees } from "./decrees.ts";
+import { decreeShowsActive, inactiveDecrees } from "./decrees.ts";
 import { discardCards } from "./discard.ts";
-import { replenishMarket } from "./draw.ts";
+import { replenishMarket, resetMarketAfterElection, snapshotMarket } from "./draw.ts";
 import { playerDistrictInfluence } from "./influence.ts";
 import {
   ElectionTieBreak,
@@ -19,6 +19,7 @@ import {
   type PlayerId,
 } from "./types.ts";
 import { endGame } from "./victory.ts";
+import { marketNonEvents } from "./world.ts";
 import { emptyTurn, otherPlayer } from "./zones.ts";
 
 export const GENERAL_ELECTION_COUNT = 4;
@@ -207,7 +208,8 @@ export function finishTurn(state: GameState, events: GameEvent[]): void {
   state.turn = emptyTurn();
   state.flags = {};
 
-  if (state.election.active && state.market.length === 0) {
+  // Expansion: "Resolve election when no non-event card is left in Market."
+  if (state.election.active && marketNonEvents(state).length === 0) {
     resolveElection(state, nextPlayer, events);
     return;
   }
@@ -218,6 +220,7 @@ export function finishTurn(state: GameState, events: GameEvent[]): void {
 function startTurn(state: GameState, player: PlayerId, events: GameEvent[]): void {
   state.activePlayer = player;
   state.phase = Phase.Action;
+  snapshotMarket(state);
   events.push({ type: "turnEnded", nextPlayer: player });
 }
 
@@ -286,9 +289,10 @@ export function activateDecree(
   }
   const decree = state.decrees.find((entry) => entry.id === decreeId);
   if (!decree) throw new Error(`Unknown decree ${decreeId}`);
-  if (decree.active) throw new Error("That decree is already active");
+  if (decreeShowsActive(state, decree)) throw new Error("That decree is already active");
 
-  decree.active = true;
+  // Flip the printed side, so the decree now shows active (see North events in world.ts).
+  decree.active = !decree.active;
   pending.remaining -= 1;
   events.push({ type: "decreeActivated", player, decreeId });
   if (pending.remaining === 0) {
@@ -301,6 +305,7 @@ function finishElection(state: GameState, nextPlayer: PlayerId, events: GameEven
   events.push({ type: "electionEnded" });
   // Normal turn order resumes. Refilling to 5 may reveal another General Election,
   // which opens the next phase right away.
+  if (state.expansion) resetMarketAfterElection(state, events);
   replenishMarket(state, events);
   startTurn(state, nextPlayer, events);
 }

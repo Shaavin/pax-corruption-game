@@ -1,6 +1,6 @@
 # Card catalog
 
-Base-game cards, where their current faces live, and how to encode them. Expansion cards are out of scope until the base game is playable.
+Base-game and Legacy & Diplomacy cards, where their current faces live, and how to encode them.
 
 Marketing site: [pax-corruption-marketing.vercel.app](https://pax-corruption-marketing.vercel.app/).
 
@@ -27,7 +27,9 @@ When text in `lib/cards` disagrees with the TTS faces, the TTS faces win.
 | 7 | District policies (4 double-sided; unique backs = the other side) |
 | 17–20 | Decree objectives (face = inactive side, back = active side) |
 | 21 | Base player aid (Victories / Actions) |
-| 1, 8–16 | Expansion (player aid, 4 event decks, 5 victory cards). Ignore for v1. |
+| 1 | Expansion player aid (Actions / Victories) |
+| 8, 9, 10, 11 | Expansion events: East, North, South, West (10 each, TTS order = `EVENTS` in `lib/cards/expansion.ts`) |
+| 12–16 | Expansion victory cards: Military, Ideological, Popularity, Cultural, Diplomatic (face = inactive, back = active) |
 
 ## Ingest status
 
@@ -40,6 +42,8 @@ When text in `lib/cards` disagrees with the TTS faces, the TTS faces win.
 - Executive power removed (art and catalog).
 - Decree objectives added (`DECREES`, `public/cards/decrees/`; square 972×972 art).
 - One General Election face (`public/cards/deck/election.png`) replaces the placeholder SVGs.
+
+**Expansion (2026-11-13):** `public/cards/expansion/` holds the 40 events (`events/<power>-<slug>.png`, plus `back.png`), the 5 victory cards (`victories/<id>.png` and `<id>-inactive.png`, 700×700), and the player aid (`aids/`). `lib/cards/expansion.ts` transcribes every event: name, power, district, effect, civil-side name and value (printed upside down in the corners, like base civils). In the catalog, a regular event's id resolves to its **civil side** (a `CivilCard`); legacy events are `kind: "event"`. Use `getEvent` for the event side.
 
 Re-run the script whenever Joe updates the TTS save: `python scripts/ingest-tts.py` (needs Pillow). Then compare text against `lib/cards` by hand; the script only moves art. If the dev server shows stale card images afterwards, delete `.next/dev/cache/images`.
 

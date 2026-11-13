@@ -9,6 +9,7 @@ import { Table } from "./Table";
 import { tableModel } from "./table-model";
 import { getCard } from "@/lib/cards/catalog";
 import { GAME_MODES } from "@/lib/game/setup";
+import { getEvent } from "@/lib/cards/expansion";
 import {
   currentActor,
   describeAction,
@@ -163,6 +164,10 @@ export function SeedForm() {
           </option>
         ))}
       </select>
+      <label className="flex items-center gap-1.5 text-xs text-stone-300">
+        <input type="checkbox" name="expansion" value="1" className="accent-[var(--brass)]" />
+        L&amp;D
+      </label>
       <button
         type="submit"
         className="cursor-pointer rounded-lg bg-white/10 px-4 py-2 text-sm font-semibold text-stone-100 hover:bg-white/16"
@@ -420,6 +425,7 @@ function ReplayViewer({ loaded, onClose }: { loaded: Loaded; onClose: () => void
           model={model}
           seed={record.seed}
           mode={record.mode}
+          expansion={Boolean(record.expansion)}
           history={history}
           idlePrompt={idlePrompt}
           showTour={false}
@@ -548,6 +554,12 @@ function HiddenInfo({ state, events, issues }: { state: GameState; events: reado
         <h3 className="mb-1 font-semibold text-stone-200">Deck ({state.deck.length})</h3>
         <Field label="Next 10, top first" value={names(state.deck.slice(0, 10))} />
         <Field label="Monument deck" value={names(state.monumentDeck)} />
+        {state.expansion ? (
+          <Field
+            label={`Event deck (${state.expansion.eventDeck.length}), top first`}
+            value={state.expansion.eventDeck.map((card) => getEvent(card.cardId).name).join(", ") || "—"}
+          />
+        ) : null}
       </section>
       <section className="rounded-lg bg-white/[0.04] p-2.5 ring-1 ring-white/10">
         <h3 className="mb-1 font-semibold text-stone-200">Turn</h3>

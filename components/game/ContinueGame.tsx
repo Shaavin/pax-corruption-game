@@ -16,7 +16,8 @@ export function ContinueGame() {
     >
       Continue game
       <span className="ml-2 text-xs font-normal text-stone-400 tabular-nums">
-        {GAME_MODES.find((mode) => mode.id === (saved.record.mode ?? "standard"))?.name} · Seed {saved.record.seed} ·{" "}
+        {GAME_MODES.find((mode) => mode.id === (saved.record.mode ?? "standard"))?.name}
+        {saved.record.expansion ? " + L&D" : ""} · Seed {saved.record.seed} ·{" "}
         {saved.record.actions.length} moves
       </span>
     </a>

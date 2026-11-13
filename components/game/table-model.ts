@@ -5,7 +5,21 @@ import { playerDistrictInfluence, type DistrictInfluence } from "@/lib/game/infl
 import { senateTotalVotes, senateVotesNeeded } from "@/lib/game/senate";
 import type { CardInstance, GameState, PlayerId, PlayerState } from "@/lib/game/types";
 import { otherPlayer } from "@/lib/game/zones";
+import { eventCost, marketRows } from "@/lib/game/draw";
+import { isEventId, VICTORY_CARDS, WORLD_POWERS, type ExpansionVictoryId, type WorldPowerId } from "@/lib/cards/expansion";
 import type { PhaseStep } from "./SidePanel";
+
+/** Legacy & Diplomacy: what the table shows besides the base game. */
+export type ExpansionView = {
+  /** Market rows (two during an election). */
+  rows: CardInstance[][];
+  /** Event costs by instance id (fixed for the turn). */
+  eventCosts: Record<string, number>;
+  inEffect: { card: CardInstance; owner: "you" | "opponent" | "all" }[];
+  relations: { power: WorldPowerId; you: number; opponent: number }[];
+  victories: { id: ExpansionVictoryId; active: boolean }[];
+  eventDeck: number;
+};
 
 export type DecreeView = {
   id: DecreeIdValue;
@@ -51,6 +65,7 @@ export type TableModel = {
   electionActive: boolean;
   /** Electors at stake per district (civil cards in play), during an election. */
   electors: Record<DistrictId, number> | null;
+  expansion: ExpansionView | null;
 };
 
 export function tableModel(state: GameState, viewer: PlayerId): TableModel {
@@ -83,6 +98,26 @@ export function tableModel(state: GameState, viewer: PlayerId): TableModel {
           DISTRICTS.map((district) => [district, civilElectorsInDistrict(state, district)]),
         ) as Record<DistrictId, number>)
       : null,
+    expansion: expansionView(state, viewer),
+  };
+}
+
+function expansionView(state: GameState, viewer: PlayerId): ExpansionView | null {
+  const x = state.expansion;
+  if (!x) return null;
+  const opponent = otherPlayer(viewer);
+  return {
+    rows: marketRows(state),
+    eventCosts: Object.fromEntries(
+      state.market.filter((card) => isEventId(card.cardId)).map((card) => [card.instanceId, eventCost(state, card.instanceId)]),
+    ),
+    inEffect: x.commonArea.map((played) => ({
+      card: played.card,
+      owner: played.owner === null ? "all" : played.owner === viewer ? "you" : "opponent",
+    })),
+    relations: WORLD_POWERS.map((power) => ({ power, you: x.relations[viewer][power], opponent: x.relations[opponent][power] })),
+    victories: VICTORY_CARDS.map((card) => ({ id: card.id, active: x.activeVictories.includes(card.id) })),
+    eventDeck: x.eventDeck.length,
   };
 }
 
@@ -111,16 +146,18 @@ function projectedElectorates(state: GameState): [number, number] {
 
 function playerView(state: GameState, player: PlayerId, isYou: boolean, electorates: number): TablePlayerView {
   const seat = state.players[player];
+  const revealed = state.expansion?.revealed[player] ?? [];
   const partyId = isYou ? (seat.partyId ?? state.setup?.chosenParty[player] ?? null) : seat.partyId;
   return {
     id: player,
     hand: isYou
-      ? [...seat.hand, ...seat.consultativeOffice, ...seat.planetNextBank].map((card) => ({ ...card, faceUp: true }))
+      ? [...seat.hand, ...seat.consultativeOffice, ...seat.planetNextBank, ...revealed].map((card) => ({ ...card, faceUp: true }))
       : seat.hand,
     handTags: isYou
       ? Object.fromEntries([
           ...seat.consultativeOffice.map((card) => [card.instanceId, "Office"]),
           ...seat.planetNextBank.map((card) => [card.instanceId, "Banked"]),
+          ...revealed.map((card) => [card.instanceId, "Revealed"]),
         ])
       : {},
     tableau: seat.tableau,
@@ -130,7 +167,7 @@ function playerView(state: GameState, player: PlayerId, isYou: boolean, electora
     influence: Object.fromEntries(
       DISTRICTS.map((district) => [district, playerDistrictInfluence(state, player, district)]),
     ) as Record<DistrictId, DistrictInfluence>,
-    setAside: isYou ? [] : [...seat.consultativeOffice, ...seat.planetNextBank],
+    setAside: isYou ? [] : [...seat.consultativeOffice, ...seat.planetNextBank, ...revealed],
     partyId,
     monuments: seat.monuments.map((card) => card.cardId),
     partisans: seat.partisans,

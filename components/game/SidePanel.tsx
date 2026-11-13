@@ -4,7 +4,8 @@ import type { ReactNode } from "react";
 import { CardBack, CardView } from "./CardView";
 import { InfoTip } from "./InfoTip";
 import { resolveCard } from "./layout-fixture";
-import type { DecreeView } from "./table-model";
+import type { DecreeView, ExpansionView } from "./table-model";
+import { getEvent, isEventId, VICTORY_CARDS, WORLD_POWER_NAME } from "@/lib/cards/expansion";
 import { getCard } from "@/lib/cards/catalog";
 import { CardKind } from "@/lib/cards/schema";
 import { senatorVotes } from "@/lib/game/senate";
@@ -45,6 +46,11 @@ type SidePanelProps = {
   onTake?: (instanceId: string) => void;
   claimableIds?: ReadonlySet<string>;
   onClaimMonument?: (instanceId: string) => void;
+  /** Legacy & Diplomacy. */
+  expansion?: ExpansionView | null;
+  /** Events the active player can buy now (income). */
+  buyableIds?: ReadonlySet<string>;
+  onBuy?: (instanceId: string) => void;
   dock: ReactNode;
 };
 
@@ -60,6 +66,7 @@ export function SidePanel(props: SidePanelProps) {
         <SenateSection {...props} />
         <DecreeSection decrees={props.decrees} />
         <MarketSection {...props} />
+        {props.expansion ? <WorldSection expansion={props.expansion} /> : null}
         <SupplySection {...props} />
       </div>
       <div className="shrink-0 border-t border-[var(--line)] p-2.5">{props.dock}</div>
@@ -258,18 +265,71 @@ function Dot({ on, color }: { on: boolean; color: string }) {
   );
 }
 
-function MarketSection({ market, electionActive, takeableIds, selectedIds, onTake, marketMode = "take" }: SidePanelProps) {
+function MarketSection({
+  market,
+  electionActive,
+  takeableIds,
+  selectedIds,
+  onTake,
+  marketMode = "take",
+  expansion,
+  buyableIds,
+  onBuy,
+}: SidePanelProps) {
+  const rows = expansion ? expansion.rows : [market];
   return (
     <Section
       title="Market"
       tour="market"
-      aside={electionActive ? "no refill during the election" : `${market.length} cards`}
+      aside={
+        electionActive
+          ? "no refill during the election"
+          : expansion
+            ? `${market.length} cards · events ${expansion.eventDeck} left`
+            : `${market.length} cards`
+      }
+      info={
+        expansion ? (
+          <>
+            Events cost one card per non-event card to their right (fixed for the turn). At income, buy one
+            instead of taking a card, while under your hand limit. Events in the last 2 spots leave at the
+            next refill.
+          </>
+        ) : undefined
+      }
     >
       {market.length === 0 ? (
         <p className="py-3 text-center text-xs text-stone-500">Empty</p>
       ) : (
-        <ol className="grid grid-cols-5 justify-items-center gap-1">
-          {market.map((entry) => {
+        <div className="flex flex-col gap-1.5">
+        {rows.map((row, rowIndex) => (
+        <ol key={rowIndex} className="grid grid-cols-5 justify-items-center gap-1">
+          {row.map((entry) => {
+            if (isEventId(entry.cardId)) {
+              const event = getEvent(entry.cardId);
+              const cost = expansion?.eventCosts[entry.instanceId] ?? 0;
+              const buyable = buyableIds?.has(entry.instanceId) ?? false;
+              return (
+                <li key={entry.instanceId} className="relative">
+                  <CardView
+                    name={event.name}
+                    art={event.art}
+                    size="panel"
+                    cardId={entry.cardId}
+                    playable={buyable}
+                    className="ring-2 ring-[var(--brass)]/60"
+                    selectLabel={buyable ? `Buy ${event.name} (costs ${cost})` : undefined}
+                    onSelect={buyable && onBuy ? () => onBuy(entry.instanceId) : undefined}
+                  />
+                  <span
+                    className="pointer-events-none absolute -top-1 -left-1 rounded-md bg-[var(--brass)] px-1 text-[0.6rem] font-bold text-stone-950 tabular-nums ring-1 ring-black/40"
+                    title={`Event · ${WORLD_POWER_NAME[event.power]} · costs ${cost}`}
+                  >
+                    ◆{cost}
+                  </span>
+                </li>
+              );
+            }
             const catalog = resolveCard(entry.cardId);
             const takeable = takeableIds?.has(entry.instanceId) ?? false;
             return (
@@ -295,7 +355,102 @@ function MarketSection({ market, electionActive, takeableIds, selectedIds, onTak
             );
           })}
         </ol>
+        ))}
+        </div>
       )}
+    </Section>
+  );
+}
+
+const POWER_LETTER = { north: "N", south: "S", east: "E", west: "W" } as const;
+
+/** Legacy & Diplomacy: events in effect, relations with the World Powers, and the victory cards. */
+function WorldSection({ expansion }: { expansion: ExpansionView }) {
+  return (
+    <Section
+      title="World"
+      aside={`${expansion.inEffect.length} in effect`}
+      info={
+        <>
+          Events played for their effect apply to both players while in play; East effects only help their
+          buyer. Each purchase gives +1 relation with that power. Military, Popularity, Ideological, Cultural,
+          and Diplomatic must be activated by a legacy event before anyone can declare them.
+        </>
+      }
+    >
+      {expansion.inEffect.length > 0 ? (
+        <ol className="mb-2 flex flex-wrap gap-1">
+          {expansion.inEffect.map((entry) => {
+            const event = getEvent(entry.card.cardId);
+            return (
+              <li key={entry.card.instanceId} className="relative">
+                <CardView name={event.name} art={event.art} size="panel" cardId={entry.card.cardId} />
+                <span
+                  className={[
+                    "pointer-events-none absolute -bottom-1 left-1/2 -translate-x-1/2 rounded px-1 text-[0.5rem] font-bold uppercase ring-1 ring-black/40",
+                    entry.owner === "you"
+                      ? "bg-[var(--you)] text-stone-950"
+                      : entry.owner === "opponent"
+                        ? "bg-[var(--opp)] text-stone-950"
+                        : "bg-stone-300 text-stone-950",
+                  ].join(" ")}
+                >
+                  {entry.owner === "you" ? "You" : entry.owner === "opponent" ? "Opp" : "All"}
+                </span>
+              </li>
+            );
+          })}
+        </ol>
+      ) : (
+        <p className="mb-2 text-[0.7rem] text-stone-500">No events in effect.</p>
+      )}
+      <table className="mb-2 w-full text-center text-[0.7rem] tabular-nums" aria-label="Relations with the World Powers">
+        <thead>
+          <tr className="text-stone-500">
+            <th className="text-left font-normal">Relations</th>
+            {expansion.relations.map((entry) => (
+              <th key={entry.power} className="font-semibold" title={WORLD_POWER_NAME[entry.power]}>
+                {POWER_LETTER[entry.power]}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td className="text-left text-[var(--opp)]">Opp</td>
+            {expansion.relations.map((entry) => (
+              <td key={entry.power} className={entry.opponent > entry.you ? "font-bold text-stone-100" : "text-stone-400"}>
+                {entry.opponent}
+              </td>
+            ))}
+          </tr>
+          <tr>
+            <td className="text-left text-[var(--you)]">You</td>
+            {expansion.relations.map((entry) => (
+              <td key={entry.power} className={entry.you > entry.opponent ? "font-bold text-stone-100" : "text-stone-400"}>
+                {entry.you}
+              </td>
+            ))}
+          </tr>
+        </tbody>
+      </table>
+      <ol className="flex justify-between gap-1" aria-label="Expansion victories">
+        {expansion.victories.map((entry) => {
+          const def = VICTORY_CARDS.find((card) => card.id === entry.id)!;
+          return (
+            <li key={entry.id} className="flex flex-col items-center gap-0.5">
+              <CardView
+                name={`${def.name} Victory${entry.active ? "" : " (inactive)"}`}
+                art={entry.active ? def.art : def.inactiveArt}
+                size="panel"
+                square
+                dimmed={!entry.active}
+              />
+              <span className="text-[0.5rem] tracking-wide text-stone-400 uppercase">{entry.active ? "active" : "off"}</span>
+            </li>
+          );
+        })}
+      </ol>
     </Section>
   );
 }

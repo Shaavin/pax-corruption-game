@@ -28,5 +28,11 @@ export default async function PlayPage({
   const rawMode = Array.isArray(params.mode) ? params.mode[0] : params.mode;
   const mode = isGameMode(rawMode) ? rawMode : GameMode.Standard;
 
-  return <HotseatSession seed={seed} mode={mode} />;
+  const flag = (key: string) => {
+    const raw = params[key];
+    return (Array.isArray(raw) ? raw[0] : raw) === "1";
+  };
+  const expansion = flag("expansion");
+
+  return <HotseatSession seed={seed} mode={mode} expansion={expansion} foreignInfluence={expansion && flag("fi")} />;
 }

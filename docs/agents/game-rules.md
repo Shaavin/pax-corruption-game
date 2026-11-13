@@ -1,6 +1,6 @@
 # Pax Corruption — game rules
 
-Rules for the **current** base game (rulebook revision of late 2026). Expansion rules are summarized at the end and are out of scope for now.
+Rules for the **current** base game (rulebook revision of late 2026). The Legacy & Diplomacy expansion is summarized at the end; it is implemented as an option (2026-11-13).
 
 Sources, in priority order:
 
@@ -305,14 +305,23 @@ Notes:
 
 Beginner tips (strategy, not rules): elections activate decrees; recruiting partisans threatens Military Victory; plan for the turns after building a monument; watch discards, because partisans (3×) and monuments (5×) move Popularity fast.
 
-## Expansion: Legacy & Diplomacy (out of scope)
+## Expansion: Legacy & Diplomacy
 
-Rulebook: `C:\Repos\pax-corruption-marketing\public\rulebook\legacy-and-diplomacy-rulebook.pdf`. Requires the base game. Summary only, for awareness:
+Rulebook: `C:\Repos\pax-corruption-marketing\public\rulebook\legacy-and-diplomacy-rulebook.pdf`. Requires the base game. Card text: `lib/cards/expansion.ts`. Rulings: [open-questions.md](open-questions.md) (2026-11-13).
 
-- **Event deck** (40): 10 each from four World Powers (North, South, West, East), including unique and legacy events. Events sit in the Market. At income you may buy one instead of taking a card, by discarding cards equal to the number of non-event cards to its right. Events are played immediately: as a common effect, or into a district like a civil card. Each purchase gives +1 relation with that World Power. A conspiracy wipes events played as civil cards in its district, but never events played for their effect. A discarded event always goes back to the box, never to a support pile. House rule (2026-11-12, not yet in the rulebook): buying an event and playing it for its effect also draws you a card. East event effects are exclusive to their buyer.
+- **Event deck** (40): 10 per World Power (North, South, West, East): 8 regular events (2 per district) and 2 legacy events. Setup: set the 8 legacy events aside, remove 3 random regular events per power, and shuffle the remaining 20 with the legacy events (28). Events sit in the Market. At income you may buy one instead of taking a card, by discarding cards equal to the number of non-event cards to its right. Events are played immediately: as a common effect, or into a district like a civil card. Each purchase gives +1 relation with that World Power. A conspiracy wipes events played as civil cards in its district, but never events played for their effect. A discarded event always goes back to the box, never to a support pile. House rule (2026-11-12, not yet in the rulebook): buying an event and playing it for its effect also draws you a card. East event effects are exclusive to their buyer.
 - **Game board** with tracks for support, alliance, influence, diplomacy, partisans, and symbols.
 - **Seven victories.** Adds Cultural (2+ more monuments) and Diplomatic (higher relation with 3 of 4 powers). Military, Popularity, Ideological, Cultural, and Diplomatic start **inactive** and are activated by legacy events. Civil and Political work as in the base game.
 - Market and election-phase replenish rules change so 1–2 event cards are always in the Market. Event cards keep discarding and replenishing during an election phase by their own rules, including disappearing from the last two spots of their row.
 - Foreign Influence variant: start with 3 random events already in play.
 
-Do not implement any of this until the base game is complete.
+Event effects by power (each district has one of each of its power's two effects):
+
+| Power | Effects | Civil-side value |
+| --- | --- | --- |
+| East | Revealed <district> cards don't occupy the hand limit · As a free action, take a <district> card from the Market (both exclusive to the buyer) | 7–11 |
+| North | Military Victory needs +1 partisans (stacks) · Flip Pax <decree> to its other side while in effect | 10 |
+| South | Influence in <district> is reduced to support · <district> Senators are always convinced | 7–11 |
+| West | Disable all ideological icons in <district> · District support in <district> counts as zero | 2 |
+
+Implementation: `lib/game/world.ts` (effect queries), `lib/game/events.ts` (setup, buying, legacy), `lib/game/draw.ts` (event Market, election rows).

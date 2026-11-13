@@ -5,6 +5,7 @@ import type {
   PolicyIdValue,
   SymbolId,
 } from "../cards/schema.ts";
+import type { ExpansionVictoryId, WorldPowerId } from "../cards/expansion.ts";
 
 export type PlayerId = 0 | 1;
 export const PLAYERS: readonly PlayerId[] = [0, 1];
@@ -40,6 +41,10 @@ export const VictoryKind = {
   Military: "military",
   Popularity: "popularity",
   Ideological: "ideological",
+  /** Expansion: 2+ more monuments than the opponent. */
+  Cultural: "cultural",
+  /** Expansion: higher relation than the opponent with 3 of the 4 World Powers. */
+  Diplomatic: "diplomatic",
 } as const;
 export type VictoryKindId = (typeof VictoryKind)[keyof typeof VictoryKind];
 
@@ -112,6 +117,8 @@ export type SetupState = {
   startingOffers: Record<PlayerId, CardInstance[]>;
   nonElectionPool: CardInstance[];
   electionCards: CardInstance[];
+  /** Legacy & Diplomacy chosen for this game (set up when setup finishes). */
+  expansion: { foreignInfluence: boolean } | null;
 };
 
 export type TurnState = {
@@ -123,6 +130,41 @@ export type TurnState = {
   skipIncome: boolean;
   /** Instance ids of alliances/monuments whose free action was used this turn. */
   freeActionsUsed: string[];
+};
+
+/** An event played for its effect, sitting in the common area. */
+export type PlayedEvent = {
+  card: CardInstance;
+  /** The buyer. East effects are exclusive to them. `null` = Foreign Influence setup (not exclusive). */
+  owner: PlayerId | null;
+};
+
+/** Legacy & Diplomacy. Event cards are `CardInstance`s whose `cardId` is an event id. */
+export type ExpansionState = {
+  foreignInfluence: boolean;
+  eventDeck: CardInstance[];
+  /** Events out of the game: removed at setup, discarded, or legacy events once played. */
+  box: CardInstance[];
+  commonArea: PlayedEvent[];
+  relations: Record<PlayerId, Record<WorldPowerId, number>>;
+  /** Inactive expansion victories flipped active by legacy events. */
+  activeVictories: ExpansionVictoryId[];
+  /** East "Revealed <district> cards do not occupy hand limit": face-up, usable as if in hand. */
+  revealed: Record<PlayerId, CardInstance[]>;
+  /**
+   * Market spots at the start of the turn (instance ids, left to right). Spots are
+   * preserved until the income-step collapse, and event costs are fixed for the turn.
+   */
+  turnMarket: string[];
+  /** Event cost (non-event cards to its right) fixed at the start of the turn. */
+  eventCosts: Record<string, number>;
+  /**
+   * During an election phase the Market is two rows: `market.slice(0, rowBreak)`
+   * and `market.slice(rowBreak)`. Null outside elections.
+   */
+  rowBreak: number | null;
+  /** Spots per row at the start of the turn, during an election (for the last-2-spots rule). */
+  turnRows: [string[], string[]] | null;
 };
 
 /** A decision the active player must make before the turn moves on. */
@@ -177,6 +219,8 @@ export type GameState = {
   pending: PendingChoice[];
   resume: Continuation | null;
   victory: Victory | null;
+  /** Legacy & Diplomacy expansion state, or null in a base game. */
+  expansion: ExpansionState | null;
 };
 
 export type ChoosePartyAction = {
@@ -289,14 +333,31 @@ export type FreeActionAction = {
       policyId: PolicyIdValue | null;
     }
   | { ability: "intelNetwork" }
+  /** East event: take a card of its district from the Market into hand. */
+  | { ability: "eastTake"; instanceId: string }
 );
 
 /** Planet Next / Consultative Office: move cards from hand into a face-up zone (own turn only). */
 export type SetAsideAction = {
   type: "setAside";
   player: PlayerId;
-  zone: "planetNextBank" | "consultativeOffice";
+  zone: "planetNextBank" | "consultativeOffice" | "eastReveal";
   instanceIds: string[];
+};
+
+/** How a bought event is played. Regular events: effect or civil. Legacy events: discard or activate. */
+export type EventUse = "effect" | "civil" | "legacyDiscard" | "legacyActivate";
+
+/** Expansion income option B: buy an event from the Market. */
+export type BuyEventAction = {
+  type: "buyEvent";
+  player: PlayerId;
+  instanceId: string;
+  /** Cards paid (hand or as-if-in-hand), one per non-event card to the event's right. */
+  payIds: string[];
+  use: EventUse;
+  /** For `legacyActivate`: which inactive victory to flip. */
+  victory?: ExpansionVictoryId;
 };
 
 export type ChooseDiscardAction = { type: "chooseDiscard"; player: PlayerId; instanceId: string };
@@ -336,7 +397,8 @@ export type Action =
   | ChooseSwapAction
   | ChooseIntelAction
   | ChoosePressAction
-  | RouteDiscardsAction;
+  | RouteDiscardsAction
+  | BuyEventAction;
 
 export type GameEvent =
   | { type: "districtsShuffled"; order: DistrictId[] }
@@ -453,6 +515,11 @@ export type GameEvent =
   | { type: "deckReordered"; player: PlayerId }
   | { type: "cardRetrieved"; player: PlayerId; cardId: string; district: DistrictId }
   | { type: "discardsRouted"; player: PlayerId; moves: { cardId: string; district: DistrictId }[] }
+  | { type: "eventRevealed"; cardId: string }
+  | { type: "eventBought"; player: PlayerId; cardId: string; use: EventUse; cost: number }
+  | { type: "eventsRemoved"; cardIds: string[]; reason: "market" | "legacy" | "discard" }
+  | { type: "relationGained"; player: PlayerId; power: WorldPowerId; relation: number }
+  | { type: "victoryActivated"; player: PlayerId; victory: ExpansionVictoryId }
 
 export type ApplyResult = {
   state: GameState;

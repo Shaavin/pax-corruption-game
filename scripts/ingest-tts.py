@@ -9,7 +9,8 @@ their URL with every non-alphanumeric character removed. Main-deck faces are
 880x1232; they are scaled to 825 wide and center-cropped to the 825x1125 the UI
 expects. Decree objectives are square and keep their native size.
 
-See docs/agents/card-catalog.md#tts-deck-map for what each deck holds.
+See docs/agents/card-catalog.md#tts-deck-map for what each deck holds. Event file
+names come from the regular()/legacy() calls in lib/cards/expansion.ts, in TTS order.
 """
 
 import json
@@ -71,6 +72,7 @@ MONUMENT_ORDER = [
     "civil-service", "roman-basilica", "model-society", "smart-doctrine",
 ]
 PARTY_ORDER = [2, 6, 4, 5, 3, 8, 7, 1]  # Conservative, Global, Innovative, ...
+EXPANSION_VICTORIES = ["military", "ideological", "popularity", "cultural", "diplomatic"]  # decks 12-16
 DECREES = {  # deck: (inactive face, active back)
     17: ("unruly-clans", "imperium"),
     18: ("class-schism", "de-jures"),
@@ -155,7 +157,22 @@ def main() -> None:
         save_card(cells(deck_id, "BackURL")[0], "decrees", f"{active}.png", fit=False)
     save_card(cells(21, "BackURL")[0], "aids", "victories.png")
     save_card(cells(21)[0], "aids", "actions.png")
-    print("Ingested main deck, monuments, parties, decrees, and player aids.")
+
+    # Legacy & Diplomacy: events (decks 8-11), victory cards (12-16), player aid (1).
+    expansion_ts = open(os.path.join(ROOT, "lib", "cards", "expansion.ts"), encoding="utf-8").read()
+    slugs = [f"{power}-{slug}" for power, slug in re.findall(r'(?:regular|legacy)\("([a-z]+)", "([a-z0-9-]+)"', expansion_ts)]
+    events = cells(8) + cells(9) + cells(10) + cells(11)
+    if len(events) != len(slugs) or len(slugs) != 40:
+        raise SystemExit(f"Expected 40 event faces and slugs, got {len(events)} and {len(slugs)}")
+    for image, slug in zip(events, slugs):
+        save_card(image, "expansion", "events", f"{slug}.png")
+    save_card(sheet(decks[8]["BackURL"]), "expansion", "events", "back.png")
+    for deck_id, victory in zip(range(12, 17), EXPANSION_VICTORIES):
+        save_card(cells(deck_id)[0].resize((700, 700), Image.LANCZOS), "expansion", "victories", f"{victory}-inactive.png", fit=False)
+        save_card(cells(deck_id, "BackURL")[0].resize((700, 700), Image.LANCZOS), "expansion", "victories", f"{victory}.png", fit=False)
+    save_card(cells(1)[0], "expansion", "aids", "actions.png")
+    save_card(cells(1, "BackURL")[0], "expansion", "aids", "victories.png")
+    print("Ingested main deck, monuments, parties, decrees, player aids, and the Legacy & Diplomacy expansion.")
 
 
 if __name__ == "__main__":

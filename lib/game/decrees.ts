@@ -2,6 +2,7 @@ import { DECREES, getCard } from "../cards/catalog.ts";
 import { CardKind, DecreeId, DISTRICTS, type DecreeIdValue, type DistrictId } from "../cards/schema.ts";
 import { playerDistrictInfluence } from "./influence.ts";
 import type { DecreeState, GameState, PlayerId } from "./types.ts";
+import { decreeFlipped, supportCount } from "./world.ts";
 import { otherPlayer } from "./zones.ts";
 
 export const PROFECTUS_SUPPORT_LEAD = 7;
@@ -11,17 +12,22 @@ export function initialDecrees(): DecreeState[] {
   return DECREES.map((decree) => ({ id: decree.id, active: false }));
 }
 
+/** The side a decree shows now: its printed state, flipped while a North event says so (expansion). */
+export function decreeShowsActive(state: GameState, decree: DecreeState): boolean {
+  return decree.active !== decreeFlipped(state, decree.id);
+}
+
 export function activeDecrees(state: GameState): DecreeIdValue[] {
-  return state.decrees.filter((decree) => decree.active).map((decree) => decree.id);
+  return state.decrees.filter((decree) => decreeShowsActive(state, decree)).map((decree) => decree.id);
 }
 
 export function inactiveDecrees(state: GameState): DecreeIdValue[] {
-  return state.decrees.filter((decree) => !decree.active).map((decree) => decree.id);
+  return state.decrees.filter((decree) => !decreeShowsActive(state, decree)).map((decree) => decree.id);
 }
 
 function totalSupport(state: GameState, player: PlayerId): number {
   return DISTRICTS.reduce(
-    (sum, district) => sum + state.players[player].support[district].length,
+    (sum, district) => sum + supportCount(state, player, district),
     0,
   );
 }

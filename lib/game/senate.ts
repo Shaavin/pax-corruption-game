@@ -3,6 +3,7 @@ import { CardKind, type DistrictId, type PolicyIdValue } from "../cards/schema.t
 import { policyFrozen } from "./abilities.ts";
 import { discardCards } from "./discard.ts";
 import type { CardInstance, GameEvent, GameState, PlayerId } from "./types.ts";
+import { senateAlwaysConvinced } from "./world.ts";
 
 export const SENATE_SIZE = 5;
 
@@ -51,8 +52,14 @@ export function senatorConvinced(senatorCardId: string, revealedCardIds: readonl
 /** Senate indexes (left → right) the revealed cards would convince. */
 export function convincedSenators(state: GameState, revealedCardIds: readonly string[]): number[] {
   return state.senate.flatMap((card, index) =>
-    senatorConvinced(card.cardId, revealedCardIds) ? [index] : [],
+    senatorConvinced(card.cardId, revealedCardIds) || autoConvinced(state, card.cardId) ? [index] : [],
   );
+}
+
+/** South "<district> cards in Senate are always convinced" (expansion), conspiracies included. */
+function autoConvinced(state: GameState, cardId: string): boolean {
+  const def = getCard(cardId);
+  return "district" in def && senateAlwaysConvinced(state, def.district);
 }
 
 export function convincedVotes(state: GameState, revealedCardIds: readonly string[]): number {
