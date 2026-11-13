@@ -26,7 +26,12 @@ export function OnlineLobby() {
       });
       router.push(`/online/${created.gameId}`);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Couldn't reach the game server");
+      // A network failure surfaces as a TypeError ("Failed to fetch"); say what it means.
+      setError(
+        caught instanceof TypeError || !(caught instanceof Error)
+          ? "Couldn't reach the game server. Check your connection and try again."
+          : caught.message,
+      );
       setBusy(false);
     }
   }
