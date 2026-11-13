@@ -108,12 +108,12 @@ function kindOf(cardId: string) {
     assert(state.policy[district] === null, `${district} should start Neutral`);
   }
 
-  const seat0 = state.players[0];
-  const seat1 = state.players[1];
   const first = state.players[state.firstPlayer];
   const second = state.players[otherPlayer(state.firstPlayer)];
-  assert(seat0.hand.length === 3, `Player 1 hand ${seat0.hand.length}, want 3`);
-  assert(seat1.hand.length === 4, `Player 2 hand ${seat1.hand.length}, want 4`);
+  const seat0 = first;
+  const seat1 = second;
+  assert(first.hand.length === 3, `First player hand ${first.hand.length}, want 3`);
+  assert(second.hand.length === 4, `Second player hand ${second.hand.length}, want 4`);
   assert(
     [...seat0.hand, ...seat1.hand].every((card) => !card.faceUp),
     "Starting hands are secret",
@@ -128,7 +128,7 @@ function kindOf(cardId: string) {
   const seat0HandNames = seat0.hand.map((c) => getCard(c.cardId).name);
   assert(
     seat0HandNames.every((name) => seat0OfferNames.includes(name)),
-    "Player 1 hand must come from the party list",
+    "First player's hand must come from their party list",
   );
   const seat1HandNames = seat1.hand.map((c) => getCard(c.cardId).name).sort();
   const seat1OfferNames = getParty(seat1.partyId!)
@@ -136,7 +136,7 @@ function kindOf(cardId: string) {
     .sort();
   assert(
     JSON.stringify(seat1HandNames) === JSON.stringify(seat1OfferNames),
-    "Player 2 takes all 4 listed cards",
+    "Second player takes all 4 listed cards",
   );
 
   const nonGeHands = [...seat0.hand, ...seat1.hand].filter(
@@ -244,114 +244,58 @@ function kindOf(cardId: string) {
   }
 }
 
+// Both parties are chosen first; then the lower party number keeps 3 of 4.
+// Cover both seats being the first player.
 {
-  let found = false;
-  for (let seed = 1; seed <= 80 && !found; seed++) {
+  const seen = new Set<PlayerId>();
+  for (let seed = 1; seed <= 200 && seen.size < 2; seed++) {
     const rng = createSeededRng(seed);
     let state = createGame(rng, { seed });
-    if (!state.setup!.dealtParties[0].includes(PartyId.Progressive)) continue;
+    const p0 = state.setup!.dealtParties[0][0]!;
+    const p1 = state.setup!.dealtParties[1][0]!;
+    const firstSeat: PlayerId = getParty(p0).order < getParty(p1).order ? 0 : 1;
+    if (seen.has(firstSeat)) continue;
+    seen.add(firstSeat);
 
-    const rng2 = createSeededRng(seed);
-    state = createGame(rng2, { seed });
-    state = apply(state, {
-      type: "chooseParty",
-      player: 0,
-      partyId: PartyId.Progressive,
-    }, rng2).state;
+    state = apply(state, { type: "chooseParty", player: 0, partyId: p0 }, rng).state;
+    assert(state.setup?.step === "chooseParty" && state.activePlayer === 1, "Seat 2 chooses a party next");
+    assert(state.players[0].hand.length === 0, "No starting cards before both parties are chosen");
+    state = apply(state, { type: "chooseParty", player: 1, partyId: p1 }, rng).state;
 
-    assert(state.setup?.step === "chooseStartingHand", "Player 1 starting cards come next");
-    assert(state.activePlayer === 0, "Player 1 keeps the device for starting cards");
-    const offer = state.setup!.startingOffers[0];
-    const dg = offer.find((card) => getCard(card.cardId).name === "District Governor");
-    assert(dg, "Progressive offer should include District Governor");
-    const ids = [
-      dg!.instanceId,
-      ...offer
-        .map((c) => c.instanceId)
-        .filter((id) => id !== dg!.instanceId),
-    ].slice(0, 3);
+    assert(state.firstPlayer === firstSeat, "Lower party number is the first player");
+    assert(state.setup?.step === "chooseStartingHand", "Then the first player picks starting cards");
+    assert(state.activePlayer === firstSeat, "…on the first player's turn, whichever seat that is");
+    const secondSeat: PlayerId = firstSeat === 0 ? 1 : 0;
+    assert(state.players[secondSeat].hand.length === 4, "The second player already holds all 4");
 
+    const offer = state.setup!.startingOffers[firstSeat];
+    try {
+      apply(state, { type: "chooseStartingHand", player: secondSeat, instanceIds: offer.slice(0, 3).map((c) => c.instanceId) }, rng);
+      fail("The second player must not pick starting cards");
+    } catch (error) {
+      if (!(error instanceof IllegalActionError)) fail(`Wrong error for second-player pick: ${error}`);
+    }
+    try {
+      apply(state, { type: "chooseStartingHand", player: firstSeat, instanceIds: offer.slice(0, 2).map((c) => c.instanceId) }, rng);
+      fail("Taking only 2 cards should be illegal");
+    } catch (error) {
+      if (!(error instanceof IllegalActionError)) fail(`Wrong error for 2-card starting hand: ${error}`);
+    }
+
+    const left = offer[3]!;
     state = apply(state, {
       type: "chooseStartingHand",
-      player: 0,
-      instanceIds: ids,
-    }, rng2).state;
-
-    assert(state.activePlayer === 1, "Pass to Player 2 after Player 1's starting cards");
-    assert(state.setup?.step === "chooseParty", "Player 2 still chooses a party");
-
-    const p1 = state.setup!.dealtParties[1][0]!;
-    state = apply(state, {
-      type: "chooseParty",
-      player: 1,
-      partyId: p1,
-    }, rng2).state;
-
-    assert(state.phase === "action", "Player 2's party choice should finish setup");
-    assert(state.players[0].hand.length === 3, "Player 1 took 3 cards");
-    assert(state.players[1].hand.length === 4, "Player 2 is dealt all 4 listed cards");
-
-    try {
-      apply(
-        state,
-        {
-          type: "chooseStartingHand",
-          player: 0,
-          instanceIds: ids,
-        },
-        rng2,
-      );
-      fail("Player 1 should not take a starting hand twice");
-    } catch (error) {
-      if (!(error instanceof IllegalActionError)) {
-        fail(`Wrong error for double starting hand: ${error}`);
-      }
-    }
-
-    const isDragonaraGovernor = (cardId: string) => {
-      const card = getCard(cardId);
-      return (
-        card.kind === CardKind.Alliance &&
-        card.district === District.Dragonara &&
-        card.name === "District Governor"
-      );
-    };
-    const dgInHand = state.players[0].hand.filter((c) =>
-      isDragonaraGovernor(c.cardId),
+      player: firstSeat,
+      instanceIds: offer.slice(0, 3).map((c) => c.instanceId),
+    }, rng).state;
+    assert(state.phase === "action" && state.activePlayer === firstSeat, "Setup finishes; the first player starts");
+    assert(state.players[firstSeat].hand.length === 3, "First player kept 3");
+    assert(
+      [...state.deck, ...state.market, ...state.senate].some((c) => c.instanceId === left.instanceId),
+      "The left-out card goes back into the supply",
     );
-    const dgElsewhere = [...state.market, ...state.deck].filter((c) =>
-      isDragonaraGovernor(c.cardId),
-    );
-    assert(dgInHand.length === 1, "Exactly one District Governor in Player 1's starting hand");
-    assert(dgElsewhere.length === 1, "The other District Governor stays in the supply");
-    found = true;
   }
-  assert(found, "Could not find a seed where Player 1 is dealt Progressive");
-}
-
-{
-  const rng = createSeededRng(3);
-  let state = createGame(rng, { seed: 3 });
-  const p0 = state.setup!.dealtParties[0][0]!;
-  state = apply(state, { type: "chooseParty", player: 0, partyId: p0 }, rng).state;
-  try {
-    apply(
-      state,
-      {
-        type: "chooseStartingHand",
-        player: 0,
-        instanceIds: state.setup!.startingOffers[0]
-          .slice(0, 2)
-          .map((c) => c.instanceId),
-      },
-      rng,
-    );
-    fail("Player 1 taking 2 cards should be illegal");
-  } catch (error) {
-    if (!(error instanceof IllegalActionError)) {
-      fail(`Wrong error for 2-card starting hand: ${error}`);
-    }
-  }
+  assert(seen.size === 2, "Found setups where each seat is the first player");
 }
 
 if (errors.length > 0) {

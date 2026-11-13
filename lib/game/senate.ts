@@ -1,5 +1,6 @@
 import { getCard, POLICIES } from "../cards/catalog.ts";
 import { CardKind, type DistrictId, type PolicyIdValue } from "../cards/schema.ts";
+import { policyFrozen } from "./abilities.ts";
 import { discardCards } from "./discard.ts";
 import type { CardInstance, GameEvent, GameState, PlayerId } from "./types.ts";
 
@@ -88,7 +89,7 @@ export function policyTargets(
 ): { district: DistrictId; policyId: PolicyIdValue | null }[] {
   const allowed = new Set(revealedDistricts(revealedCardIds));
   return state.districtOrder
-    .filter((district) => allowed.has(district))
+    .filter((district) => allowed.has(district) && !policyFrozen(state, district))
     .flatMap((district) =>
       policyOptions(state, district).map((policyId) => ({ district, policyId })),
     );

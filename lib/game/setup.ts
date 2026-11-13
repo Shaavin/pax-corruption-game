@@ -104,6 +104,8 @@ export function createGame(rng: Rng, options: { seed: number }): GameState {
     turn: emptyTurn(),
     flags: {},
     pendingDecrees: null,
+    pending: [],
+    resume: null,
     victory: null,
   };
 }
@@ -147,6 +149,9 @@ export function dealStartingOffer(state: GameState, player: PlayerId): CardInsta
   const reserved = new Set<string>();
   for (const seat of state.players) {
     for (const card of seat.hand) reserved.add(card.instanceId);
+  }
+  for (const offer of Object.values(setup.startingOffers)) {
+    for (const card of offer) reserved.add(card.instanceId);
   }
   const offer = resolveStartingOffer(partyId, setup.nonElectionPool, reserved);
   setup.startingOffers[player] = offer;

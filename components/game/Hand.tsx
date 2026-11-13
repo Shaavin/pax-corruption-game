@@ -9,6 +9,8 @@ type HandProps = {
   /** "you": large fanned hand that bleeds off the bottom edge. "opponent": small backs. */
   variant: "you" | "opponent";
   tourId?: string;
+  /** Small labels on specific cards (e.g. "Banked"). */
+  tags?: Record<string, string>;
   playableIds?: ReadonlySet<string>;
   selectableIds?: ReadonlySet<string>;
   selectedIds?: ReadonlySet<string>;
@@ -25,7 +27,7 @@ function overlapFor(count: number): number {
   return Math.min(0.58, Math.max(0.12, 0.07 * count));
 }
 
-export function Hand({ cards, variant, tourId, playableIds, selectableIds, selectedIds, onSelect }: HandProps) {
+export function Hand({ cards, variant, tourId, tags, playableIds, selectableIds, selectedIds, onSelect }: HandProps) {
   const [hover, setHover] = useState<number | null>(null);
 
   if (variant === "opponent") {
@@ -104,6 +106,11 @@ export function Hand({ cards, variant, tourId, playableIds, selectableIds, selec
               selectLabel={selectable ? (selected ? `Deselect ${catalog.name}` : `Choose ${catalog.name}`) : undefined}
               onSelect={selectable && onSelect ? () => onSelect(entry.instanceId) : undefined}
             />
+            {tags?.[entry.instanceId] ? (
+              <span className="pointer-events-none absolute top-1 left-1/2 z-10 -translate-x-1/2 rounded-full bg-[var(--you)] px-2 py-0.5 text-[0.55rem] font-bold tracking-wide text-stone-950 uppercase shadow">
+                {tags[entry.instanceId]}
+              </span>
+            ) : null}
           </li>
         );
       })}

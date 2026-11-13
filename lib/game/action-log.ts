@@ -14,6 +14,7 @@ export const ActionLogKind = {
   Decree: "decree",
   Discard: "discard",
   Victory: "victory",
+  Ability: "ability",
 } as const;
 export type ActionLogKindId = (typeof ActionLogKind)[keyof typeof ActionLogKind];
 
@@ -233,6 +234,66 @@ export function buildActionLog(events: readonly GameEvent[], viewer: PlayerId): 
           summary: `${who(event.player, viewer)} activated ${cardName(event.decreeId)}.`,
           primary: face(event.decreeId),
           related: [],
+        });
+        break;
+      case "freeActionUsed":
+        push({
+          kind: ActionLogKind.Ability,
+          player: event.player,
+          summary: `${who(event.player, viewer)} used ${cardName(event.sourceCardId).replace(/\.$/, "")}.`,
+          primary: face(event.sourceCardId),
+          related: [],
+          relatedLabel: "Spent",
+          absorb: "cost",
+        });
+        break;
+      case "cardsSetAside":
+        push({
+          kind: ActionLogKind.Ability,
+          player: event.player,
+          summary: `${who(event.player, viewer)} set aside ${event.cardIds.map(cardName).join(", ")} (${event.zone === "planetNextBank" ? "Planet Next" : "Consultative Office"}).`,
+          primary: face(event.cardIds[0]!),
+          related: event.cardIds.slice(1).map(face),
+        });
+        break;
+      case "civilsSwapped":
+        push({
+          kind: ActionLogKind.Ability,
+          player: event.player,
+          summary: `${who(event.player, viewer)} swapped ${cardName(event.mineCardId)} for ${cardName(event.theirsCardId)} (Urban Aristocrats).`,
+          primary: face(event.theirsCardId),
+          related: [face(event.mineCardId)],
+          relatedLabel: "Given away",
+          district: "dragonara",
+        });
+        break;
+      case "allianceReplaced":
+        push({
+          kind: ActionLogKind.Ability,
+          player: event.player,
+          summary: `${who(event.player, viewer)} replaced ${cardName(event.replacedCardId)} with ${cardName(event.cardId)} in ${DISTRICT_LABEL[event.district]}.`,
+          primary: face(event.cardId),
+          related: [face(event.replacedCardId)],
+          relatedLabel: "Replaced",
+          district: event.district,
+        });
+        break;
+      case "cardRetrieved":
+        push({
+          kind: ActionLogKind.Ability,
+          player: event.player,
+          summary: `${who(event.player, viewer)} took ${cardName(event.cardId)} back from their ${DISTRICT_LABEL[event.district]} pile (People's Press).`,
+          primary: face(event.cardId),
+          related: [],
+        });
+        break;
+      case "discardsRouted":
+        push({
+          kind: ActionLogKind.Ability,
+          player: event.player,
+          summary: `${who(event.player, viewer)} rerouted ${event.moves.length} discard${event.moves.length === 1 ? "" : "s"} (Space Agency).`,
+          primary: face(event.moves[0]!.cardId),
+          related: event.moves.slice(1).map((move) => face(move.cardId)),
         });
         break;
       case "victory":

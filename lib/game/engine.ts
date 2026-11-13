@@ -1,224 +1,256 @@
 import { getCard } from "../cards/catalog.ts";
-import {
-  CardKind,
-  DISTRICTS,
-  type DistrictId,
-  type PartyIdValue,
-} from "../cards/schema.ts";
+import { CardKind, DISTRICTS, type DistrictId, type PartyIdValue } from "../cards/schema.ts";
+import { martialLawBlocks } from "./abilities.ts";
+import { chooseDiscard, choiceActions, chooseIntel, choosePress, chooseSwap, routeDiscards } from "./choices.ts";
 import { inactiveDecrees } from "./decrees.ts";
-import { discardCards, discardOwn, gameIsOver } from "./discard.ts";
+import { gameIsOver } from "./discard.ts";
 import { activateDecree } from "./election.ts";
+import { IllegalActionError, asIllegal } from "./errors.ts";
+import { applyFreeAction, applySetAside, freeActions, hasFreeAction, setAsideActions } from "./free-actions.ts";
+import { afterMainAction, proceed, setFreeActionCheck, takeMarketCard, underHandLimit } from "./income.ts";
 import {
-  afterMainAction,
-  beginIncome,
-  takeMarketCard,
-  underHandLimit,
-} from "./income.ts";
-import {
-  RECRUIT_COST,
   CONSTRUCT_COST,
+  RECRUIT_COST,
   canPlayAlliance,
   canRecruitIn,
   combinations,
   handCardsInDistrict,
+  handLikeCards,
   printedDistrict,
-  takeSpend,
 } from "./main.ts";
+import { construct, playBlockReason, playConspiracy, playToLane, proposePolicy, recruit, seatSenator } from "./plays.ts";
 import type { Rng } from "./rng.ts";
-import {
-  convincedVotes,
-  influenceSenate,
-  policyOptions,
-  policyTargets,
-  revealedDistricts,
-  revealPasses,
-  senateTotalVotes,
-} from "./senate.ts";
-import {
-  dealStartingOffer,
-  finishSetup,
-  revealParties,
-  takeStartingHand,
-} from "./setup.ts";
+import { policyTargets, revealPasses } from "./senate.ts";
+import { dealStartingOffer, finishSetup, revealParties, takeStartingHand } from "./setup.ts";
 import {
   Phase,
   SetupStep,
   type Action,
-  type ActivateDecreeAction,
   type ApplyResult,
   type ChoosePartyAction,
   type ChooseStartingHandAction,
-  type ConstructAction,
-  type DeclareVictoryAction,
-  type EndActionAction,
-  type EndPoliticsAction,
   type GameEvent,
   type GameState,
-  type InfluenceSenateAction,
-  type PlayAllianceAction,
-  type PlayCivilAction,
-  type PlayConspiracyAction,
   type PlayerId,
-  type ProposePolicyAction,
-  type RecruitAction,
-  type TakeMarketAction,
 } from "./types.ts";
 import { declarableVictories, endGame, sameVictory } from "./victory.ts";
-import { cloneState, sameIdSet, takeInstance } from "./zones.ts";
+import { cloneState, sameIdSet } from "./zones.ts";
 
-export class IllegalActionError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "IllegalActionError";
-  }
-}
+export { IllegalActionError };
+
+// The turn flow (income.ts) asks whether a free action still remains after the main action.
+setFreeActionCheck(hasFreeAction);
 
 export function currentActor(state: GameState): PlayerId {
-  return state.activePlayer;
+  return state.pending[0]?.player ?? state.activePlayer;
 }
 
 export function apply(state: GameState, action: Action, rng: Rng): ApplyResult {
-  if (gameIsOver(state)) {
-    throw new IllegalActionError("The game is over");
-  }
+  if (gameIsOver(state)) throw new IllegalActionError("The game is over");
   const next = cloneState(state);
+  const events: GameEvent[] = [];
+  if (next.pending.length > 0 && !isChoiceAction(action)) {
+    throw new IllegalActionError("Resolve the pending choice first");
+  }
+  if (next.phase !== Phase.Setup && next.phase !== Phase.DecreeChoice && action.player !== currentActor(next)) {
+    throw new IllegalActionError("It is not this player's turn");
+  }
+
   switch (action.type) {
     case "chooseParty":
-      return { state: next, events: applyChooseParty(next, action, rng) };
+      events.push(...applyChooseParty(next, action));
+      break;
     case "chooseStartingHand":
-      return {
-        state: next,
-        events: applyChooseStartingHand(next, action),
-      };
+      events.push(...applyChooseStartingHand(next, action, rng));
+      break;
     case "playCivil":
-      return { state: next, events: applyPlayCivil(next, action) };
+      requireMainAction(next);
+      playToLane(next, action.player, action.instanceId, CardKind.Civil, events);
+      afterMainAction(next, events);
+      break;
     case "playAlliance":
-      return { state: next, events: applyPlayAlliance(next, action) };
+      requireMainAction(next);
+      playToLane(next, action.player, action.instanceId, CardKind.Alliance, events);
+      afterMainAction(next, events);
+      break;
     case "playConspiracy":
-      return { state: next, events: applyPlayConspiracy(next, action) };
+      requireMainAction(next);
+      playConspiracy(next, action.player, action.instanceId, events);
+      afterMainAction(next, events);
+      break;
     case "recruit":
-      return { state: next, events: applyRecruit(next, action) };
+      requireMainAction(next);
+      recruit(next, action.player, action.instanceIds, events);
+      afterMainAction(next, events);
+      break;
     case "construct":
-      return { state: next, events: applyConstruct(next, action, rng) };
-    case "influenceSenate":
-      return { state: next, events: applyInfluenceSenate(next, action) };
-    case "proposePolicy":
-      return { state: next, events: applyProposePolicy(next, action) };
-    case "declareVictory":
-      return { state: next, events: applyDeclareVictory(next, action) };
-    case "endPolitics":
-      return { state: next, events: applyEndPolitics(next, action) };
-    case "activateDecree":
-      return { state: next, events: applyActivateDecree(next, action) };
+      requireMainAction(next);
+      construct(next, action.player, action.instanceIds, action.monumentInstanceId, CONSTRUCT_COST, rng, events);
+      afterMainAction(next, events);
+      break;
     case "endAction":
-      return { state: next, events: applyEndAction(next, action) };
+      requirePhase(next, Phase.Action);
+      if (!next.turn.mainActionDone && mainActions(next, action.player).length > 0) {
+        throw new IllegalActionError("A main action is still available");
+      }
+      next.turn.mainActionDone = true;
+      proceed(next, "politics", events);
+      break;
+    case "freeAction":
+      applyFreeAction(next, action, rng, events);
+      break;
+    case "setAside":
+      applySetAside(next, action, events);
+      break;
+    case "influenceSenate":
+      requirePhase(next, Phase.Politics);
+      seatSenator(next, action.player, action.instanceId, events);
+      proceed(next, "income", events);
+      break;
+    case "proposePolicy":
+      requirePhase(next, Phase.Politics);
+      proposePolicy(next, action.player, action.revealIds, action.discardId, action.district, action.policyId, events);
+      proceed(next, "income", events);
+      break;
+    case "declareVictory": {
+      requirePhase(next, Phase.Politics);
+      const legal = declarableVictories(next, action.player).find((victory) => sameVictory(victory, action.victory));
+      if (!legal) throw new IllegalActionError("That victory cannot be declared now");
+      endGame(next, legal, events);
+      break;
+    }
+    case "endPolitics":
+      requirePhase(next, Phase.Politics);
+      proceed(next, "income", events);
+      break;
     case "takeMarket":
-      return { state: next, events: applyTakeMarket(next, action) };
+      requirePhase(next, Phase.Income);
+      if (!underHandLimit(next, action.player)) {
+        throw new IllegalActionError("Hand is at the limit; you cannot take a market card");
+      }
+      if (!next.market.some((card) => card.instanceId === action.instanceId)) {
+        throw new IllegalActionError("That card is not in the market");
+      }
+      takeMarketCard(next, action.instanceId, events);
+      break;
+    case "activateDecree":
+      requirePhase(next, Phase.DecreeChoice);
+      asIllegal(() => activateDecree(next, action.player, action.decreeId, events), "Illegal decree activation");
+      break;
+    case "chooseDiscard":
+      chooseDiscard(next, action.player, action.instanceId, events);
+      break;
+    case "chooseSwap":
+      chooseSwap(next, action.player, action.swap, events);
+      break;
+    case "chooseIntel":
+      chooseIntel(next, action.player, action.instanceId, events);
+      break;
+    case "choosePress":
+      choosePress(next, action.player, action.instanceId, events);
+      break;
+    case "routeDiscards":
+      routeDiscards(next, action.player, action.moves, events);
+      break;
     default: {
       const never: never = action;
       throw new IllegalActionError(`Unknown action ${(never as Action).type}`);
     }
   }
+  return { state: next, events };
+}
+
+function isChoiceAction(action: Action): boolean {
+  return (
+    action.type === "chooseDiscard" ||
+    action.type === "chooseSwap" ||
+    action.type === "chooseIntel" ||
+    action.type === "choosePress" ||
+    action.type === "routeDiscards"
+  );
+}
+
+function requireMainAction(state: GameState): void {
+  requirePhase(state, Phase.Action);
+  if (state.turn.mainActionDone) throw new IllegalActionError("You already took your main action this turn");
 }
 
 export function legalActions(state: GameState, viewer: PlayerId): Action[] {
   if (gameIsOver(state)) return [];
-  if (state.activePlayer !== viewer) return [];
+  if (state.pending.length > 0) return choiceActions(state, viewer);
 
   if (state.phase === Phase.Setup && state.setup) {
+    if (state.activePlayer !== viewer) return [];
     if (state.setup.step === SetupStep.ChooseParty) {
-      return state.setup.dealtParties[viewer].map((partyId) => ({
-        type: "chooseParty" as const,
-        player: viewer,
-        partyId,
-      }));
+      return state.setup.dealtParties[viewer].map((partyId) => ({ type: "chooseParty" as const, player: viewer, partyId }));
     }
-
     const offer = state.setup.startingOffers[viewer];
     return offer.map((_, omit) => ({
       type: "chooseStartingHand" as const,
       player: viewer,
-      instanceIds: offer
-        .filter((_, index) => index !== omit)
-        .map((card) => card.instanceId),
+      instanceIds: offer.filter((_, index) => index !== omit).map((card) => card.instanceId),
     }));
   }
 
+  if (state.phase === Phase.DecreeChoice) {
+    if (state.pendingDecrees?.player !== viewer) return [];
+    return inactiveDecrees(state).map((decreeId) => ({ type: "activateDecree" as const, player: viewer, decreeId }));
+  }
+
+  if (state.activePlayer !== viewer) return [];
+
   if (state.phase === Phase.Action) {
-    const actions = mainActions(state, viewer);
-    if (actions.length > 0) return actions;
-    return [{ type: "endAction" as const, player: viewer }];
+    const actions: Action[] = [];
+    if (!state.turn.mainActionDone) actions.push(...mainActions(state, viewer));
+    actions.push(...freeActions(state, viewer));
+    actions.push(...setAsideActions(state, viewer));
+    if (state.turn.mainActionDone || mainActions(state, viewer).length === 0) {
+      actions.push({ type: "endAction" as const, player: viewer });
+    }
+    return actions;
   }
 
   if (state.phase === Phase.Politics) {
-    return politicsActions(state, viewer);
-  }
-
-  if (state.phase === Phase.DecreeChoice && state.pendingDecrees?.player === viewer) {
-    return inactiveDecrees(state).map((decreeId) => ({
-      type: "activateDecree" as const,
-      player: viewer,
-      decreeId,
-    }));
+    return [...politicsActions(state, viewer), ...setAsideActions(state, viewer)];
   }
 
   if (state.phase === Phase.Income) {
-    return state.market.map((card) => ({
-      type: "takeMarket" as const,
-      player: viewer,
-      instanceId: card.instanceId,
-    }));
+    return [
+      ...state.market.map((card) => ({ type: "takeMarket" as const, player: viewer, instanceId: card.instanceId })),
+      ...setAsideActions(state, viewer),
+    ];
   }
 
   return [];
 }
 
-export const isLegalAction = (
-  state: GameState,
-  action: Action,
-  viewer: PlayerId,
-): boolean => {
-  return legalActions(state, viewer).some((legal) => actionsEqual(legal, action));
-};
+export const isLegalAction = (state: GameState, action: Action, viewer: PlayerId): boolean =>
+  legalActions(state, viewer).some((legal) => actionsEqual(legal, action));
 
-function mainActions(state: GameState, viewer: PlayerId): Action[] {
+export function mainActions(state: GameState, viewer: PlayerId): Action[] {
   const actions: Action[] = [];
-  const seat = state.players[viewer];
-
-  for (const card of seat.hand) {
+  for (const card of handLikeCards(state, viewer, { market: true })) {
     const def = getCard(card.cardId);
-    if (def.kind === CardKind.Civil) {
-      actions.push({
-        type: "playCivil",
-        player: viewer,
-        instanceId: card.instanceId,
-      });
-    } else if (def.kind === CardKind.Alliance && canPlayAlliance(state, viewer, def.district)) {
-      actions.push({
-        type: "playAlliance",
-        player: viewer,
-        instanceId: card.instanceId,
-      });
-    } else if (def.kind === CardKind.Conspiracy) {
-      actions.push({
-        type: "playConspiracy",
-        player: viewer,
-        instanceId: card.instanceId,
-      });
+    const inHandOnly = !state.market.includes(card);
+    if (def.kind === CardKind.Civil && playBlockReason(state, card.cardId) === null) {
+      actions.push({ type: "playCivil", player: viewer, instanceId: card.instanceId });
+    } else if (inHandOnly && def.kind === CardKind.Alliance && canPlayAlliance(state, viewer, def.district)) {
+      actions.push({ type: "playAlliance", player: viewer, instanceId: card.instanceId });
+    } else if (inHandOnly && def.kind === CardKind.Conspiracy && playBlockReason(state, card.cardId) === null) {
+      actions.push({ type: "playConspiracy", player: viewer, instanceId: card.instanceId });
     }
   }
 
   for (const district of DISTRICTS) {
-    const cards = handCardsInDistrict(state, viewer, district);
-    const ids = cards.map((card) => card.instanceId);
+    // Martial Law: recruiting and constructing both discard 2+ cards of the district.
+    if (martialLawBlocks(state, [district, district])) continue;
+    const ids = handCardsInDistrict(state, viewer, district).map((card) => card.instanceId);
     if (canRecruitIn(state, viewer, district)) {
       for (const combo of combinations(ids, RECRUIT_COST)) {
         actions.push({ type: "recruit", player: viewer, instanceIds: combo });
       }
     }
-    const monuments = state.availableMonuments.filter(
-      (entry) => printedDistrict(entry.cardId) === district,
-    );
+    const monuments = state.availableMonuments.filter((entry) => printedDistrict(entry.cardId) === district);
     if (monuments.length > 0) {
       for (const combo of combinations(ids, CONSTRUCT_COST)) {
         for (const monument of monuments) {
@@ -232,26 +264,23 @@ function mainActions(state: GameState, viewer: PlayerId): Action[] {
       }
     }
   }
-
   return actions;
 }
 
 /**
  * Politics step: exactly one of Influence Senate, Propose Policy, or Declare
- * Victory, or pass. Proposals are listed with the whole hand revealed (the
+ * Victory, or pass. Proposals are listed with every hand card revealed (the
  * engine accepts any passing subset); the UI builds its own reveal set.
  */
 function politicsActions(state: GameState, viewer: PlayerId): Action[] {
   const actions: Action[] = [];
-  const hand = state.players[viewer].hand;
-
-  for (const card of hand) {
+  const cards = handLikeCards(state, viewer, { market: false });
+  for (const card of cards) {
     actions.push({ type: "influenceSenate", player: viewer, instanceId: card.instanceId });
   }
-
-  const revealIds = hand.map((card) => card.instanceId);
-  const revealCardIds = hand.map((card) => card.cardId);
-  if (revealPasses(state, revealCardIds)) {
+  const revealIds = cards.map((card) => card.instanceId);
+  const revealCardIds = cards.map((card) => card.cardId);
+  if (cards.length > 0 && revealPasses(state, revealCardIds)) {
     for (const target of policyTargets(state, revealCardIds)) {
       for (const discardId of revealIds) {
         actions.push({
@@ -265,20 +294,14 @@ function politicsActions(state: GameState, viewer: PlayerId): Action[] {
       }
     }
   }
-
   for (const victory of declarableVictories(state, viewer)) {
     actions.push({ type: "declareVictory", player: viewer, victory });
   }
-
   actions.push({ type: "endPolitics", player: viewer });
   return actions;
 }
 
-function applyChooseParty(
-  state: GameState,
-  action: ChoosePartyAction,
-  rng: Rng,
-): GameEvent[] {
+function applyChooseParty(state: GameState, action: ChoosePartyAction): GameEvent[] {
   const setup = requireSetup(state, SetupStep.ChooseParty);
   if (action.player !== state.activePlayer) {
     throw new IllegalActionError("It is not this player's turn to choose a party");
@@ -295,36 +318,35 @@ function applyChooseParty(
     { type: "partyChosen", player: action.player, partyId: action.partyId },
   ];
 
-  if (action.player === 0) {
-    dealStartingOffer(state, 0);
-    setup.step = SetupStep.ChooseStartingHand;
+  // Parties are chosen in secret; the other seat picks next.
+  const other = action.player === 0 ? 1 : 0;
+  if (!setup.chosenParty[other]) {
+    state.activePlayer = other;
     return events;
   }
 
-  dealStartingOffer(state, 1);
-  events.push(
-    takeStartingHand(
-      state,
-      1,
-      setup.startingOffers[1].map((card) => card.instanceId),
-    ),
-  );
+  // Both chosen: reveal together. The lower party number is the first player and
+  // keeps 3 of their 4 listed cards; the other player takes all 4.
   events.push(...revealParties(state));
-  events.push(...finishSetup(state, rng));
+  const first = state.firstPlayer!;
+  const second = first === 0 ? 1 : 0;
+  dealStartingOffer(state, first);
+  dealStartingOffer(state, second);
+  events.push(takeStartingHand(state, second, setup.startingOffers[second].map((card) => card.instanceId)));
+  setup.step = SetupStep.ChooseStartingHand;
+  state.activePlayer = first;
   return events;
 }
 
 function applyChooseStartingHand(
   state: GameState,
   action: ChooseStartingHandAction,
+  rng: Rng,
 ): GameEvent[] {
   const setup = requireSetup(state, SetupStep.ChooseStartingHand);
-  if (action.player !== state.activePlayer) {
-    throw new IllegalActionError("It is not this player's turn to take a starting hand");
-  }
-  if (action.player !== 0) {
+  if (action.player !== state.firstPlayer) {
     throw new IllegalActionError(
-      "Player 2 is dealt all 4 listed starting cards automatically",
+      "Only the first player (lower party number) picks 3 of 4; the other player takes all 4",
     );
   }
 
@@ -338,16 +360,11 @@ function applyChooseStartingHand(
     throw new IllegalActionError("Starting-hand pick is not one of the listed cards");
   }
   if (action.instanceIds.length !== 3) {
-    throw new IllegalActionError(
-      "Player 1 must take 3 of the 4 listed starting cards",
-    );
+    throw new IllegalActionError("The first player keeps 3 of their 4 listed starting cards");
   }
 
-  const events: GameEvent[] = [
-    takeStartingHand(state, action.player, action.instanceIds),
-  ];
-  setup.step = SetupStep.ChooseParty;
-  state.activePlayer = 1;
+  const events: GameEvent[] = [takeStartingHand(state, action.player, action.instanceIds)];
+  events.push(...finishSetup(state, rng));
   return events;
 }
 
@@ -361,340 +378,9 @@ function requireSetup(state: GameState, step: typeof SetupStep[keyof typeof Setu
   return state.setup;
 }
 
-function applyPlayCivil(state: GameState, action: PlayCivilAction): GameEvent[] {
-  requirePhase(state, Phase.Action);
-  requireActor(state, action.player);
-  const seat = state.players[action.player];
-  if (!seat.hand.some((card) => card.instanceId === action.instanceId)) {
-    throw new IllegalActionError("That card is not in your hand");
-  }
-  const card = takeInstance(seat.hand, action.instanceId);
-  const def = getCard(card.cardId);
-  if (def.kind !== CardKind.Civil) {
-    seat.hand.push(card);
-    throw new IllegalActionError("Only civil cards can be played this way");
-  }
-
-  const played = {
-    ...card,
-    faceUp: true,
-    occupiedDistrict: def.district,
-  };
-  seat.tableau[def.district].push(played);
-  const events: GameEvent[] = [
-    {
-      type: "civilPlayed",
-      player: action.player,
-      instanceId: played.instanceId,
-      cardId: played.cardId,
-      district: def.district,
-    },
-  ];
-  afterMainAction(state, events);
-  return events;
-}
-
-function applyPlayAlliance(state: GameState, action: PlayAllianceAction): GameEvent[] {
-  requirePhase(state, Phase.Action);
-  requireActor(state, action.player);
-  const seat = state.players[action.player];
-  if (!seat.hand.some((card) => card.instanceId === action.instanceId)) {
-    throw new IllegalActionError("That card is not in your hand");
-  }
-  const card = takeInstance(seat.hand, action.instanceId);
-  const def = getCard(card.cardId);
-  if (def.kind !== CardKind.Alliance) {
-    seat.hand.push(card);
-    throw new IllegalActionError("Only alliance cards can be played this way");
-  }
-  if (!canPlayAlliance(state, action.player, def.district)) {
-    seat.hand.push(card);
-    throw new IllegalActionError("Alliance slot in that district is full");
-  }
-
-  const played = {
-    ...card,
-    faceUp: true,
-    occupiedDistrict: def.district,
-  };
-  seat.tableau[def.district].push(played);
-  const events: GameEvent[] = [
-    {
-      type: "alliancePlayed",
-      player: action.player,
-      instanceId: played.instanceId,
-      cardId: played.cardId,
-      district: def.district,
-    },
-  ];
-  afterMainAction(state, events);
-  return events;
-}
-
-function applyPlayConspiracy(
-  state: GameState,
-  action: PlayConspiracyAction,
-): GameEvent[] {
-  requirePhase(state, Phase.Action);
-  requireActor(state, action.player);
-  const seat = state.players[action.player];
-  if (!seat.hand.some((card) => card.instanceId === action.instanceId)) {
-    throw new IllegalActionError("That card is not in your hand");
-  }
-  const card = takeInstance(seat.hand, action.instanceId);
-  const def = getCard(card.cardId);
-  if (def.kind !== CardKind.Conspiracy) {
-    seat.hand.push(card);
-    throw new IllegalActionError("Only conspiracy cards can be played this way");
-  }
-
-  const district = def.district;
-  const wiped: { card: typeof card; owner: PlayerId }[] = [];
-  for (const owner of [0, 1] as const) {
-    const pile = state.players[owner].tableau[district];
-    while (pile.length > 0) {
-      wiped.push({ card: pile.shift()!, owner });
-    }
-  }
-
-  const events: GameEvent[] = [
-    {
-      type: "conspiracyPlayed",
-      player: action.player,
-      instanceId: card.instanceId,
-      cardId: card.cardId,
-      district,
-    },
-  ];
-  discardCards(state, action.player, wiped, events);
-  discardOwn(state, action.player, [card], events);
-  afterMainAction(state, events);
-  return events;
-}
-
-function applyRecruit(state: GameState, action: RecruitAction): GameEvent[] {
-  requirePhase(state, Phase.Action);
-  requireActor(state, action.player);
-  const seat = state.players[action.player];
-  const spent = requireSpend(seat.hand, action.instanceIds, RECRUIT_COST);
-  if (!canRecruitIn(state, action.player, spent.district)) {
-    for (const card of spent.cards) seat.hand.push(card);
-    throw new IllegalActionError(
-      "Recruiting needs a card already in your support pile for that district",
-    );
-  }
-  const events: GameEvent[] = [];
-  discardOwn(state, action.player, spent.cards, events);
-  seat.partisans += 1;
-  events.push({
-    type: "partisansRecruited",
-    player: action.player,
-    count: seat.partisans,
-  });
-  afterMainAction(state, events);
-  return events;
-}
-
-function applyConstruct(
-  state: GameState,
-  action: ConstructAction,
-  rng: Rng,
-): GameEvent[] {
-  requirePhase(state, Phase.Action);
-  requireActor(state, action.player);
-  const seat = state.players[action.player];
-  const spent = requireSpend(seat.hand, action.instanceIds, CONSTRUCT_COST);
-  const monumentIndex = state.availableMonuments.findIndex(
-    (entry) => entry.instanceId === action.monumentInstanceId,
-  );
-  if (monumentIndex < 0) {
-    for (const card of spent.cards) seat.hand.push(card);
-    throw new IllegalActionError("That monument is not available");
-  }
-  const monument = state.availableMonuments[monumentIndex]!;
-  if (printedDistrict(monument.cardId) !== spent.district) {
-    for (const card of spent.cards) seat.hand.push(card);
-    throw new IllegalActionError("Monument district must match the cards spent");
-  }
-
-  state.availableMonuments.splice(monumentIndex, 1);
-  const placed = { ...monument, faceUp: true };
-  seat.monuments.push(placed);
-  const events: GameEvent[] = [
-    {
-      type: "monumentConstructed",
-      player: action.player,
-      instanceId: placed.instanceId,
-      cardId: placed.cardId,
-    },
-  ];
-  replenishMonuments(state, rng, events);
-  discardOwn(state, action.player, spent.cards, events);
-  state.turn.constructedMonument = true;
-  afterMainAction(state, events);
-  return events;
-}
-
-function replenishMonuments(state: GameState, rng: Rng, events: GameEvent[]): void {
-  if (state.monumentDeck.length === 0) return;
-  const index = rng.nextInt(state.monumentDeck.length);
-  const next = state.monumentDeck.splice(index, 1)[0]!;
-  state.availableMonuments.push({ ...next, faceUp: true });
-  events.push({ type: "monumentReplenished", cardId: next.cardId });
-}
-
-function applyInfluenceSenate(state: GameState, action: InfluenceSenateAction): GameEvent[] {
-  requirePhase(state, Phase.Politics);
-  requireActor(state, action.player);
-  const seat = state.players[action.player];
-  if (!seat.hand.some((card) => card.instanceId === action.instanceId)) {
-    throw new IllegalActionError("That card is not in your hand");
-  }
-  const card = takeInstance(seat.hand, action.instanceId);
-  const events: GameEvent[] = [];
-  influenceSenate(state, action.player, card, events);
-  beginIncome(state, events);
-  return events;
-}
-
-function applyProposePolicy(state: GameState, action: ProposePolicyAction): GameEvent[] {
-  requirePhase(state, Phase.Politics);
-  requireActor(state, action.player);
-  const seat = state.players[action.player];
-  const revealIds = action.revealIds;
-  if (revealIds.length === 0 || new Set(revealIds).size !== revealIds.length) {
-    throw new IllegalActionError("Reveal one or more distinct cards");
-  }
-  const revealed = revealIds.map((id) => {
-    const card = seat.hand.find((entry) => entry.instanceId === id);
-    if (!card) throw new IllegalActionError("Revealed cards must come from your hand");
-    return card;
-  });
-  if (!revealIds.includes(action.discardId)) {
-    throw new IllegalActionError("The discarded card must be one of the revealed cards");
-  }
-  const revealedCardIds = revealed.map((card) => card.cardId);
-  if (!revealPasses(state, revealedCardIds)) {
-    throw new IllegalActionError("Those cards do not convince more than half of the Senate");
-  }
-  if (!state.districtOrder.includes(action.district)) {
-    throw new IllegalActionError("Unknown district");
-  }
-  if (!revealedDistricts(revealedCardIds).includes(action.district)) {
-    throw new IllegalActionError("The changed policy must be in a district of a revealed card");
-  }
-  if (!policyOptions(state, action.district).includes(action.policyId)) {
-    throw new IllegalActionError(
-      "Policies move from neutral to a side, or from a side back to neutral",
-    );
-  }
-
-  const events: GameEvent[] = [
-    {
-      type: "policyProposed",
-      player: action.player,
-      revealedCardIds,
-      votes: convincedVotes(state, revealedCardIds),
-      totalVotes: senateTotalVotes(state),
-    },
-  ];
-  const discarded = takeInstance(seat.hand, action.discardId);
-  discardOwn(state, action.player, [discarded], events);
-  state.policy[action.district] = action.policyId;
-  events.push({
-    type: "policyChanged",
-    district: action.district,
-    policyId: action.policyId,
-    player: action.player,
-  });
-  beginIncome(state, events);
-  return events;
-}
-
-function applyDeclareVictory(state: GameState, action: DeclareVictoryAction): GameEvent[] {
-  requirePhase(state, Phase.Politics);
-  requireActor(state, action.player);
-  const legal = declarableVictories(state, action.player).find((victory) =>
-    sameVictory(victory, action.victory),
-  );
-  if (!legal) {
-    throw new IllegalActionError("That victory cannot be declared now");
-  }
-  const events: GameEvent[] = [];
-  endGame(state, legal, events);
-  return events;
-}
-
-function applyEndPolitics(state: GameState, action: EndPoliticsAction): GameEvent[] {
-  requirePhase(state, Phase.Politics);
-  requireActor(state, action.player);
-  const events: GameEvent[] = [];
-  beginIncome(state, events);
-  return events;
-}
-
-function applyActivateDecree(state: GameState, action: ActivateDecreeAction): GameEvent[] {
-  requirePhase(state, Phase.DecreeChoice);
-  requireActor(state, action.player);
-  const events: GameEvent[] = [];
-  try {
-    activateDecree(state, action.player, action.decreeId, events);
-  } catch (error) {
-    throw new IllegalActionError(
-      error instanceof Error ? error.message : "Illegal decree activation",
-    );
-  }
-  return events;
-}
-
-function applyEndAction(state: GameState, action: EndActionAction): GameEvent[] {
-  requirePhase(state, Phase.Action);
-  requireActor(state, action.player);
-  if (mainActions(state, action.player).length > 0) {
-    throw new IllegalActionError("A main action is still available");
-  }
-  const events: GameEvent[] = [];
-  afterMainAction(state, events);
-  return events;
-}
-
-function applyTakeMarket(state: GameState, action: TakeMarketAction): GameEvent[] {
-  requirePhase(state, Phase.Income);
-  requireActor(state, action.player);
-  if (!underHandLimit(state, action.player)) {
-    throw new IllegalActionError("Hand is at the limit; you cannot take a market card");
-  }
-  if (!state.market.some((card) => card.instanceId === action.instanceId)) {
-    throw new IllegalActionError("That card is not in the market");
-  }
-  const events: GameEvent[] = [];
-  takeMarketCard(state, action.instanceId, events);
-  return events;
-}
-
-function requireSpend(
-  hand: GameState["players"][0]["hand"],
-  instanceIds: readonly string[],
-  count: number,
-) {
-  try {
-    return takeSpend(hand, instanceIds, count);
-  } catch (error) {
-    throw new IllegalActionError(
-      error instanceof Error ? error.message : "Illegal cards spent",
-    );
-  }
-}
-
-function requirePhase(state: GameState, phase: typeof Phase[keyof typeof Phase]) {
+function requirePhase(state: GameState, phase: (typeof Phase)[keyof typeof Phase]) {
   if (state.phase !== phase) {
     throw new IllegalActionError(`Expected ${phase} phase, got ${state.phase}`);
-  }
-}
-
-function requireActor(state: GameState, player: PlayerId) {
-  if (player !== state.activePlayer) {
-    throw new IllegalActionError("It is not this player's turn");
   }
 }
 
@@ -746,7 +432,7 @@ function actionsEqual(a: Action, b: Action): boolean {
   }
   if (a.type === "endAction" && b.type === "endAction") return true;
   if (a.type === "endPolitics" && b.type === "endPolitics") return true;
-  return false;
+  return JSON.stringify(a) === JSON.stringify(b);
 }
 
 export function chosenPartyId(
@@ -761,7 +447,7 @@ export function playTargetDistrict(
   player: PlayerId,
   instanceId: string,
 ): DistrictId | null {
-  const card = state.players[player].hand.find((entry) => entry.instanceId === instanceId);
+  const card = handLikeCards(state, player, { market: true }).find((entry) => entry.instanceId === instanceId);
   if (!card) return null;
   const def = getCard(card.cardId);
   if (
@@ -773,3 +459,4 @@ export function playTargetDistrict(
   }
   return null;
 }
+

@@ -4,7 +4,7 @@ Local hotseat simulator first. The same rules engine should later run a networke
 
 ## Where things stand (2026-11-11)
 
-**Phase R (rules migration) is done.** Engine, catalog, art, tests, and hotseat UI follow the current rulebook. Next up is **Phase 6 — card abilities**.
+**Phase R (rules migration) and Phase 6 (card abilities) are done.** Engine, catalog, art, tests, and hotseat UI follow the current rulebook, and every base-game card ability works. Next up is **Phase 7 — hotseat finish**.
 
 | Area | State |
 | --- | --- |
@@ -14,7 +14,7 @@ Local hotseat simulator first. The same rules engine should later run a networke
 | Politics step (`senate.ts`, `engine.ts`) | Influence Senate / Propose Policy / Declare Victory / pass. |
 | Elections (`election.ts`, `draw.ts`) | GE opens the phase immediately (Market 8, count GEs), turn order unchanged, resolves when the Market is empty after a turn, tie-breaks, winner activates decrees (`decreeChoice` phase), final election → Civil. |
 | Victory (`victory.ts`, `decrees.ts`) | All victories declared in Politics except Civil at the final election. Political via decrees; new Ideological math; Roman Basilica and Smart Doctrine (victory-related) implemented. |
-| Abilities | Everything else from alliances, monuments, and policies is **not** implemented yet (Phase 6). Planet Next's bank zone exists in state and influence, but there's no action to bank cards yet. |
+| Abilities | All base-game abilities implemented (Phase 6). |
 | UI (`components/game`) | Senate + decree row (`SenateRow`), propose flow (reveal → policy → discard), Seat in the Senate, Declare buttons, `DecreeChoice` overlay. Executive, referendum, and first-player UI removed. |
 | Action log | Stashed (`git stash list`: "WIP: action log (pre-2026-11 rules)"). Re-apply and rename events to the new `GameEvent` types. |
 | Lint | Two pre-existing `react-hooks/set-state-in-effect` errors in `TableTour.tsx` (not from the migration). |
@@ -116,6 +116,21 @@ Implement handlers in dependency order:
 2. Monuments (hand limit, free actions, Smart Doctrine symbols)
 3. Alliances in starting hands and the FAQ
 4. Remaining alliances
+
+**Done (2026-11-12): every base-game ability is implemented and tested.**
+
+| Module | What lives there |
+| --- | --- |
+| `abilities.ts` | Continuous effects: silencing (District Governor, Financial Bankers), live-effect lookups, hand and alliance limits, Market Regulation, Martial Law, Order of Knights blocks, policy freeze, United Front |
+| `influence.ts` | Secularism, Populist Forum, Economic Reform, Order of Knights +1, Planet Next bank |
+| `election.ts` | Diet of Saints (wins Shavvinne; discards Shavvinne civils after the election), Divine Inquisitors, Civil Service veto |
+| `plays.ts` | Shared building blocks for plays, recruiting, building, Senate, proposals; lane-entry triggers (Model Society, Currency Ballots, Urban Aristocrats); Project Habitat |
+| `free-actions.ts` | Kybernetik, Foreign Inc., Century Inc., Architecture Inc., Rebel Inc., Capitol Inc., Intel Network; setting cards aside (Planet Next, Consultative Office) |
+| `choices.ts` | Pending choices: Currency Ballots discard, Urban Aristocrats swap, Intel Network pick, People's Press draw, Space Agency routing |
+| `main.ts` | "As if in hand" zones: hand, Consultative Office, Planet Next bank, and Market Dragonara civils with State Enterprise |
+| `income.ts` | Turn flow with `proceed` / `resumeAfterChoice`: a pending choice pauses the turn and it resumes where it left off; the action step stays open after the main action while a free action is available |
+
+Tests: `abilities.test.ts` (continuous) and `free-actions.test.ts` (free actions and choices).
 
 Each ability gets at least one engine test. An unimplemented ability is unusable (cannot activate). If the card can still be played for its slot/symbols, show "ability not implemented" and allow the play.
 

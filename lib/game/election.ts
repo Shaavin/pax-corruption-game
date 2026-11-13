@@ -1,6 +1,10 @@
 import { getCard } from "../cards/catalog.ts";
 import { CardKind, DISTRICTS, type DecreeIdValue, type DistrictId } from "../cards/schema.ts";
+import { EffectId } from "../cards/effects.ts";
+import { District, MonumentId } from "../cards/schema.ts";
+import { activeAlliances, hasActiveAlliance, ownsMonument } from "./abilities.ts";
 import { inactiveDecrees } from "./decrees.ts";
+import { discardCards } from "./discard.ts";
 import { replenishMarket } from "./draw.ts";
 import { playerDistrictInfluence } from "./influence.ts";
 import {
@@ -97,6 +101,7 @@ export function tallyElection(state: GameState): ElectionTally {
     let winner: PlayerId | null = null;
     if (influence[0] > influence[1]) winner = 0;
     else if (influence[1] > influence[0]) winner = 1;
+    winner = districtOverride(state, district, winner);
     districts[district] = { winner, electors: districtElectors, influence };
     if (winner !== null) {
       electorates[winner] += 1;
@@ -124,6 +129,49 @@ export function tallyElection(state: GameState): ElectionTally {
     winner,
     tieBreak,
   };
+}
+
+/**
+ * Alliance and monument effects that decide a district regardless of influence:
+ * Diet of Saints and Divine Inquisitors (Shavvinne), then Civil Service as a veto.
+ */
+export function districtOverride(
+  state: GameState,
+  district: DistrictId,
+  byInfluence: PlayerId | null,
+): PlayerId | null {
+  let winner = byInfluence;
+  if (district === District.Shavvinne) {
+    const claims = new Set<PlayerId>();
+    for (const player of PLAYERS) {
+      // Diet of Saints: "You always have higher influence in Shavvinne."
+      if (hasActiveAlliance(state, player, EffectId.AlwaysHigherInfluenceDiscardCivilAfterElection, District.Shavvinne)) {
+        claims.add(player);
+      }
+    }
+    // Divine Inquisitors: "You win Shavvinne during elections if this is the only alliance card in the district."
+    const inShavvinne = activeAlliances(state).filter((alliance) => alliance.occupied === District.Shavvinne);
+    const allInShavvinne = PLAYERS.flatMap((player) =>
+      state.players[player].tableau[District.Shavvinne].filter((card) => getCard(card.cardId).kind === CardKind.Alliance),
+    );
+    const inquisitor = inShavvinne.find((alliance) => alliance.effectIds.includes(EffectId.WinIfOnlyAlliance));
+    if (inquisitor && allInShavvinne.length === 1) claims.add(inquisitor.owner);
+    // Conflicting claims (both players) cancel out: nobody wins the district.
+    if (claims.size === 1) winner = [...claims][0]!;
+    else if (claims.size === 2) winner = null;
+  }
+  // Civil Service: "Opponent cannot win a district where they don't have more civil cards."
+  if (winner !== null) {
+    const owner = otherPlayer(winner);
+    if (ownsMonument(state, owner, MonumentId.CivilService) && civilCount(state, winner, district) <= civilCount(state, owner, district)) {
+      winner = null;
+    }
+  }
+  return winner;
+}
+
+function civilCount(state: GameState, player: PlayerId, district: DistrictId): number {
+  return state.players[player].tableau[district].filter((card) => getCard(card.cardId).kind === CardKind.Civil).length;
 }
 
 /** Electorates → cards in won electorates → incumbent → first player (first election). */
@@ -187,6 +235,19 @@ export function resolveElection(state: GameState, nextPlayer: PlayerId, events: 
   state.players[winner].electionWins += 1;
   state.election.lastWinner = winner;
   events.push({ type: "electionWon", player: winner, wins: state.players[winner].electionWins });
+
+  // Diet of Saints: "Discard ALL civil cards in Shavvinne after an election" (both players').
+  const dietOwner = PLAYERS.find((player) =>
+    hasActiveAlliance(state, player, EffectId.AlwaysHigherInfluenceDiscardCivilAfterElection, District.Shavvinne),
+  );
+  if (dietOwner !== undefined) {
+    for (const owner of PLAYERS) {
+      const lane = state.players[owner].tableau[District.Shavvinne];
+      const civils = lane.filter((card) => getCard(card.cardId).kind === CardKind.Civil);
+      state.players[owner].tableau[District.Shavvinne] = lane.filter((card) => !civils.includes(card));
+      discardCards(state, owner, civils.map((card) => ({ card, owner })), events, { reroutable: false });
+    }
+  }
 
   const generalElections = state.election.generalElections;
   state.election.active = false;

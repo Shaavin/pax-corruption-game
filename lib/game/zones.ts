@@ -6,7 +6,7 @@ export function otherPlayer(player: PlayerId): PlayerId {
 }
 
 export function emptyTurn(): TurnState {
-  return { constructedMonument: false };
+  return { constructedMonument: false, mainActionDone: false, skipIncome: false, freeActionsUsed: [] };
 }
 
 export function emptyByDistrict<T>(make: () => T): Record<DistrictId, T> {

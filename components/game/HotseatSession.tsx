@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { ChoiceOverlay } from "./ChoiceOverlay";
 import { DecreeChoice } from "./DecreeChoice";
 import { GameOverOverlay } from "./GameOverOverlay";
 import { PassDeviceGate } from "./PassDeviceGate";
@@ -11,8 +12,15 @@ import { tableModel } from "./table-model";
 import { getCard } from "@/lib/cards/catalog";
 import { CardKind, type DistrictId, type PolicyIdValue } from "@/lib/cards/schema";
 import {
+  alliancesInPlay,
   apply,
+  ARCHITECTURE_COST,
   CONSTRUCT_COST,
+  freeActions,
+  freeActionSources,
+  handLikeCards,
+  setAsideActions,
+  type FreeActionAction,
   convincedSenators,
   convincedVotes,
   createGame,
@@ -49,7 +57,24 @@ type Session = {
   history: GameEvent[];
 };
 
-type SpendKind = "recruit" | "construct" | "propose";
+const DISTRICT_NAME: Record<DistrictId, string> = {
+  dragonara: "Dragonara",
+  horsard: "Horsard",
+  shavvinne: "Shavvinne",
+  smarbbit: "Smarbbit",
+};
+
+type SpendKind = "recruit" | "construct" | "propose" | "foreign" | "century";
+
+const FREE_LABEL: Record<FreeActionAction["ability"], (name: string, district: DistrictId | null) => string> = {
+  kybernetik: () => "Kybernetik: draw to limit",
+  foreignInc: (_name, district) => `Foreign Inc.: seat a ${district ? DISTRICT_NAME[district] : ""} card`,
+  centuryInc: () => "Century Inc.: replace an alliance",
+  architectureInc: () => "Architecture Inc.: build with 4",
+  rebelInc: () => "Rebel Inc.: recruit",
+  capitolInc: () => "Capitol Inc.: propose",
+  intelNetwork: () => "Intel Network: inspect deck",
+};
 
 type PolicyTarget = { district: DistrictId; policyId: PolicyIdValue | null };
 
@@ -62,12 +87,6 @@ const START_OF_TURN = new Set<Action["type"]>([
   "endAction",
 ]);
 
-const DISTRICT_NAME: Record<DistrictId, string> = {
-  dragonara: "Dragonara",
-  horsard: "Horsard",
-  shavvinne: "Shavvinne",
-  smarbbit: "Smarbbit",
-};
 
 export function HotseatSession({ seed }: { seed: number }) {
   const [session, setSession] = useState<Session>(() => startSession(seed));
@@ -75,6 +94,8 @@ export function HotseatSession({ seed }: { seed: number }) {
   const [selectedHandIds, setSelectedHandIds] = useState<string[]>([]);
   const [spendKind, setSpendKind] = useState<SpendKind | null>(null);
   const [proposeTarget, setProposeTarget] = useState<PolicyTarget | null>(null);
+  /** Free-action source driving the current mode (Rebel, Architecture, Capitol, Foreign, Century). */
+  const [via, setVia] = useState<string | null>(null);
 
   const { state } = session;
   const actor = currentActor(state);
@@ -92,6 +113,7 @@ export function HotseatSession({ seed }: { seed: number }) {
     setSelectedHandIds([]);
     setSpendKind(null);
     setProposeTarget(null);
+    setVia(null);
   }
 
   useEffect(() => {
@@ -100,6 +122,7 @@ export function HotseatSession({ seed }: { seed: number }) {
       setSelectedHandIds([]);
       setSpendKind(null);
       setProposeTarget(null);
+      setVia(null);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -118,9 +141,12 @@ export function HotseatSession({ seed }: { seed: number }) {
     });
   }
 
-  const hand = state.players[viewer].hand;
+  // Cards usable "as if in hand": hand, set-aside zones, and (State Enterprise) Market civils.
+  const pool = useMemo(() => handLikeCards(state, viewer, { market: true }), [state, viewer]);
+  const revealPool = useMemo(() => handLikeCards(state, viewer, { market: false }), [state, viewer]);
   const inPolitics = state.phase === Phase.Politics;
   const inAction = state.phase === Phase.Action;
+  const choice = state.pending[0] ?? null;
 
   const playableHandIds = useMemo(() => {
     const ids = new Set<string>();
@@ -129,87 +155,167 @@ export function HotseatSession({ seed }: { seed: number }) {
         action.type === "playCivil" ||
         action.type === "playAlliance" ||
         action.type === "playConspiracy" ||
-        action.type === "influenceSenate"
+        action.type === "influenceSenate" ||
+        action.type === "setAside"
       ) {
-        ids.add(action.instanceId);
+        ids.add("instanceId" in action ? action.instanceId : action.instanceIds[0]!);
       }
     }
     return ids;
   }, [legal]);
 
-  const takeableMarketIds = useMemo(() => {
-    const ids = new Set<string>();
-    for (const action of legal) {
-      if (action.type === "takeMarket") ids.add(action.instanceId);
-    }
-    return ids;
-  }, [legal]);
+  const freeOptions = useMemo(() => (inAction ? freeActions(state, viewer) : []), [state, viewer, inAction]);
+  const freeSources = useMemo(
+    () =>
+      freeActionSources(state, viewer).filter((source) =>
+        freeOptions.some((option) => option.source === source.source && option.ability === source.ability),
+      ),
+    [state, viewer, freeOptions],
+  );
 
-  // --- Spending (recruit / construct) ---------------------------------------------
+  // --- Spending (recruit / construct, also via Rebel Inc. / Architecture Inc.) ---------
   const spendCost =
-    spendKind === "recruit" ? RECRUIT_COST : spendKind === "construct" ? CONSTRUCT_COST : 0;
-  const selectedDistrict = districtOfSelection(hand, selectedHandIds);
+    spendKind === "recruit"
+      ? RECRUIT_COST
+      : spendKind === "construct"
+        ? via
+          ? ARCHITECTURE_COST
+          : CONSTRUCT_COST
+        : 0;
+  const selectedDistrict = districtOfSelection(pool, selectedHandIds);
   const spendReady =
     (spendKind === "recruit" || spendKind === "construct") &&
     selectedHandIds.length === spendCost &&
     selectedDistrict !== null;
 
-  // --- Propose Policy ----------------------------------------------------------------
+  // --- Propose Policy (also via Capitol Inc.) ----------------------------------------
   const revealedCardIds = selectedHandIds
-    .map((id) => hand.find((card) => card.instanceId === id)?.cardId)
+    .map((id) => revealPool.find((card) => card.instanceId === id)?.cardId)
     .filter((id): id is string => Boolean(id));
   const proposing = spendKind === "propose";
   const revealPassing = proposing && revealedCardIds.length > 0 && revealPasses(state, revealedCardIds);
   const convinced = proposing ? new Set(convincedSenators(state, revealedCardIds)) : undefined;
   const revealVotes = proposing ? convincedVotes(state, revealedCardIds) : null;
-  const wholeHandPasses = hand.length > 0 && revealPasses(state, hand.map((card) => card.cardId));
+  const wholeHandPasses = revealPool.length > 0 && revealPasses(state, revealPool.map((card) => card.cardId));
+
+  const foreignSource = spendKind === "foreign" ? freeSources.find((source) => source.source === via) : undefined;
 
   const selectableHandIds = useMemo(() => {
     if (spendKind === "recruit" || spendKind === "construct") {
-      return spendSelectable(hand, selectedHandIds, spendCost);
+      return spendSelectable(pool, selectedHandIds, spendCost);
     }
     if (spendKind === "propose") {
-      return proposeTarget ? new Set(selectedHandIds) : new Set(hand.map((card) => card.instanceId));
+      return proposeTarget ? new Set(selectedHandIds) : new Set(revealPool.map((card) => card.instanceId));
+    }
+    if (spendKind === "foreign" && foreignSource) {
+      return new Set(
+        revealPool
+          .filter((card) => printedDistrictOrNull(card.cardId) === foreignSource.district)
+          .map((card) => card.instanceId),
+      );
+    }
+    if (spendKind === "century") {
+      return new Set(revealPool.filter((card) => getCard(card.cardId).kind === CardKind.Alliance).map((card) => card.instanceId));
     }
     if (inPolitics || inAction) return playableHandIds;
     return new Set<string>();
-  }, [spendKind, hand, selectedHandIds, spendCost, proposeTarget, inPolitics, inAction, playableHandIds]);
+  }, [spendKind, pool, revealPool, selectedHandIds, spendCost, proposeTarget, foreignSource, inPolitics, inAction, playableHandIds]);
 
-  const selectedCard =
-    selectedHandIds.length === 1 ? hand.find((card) => card.instanceId === selectedHandIds[0]) : undefined;
+  const selectedCard = selectedHandIds.length === 1 ? pool.find((card) => card.instanceId === selectedHandIds[0]) : undefined;
   const playDistrict =
-    !spendKind && inAction && selectedCard
+    !spendKind && inAction && selectedCard && playableHandIds.has(selectedCard.instanceId)
       ? playTargetDistrict(state, viewer, selectedCard.instanceId)
       : null;
   const targetLabel =
-    selectedCard && getCard(selectedCard.cardId).kind === CardKind.Conspiracy
-      ? "Wipe this district"
-      : "Play here";
+    selectedCard && getCard(selectedCard.cardId).kind === CardKind.Conspiracy ? "Wipe this district" : "Play here";
 
   const claimableMonumentIds = useMemo(() => {
     const ids = new Set<string>();
     if (spendKind !== "construct" || !spendReady || !selectedDistrict) return ids;
+    for (const monument of state.availableMonuments) {
+      if (printedDistrict(monument.cardId) === selectedDistrict) ids.add(monument.instanceId);
+    }
+    return ids;
+  }, [spendKind, spendReady, selectedDistrict, state.availableMonuments]);
+
+  // Market cards you can act on: take at income, or (State Enterprise) use as if in hand.
+  const marketIds = useMemo(() => {
+    const ids = new Set<string>();
     for (const action of legal) {
-      if (action.type === "construct" && sameIds(action.instanceIds, selectedHandIds)) {
-        ids.add(action.monumentInstanceId);
+      if (action.type === "takeMarket") ids.add(action.instanceId);
+    }
+    if (inAction && !choice) {
+      for (const card of state.market) {
+        if (pool.some((entry) => entry.instanceId === card.instanceId)) {
+          if (spendKind ? selectableHandIds.has(card.instanceId) : playableHandIds.has(card.instanceId)) {
+            ids.add(card.instanceId);
+          }
+        }
       }
     }
     return ids;
-  }, [spendKind, spendReady, selectedDistrict, legal, selectedHandIds]);
+  }, [legal, inAction, choice, state.market, pool, spendKind, selectableHandIds, playableHandIds]);
 
   const canEndAction = legal.some((action) => action.type === "endAction");
   const recruitReason = recruitBlockReason(state, viewer);
   const constructReason = constructBlockReason(state, viewer);
   const declarable = inPolitics ? declarableVictories(state, viewer) : [];
-  const seatArmed = inPolitics && !spendKind && selectedCard !== undefined;
+  const seatArmed = inPolitics && !spendKind && selectedCard !== undefined && !state.market.includes(selectedCard);
+  const setAsideFor = selectedCard
+    ? setAsideActions(state, viewer).filter((action) => action.instanceIds[0] === selectedCard.instanceId)
+    : [];
+
+  function startMode(kind: SpendKind, source: string | null = null) {
+    setSpendKind(kind);
+    setVia(source);
+    setSelectedHandIds([]);
+    setProposeTarget(null);
+  }
+
+  function selectCard(instanceId: string) {
+    if (spendKind === "propose") {
+      if (proposeTarget) {
+        if (!selectedHandIds.includes(instanceId)) return;
+        const proposal = {
+          revealIds: selectedHandIds,
+          discardId: instanceId,
+          district: proposeTarget.district,
+          policyId: proposeTarget.policyId,
+        };
+        if (via) dispatch({ type: "freeAction", player: viewer, source: via, ability: "capitolInc", ...proposal });
+        else dispatch({ type: "proposePolicy", player: viewer, ...proposal });
+        return;
+      }
+      setSelectedHandIds((current) =>
+        current.includes(instanceId) ? current.filter((id) => id !== instanceId) : [...current, instanceId],
+      );
+      return;
+    }
+    if (spendKind === "foreign" && via) {
+      dispatch({ type: "freeAction", player: viewer, source: via, ability: "foreignInc", instanceId });
+      return;
+    }
+    if (spendKind === "century") {
+      setSelectedHandIds([instanceId]);
+      return;
+    }
+    if (spendKind) {
+      setSelectedHandIds((current) => toggleSpend(pool, current, instanceId, spendCost));
+      return;
+    }
+    setSelectedHandIds((current) => (current.length === 1 && current[0] === instanceId ? [] : [instanceId]));
+  }
 
   const extraActions: ExtraAction[] = [];
   if (spendKind) {
     extraActions.push({ label: "Cancel", tone: "ghost", onClick: resetSelection });
     if (spendKind === "recruit" && spendReady) {
       extraActions.push({
-        label: "Recruit",
-        onClick: () => dispatch({ type: "recruit", player: viewer, instanceIds: selectedHandIds }),
+        label: via ? "Recruit (Rebel Inc.)" : "Recruit",
+        onClick: () =>
+          via
+            ? dispatch({ type: "freeAction", player: viewer, source: via, ability: "rebelInc", instanceIds: selectedHandIds })
+            : dispatch({ type: "recruit", player: viewer, instanceIds: selectedHandIds }),
       });
     }
     if (spendKind === "propose" && revealPassing && !proposeTarget) {
@@ -221,30 +327,81 @@ export function HotseatSession({ seed }: { seed: number }) {
         });
       }
     }
+    if (spendKind === "century" && via && selectedCard) {
+      for (const target of alliancesInPlay(state)) {
+        const owner = target.owner === viewer ? "yours" : "theirs";
+        extraActions.push({
+          label: `Replace ${getCard(target.card.cardId).name} (${owner}, ${DISTRICT_NAME[target.occupied]})`,
+          onClick: () =>
+            dispatch({
+              type: "freeAction",
+              player: viewer,
+              source: via,
+              ability: "centuryInc",
+              instanceId: selectedCard.instanceId,
+              target: { owner: target.owner, instanceId: target.card.instanceId },
+            }),
+        });
+      }
+    }
   } else if (inAction) {
-    extraActions.push({
-      label: "Recruit",
-      tone: "neutral",
-      disabled: recruitReason !== null,
-      title: recruitReason ?? "Discard 3 cards of the same district",
-      onClick: () => {
-        setSpendKind("recruit");
-        setSelectedHandIds([]);
-      },
-    });
-    extraActions.push({
-      label: "Construct",
-      tone: "neutral",
-      disabled: constructReason !== null,
-      title: constructReason ?? "Discard 5 cards of the same district to claim a monument",
-      onClick: () => {
-        setSpendKind("construct");
-        setSelectedHandIds([]);
-      },
-    });
+    if (!state.turn.mainActionDone) {
+      extraActions.push({
+        label: "Recruit",
+        tone: "neutral",
+        disabled: recruitReason !== null,
+        title: recruitReason ?? "Discard 3 cards of the same district",
+        onClick: () => startMode("recruit"),
+      });
+      extraActions.push({
+        label: "Construct",
+        tone: "neutral",
+        disabled: constructReason !== null,
+        title: constructReason ?? "Discard 5 cards of the same district to claim a monument",
+        onClick: () => startMode("construct"),
+      });
+    }
+    for (const source of freeSources) {
+      const name = getCard(source.cardId).name;
+      const label = FREE_LABEL[source.ability](name, source.district);
+      extraActions.push({
+        label,
+        title: "Free action · once this turn",
+        onClick: () => {
+          switch (source.ability) {
+            case "kybernetik":
+            case "intelNetwork":
+              dispatch({ type: "freeAction", player: viewer, source: source.source, ability: source.ability });
+              return;
+            case "foreignInc":
+              startMode("foreign", source.source);
+              return;
+            case "centuryInc":
+              startMode("century", source.source);
+              return;
+            case "architectureInc":
+              startMode("construct", source.source);
+              return;
+            case "rebelInc":
+              startMode("recruit", source.source);
+              return;
+            case "capitolInc":
+              startMode("propose", source.source);
+              return;
+          }
+        },
+      });
+    }
+    for (const action of setAsideFor) {
+      extraActions.push({
+        label: action.zone === "planetNextBank" ? "Bank in Planet Next" : "Move to Consultative Office",
+        tone: "neutral",
+        onClick: () => dispatch(action),
+      });
+    }
     if (canEndAction) {
       extraActions.push({
-        label: "No main action — continue",
+        label: state.turn.mainActionDone ? "End action step" : "No main action — continue",
         tone: "neutral",
         onClick: () => dispatch({ type: "endAction", player: viewer }),
       });
@@ -254,8 +411,14 @@ export function HotseatSession({ seed }: { seed: number }) {
       extraActions.push({
         label: "Seat in the Senate",
         title: "The rightmost Senator is discarded to your support pile",
-        onClick: () =>
-          dispatch({ type: "influenceSenate", player: viewer, instanceId: selectedCard.instanceId }),
+        onClick: () => dispatch({ type: "influenceSenate", player: viewer, instanceId: selectedCard.instanceId }),
+      });
+    }
+    for (const action of setAsideFor) {
+      extraActions.push({
+        label: action.zone === "planetNextBank" ? "Bank in Planet Next" : "Move to Consultative Office",
+        tone: "neutral",
+        onClick: () => dispatch(action),
       });
     }
     extraActions.push({
@@ -265,10 +428,7 @@ export function HotseatSession({ seed }: { seed: number }) {
       title: wholeHandPasses
         ? "Reveal cards that convince more than half of the Senate"
         : "Your hand can't convince more than half of the Senate",
-      onClick: () => {
-        setSpendKind("propose");
-        setSelectedHandIds([]);
-      },
+      onClick: () => startMode("propose"),
     });
     for (const victory of declarable) {
       extraActions.push({
@@ -281,46 +441,27 @@ export function HotseatSession({ seed }: { seed: number }) {
       tone: "neutral",
       onClick: () => dispatch({ type: "endPolitics", player: viewer }),
     });
+  } else if (state.phase === Phase.Income) {
+    for (const action of setAsideFor) {
+      extraActions.push({
+        label: action.zone === "planetNextBank" ? "Bank in Planet Next" : "Move to Consultative Office",
+        tone: "neutral",
+        onClick: () => dispatch(action),
+      });
+    }
   }
 
   const pendingDecrees = state.phase === Phase.DecreeChoice ? state.pendingDecrees : null;
 
   const interaction =
-    veiled || waitingFirstSeat || inSetup || state.victory || pendingDecrees
+    veiled || waitingFirstSeat || inSetup || state.victory || pendingDecrees || choice
       ? null
       : {
           playableHandIds: spendKind ? selectableHandIds : playableHandIds,
-          selectableHandIds: spendKind || inAction || inPolitics ? selectableHandIds : undefined,
+          selectableHandIds:
+            spendKind || inAction || inPolitics || state.phase === Phase.Income ? selectableHandIds : undefined,
           selectedHandIds: new Set(selectedHandIds),
-          onSelectHand: (instanceId: string) => {
-            if (spendKind === "propose") {
-              if (proposeTarget) {
-                if (!selectedHandIds.includes(instanceId)) return;
-                dispatch({
-                  type: "proposePolicy",
-                  player: viewer,
-                  revealIds: selectedHandIds,
-                  discardId: instanceId,
-                  district: proposeTarget.district,
-                  policyId: proposeTarget.policyId,
-                });
-                return;
-              }
-              setSelectedHandIds((current) =>
-                current.includes(instanceId)
-                  ? current.filter((id) => id !== instanceId)
-                  : [...current, instanceId],
-              );
-              return;
-            }
-            if (spendKind) {
-              setSelectedHandIds((current) => toggleSpend(hand, current, instanceId, spendCost));
-              return;
-            }
-            setSelectedHandIds((current) =>
-              current.length === 1 && current[0] === instanceId ? [] : [instanceId],
-            );
-          },
+          onSelectHand: selectCard,
           targetDistrict: playDistrict,
           targetLabel,
           onSelectDistrict: (district: DistrictId) => {
@@ -331,20 +472,28 @@ export function HotseatSession({ seed }: { seed: number }) {
             else if (kind === CardKind.Alliance) dispatch({ type: "playAlliance", player: viewer, instanceId });
             else if (kind === CardKind.Conspiracy) dispatch({ type: "playConspiracy", player: viewer, instanceId });
           },
-          takeableMarketIds,
-          onTakeMarket: (instanceId: string) => dispatch({ type: "takeMarket", player: viewer, instanceId }),
+          takeableMarketIds: marketIds,
+          onTakeMarket: (instanceId: string) => {
+            if (state.phase === Phase.Income) dispatch({ type: "takeMarket", player: viewer, instanceId });
+            else selectCard(instanceId);
+          },
           claimableMonumentIds,
           onClaimMonument: (instanceId: string) =>
-            dispatch({
-              type: "construct",
-              player: viewer,
-              instanceIds: selectedHandIds,
-              monumentInstanceId: instanceId,
-            }),
+            via
+              ? dispatch({
+                  type: "freeAction",
+                  player: viewer,
+                  source: via,
+                  ability: "architectureInc",
+                  instanceIds: selectedHandIds,
+                  monumentInstanceId: instanceId,
+                })
+              : dispatch({ type: "construct", player: viewer, instanceIds: selectedHandIds, monumentInstanceId: instanceId }),
           convincedSenators: convinced,
           revealVotes,
           prompt: turnPrompt(state, {
             spendKind,
+            via: via !== null,
             selectedCount: selectedHandIds.length,
             spendCost,
             spendReady,
@@ -383,6 +532,9 @@ export function HotseatSession({ seed }: { seed: number }) {
           onChoose={(decreeId) => dispatch({ type: "activateDecree", player: viewer, decreeId })}
         />
       ) : null}
+      {choice && choice.player === viewer && !veiled && !waitingFirstSeat ? (
+        <ChoiceOverlay state={state} choice={choice} viewer={viewer} onAction={dispatch} />
+      ) : null}
       {state.victory ? <GameOverOverlay victory={state.victory} /> : null}
       {showGate ? (
         <PassDeviceGate
@@ -418,12 +570,6 @@ function victoryLabel(victory: Victory): string {
     case VictoryKind.Ideological:
       return `Ideological Victory${victory.symbol ? ` (${victory.symbol})` : ""}`;
   }
-}
-
-function sameIds(a: readonly string[], b: readonly string[]): boolean {
-  if (a.length !== b.length) return false;
-  const other = new Set(b);
-  return a.every((id) => other.has(id));
 }
 
 function districtOfSelection(
@@ -481,6 +627,7 @@ function turnPrompt(
   state: GameState,
   opts: {
     spendKind: SpendKind | null;
+    via: boolean;
     selectedCount: number;
     spendCost: number;
     spendReady: boolean;
@@ -512,6 +659,15 @@ function turnPrompt(
     const declare = opts.declarable > 0 ? ", declare a victory" : "";
     return `${election}Politics · select a card to seat in the Senate, propose a policy${declare}, or skip`;
   }
+  if (opts.spendKind === "foreign") return "Foreign Inc. · pick a card of its district to seat in the Senate (then draw)";
+  if (opts.spendKind === "century") {
+    return opts.selectedCount === 1
+      ? "Century Inc. · choose the alliance to replace"
+      : "Century Inc. · pick an alliance from your hand";
+  }
+  if (state.phase === Phase.Action && state.turn.mainActionDone) {
+    return "Action · free actions remain, or end the action step";
+  }
   if (opts.spendKind === "recruit") {
     return opts.spendReady
       ? "Recruit · confirm 3 cards of the same district"
@@ -519,7 +675,7 @@ function turnPrompt(
   }
   if (opts.spendKind === "construct") {
     return opts.spendReady
-      ? "Construct · choose a matching monument"
+      ? `Construct${opts.via ? " (Architecture Inc.)" : ""} · choose a matching monument`
       : `Construct · select ${opts.spendCost} cards of the same district (${opts.selectedCount}/${opts.spendCost})`;
   }
   if (opts.canEndAction) return `${election}Action · no legal main action`;
@@ -548,12 +704,10 @@ function gateHint(state: GameState, events: GameEvent[]): string {
     return `${playerLabel(state.pendingDecrees.player)} won the election and activates ${state.pendingDecrees.remaining === 1 ? "a decree" : `${state.pendingDecrees.remaining} decrees`}.`;
   }
   if (state.phase === Phase.Setup && state.setup?.step === SetupStep.ChooseParty) {
-    return state.activePlayer === 0
-      ? "Choose one of the two parties dealt to you, then your starting cards."
-      : "Choose one of the two parties dealt to you. You get all 4 listed starting cards.";
+    return "Choose one of the two parties dealt to you. The lower party number goes first and keeps 3 of its 4 starting cards.";
   }
   if (state.phase === Phase.Setup && state.setup?.step === SetupStep.ChooseStartingHand) {
-    return `${playerLabel(state.activePlayer)} takes 3 of 4 starting cards. ${playerLabel(otherPlayer(state.activePlayer))} gets all 4.`;
+    return `Parties revealed. ${playerLabel(state.activePlayer)} has the lower party number, goes first, and keeps 3 of 4 starting cards. ${playerLabel(otherPlayer(state.activePlayer))} has all 4.`;
   }
 
   const bits: string[] = [];
@@ -577,4 +731,9 @@ function gateHint(state: GameState, events: GameEvent[]): string {
   }
   bits.push("Your turn is over. Pass the device.");
   return bits.join(" ");
+}
+
+function printedDistrictOrNull(cardId: string): DistrictId | null {
+  const def = getCard(cardId);
+  return "district" in def ? def.district : null;
 }

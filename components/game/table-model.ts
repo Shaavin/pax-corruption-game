@@ -22,6 +22,8 @@ export type TablePlayerView = {
   influence: Record<DistrictId, DistrictInfluence>;
   /** Consultative Office + Planet Next bank: face-up, usable as if in hand. */
   setAside: CardInstance[];
+  /** Your own set-aside cards show in your hand with a tag (they work as hand cards). */
+  handTags: Record<string, string>;
   partyId: PartyIdValue | null;
   monuments: string[];
   partisans: number;
@@ -112,7 +114,15 @@ function playerView(state: GameState, player: PlayerId, isYou: boolean, electora
   const partyId = isYou ? (seat.partyId ?? state.setup?.chosenParty[player] ?? null) : seat.partyId;
   return {
     id: player,
-    hand: isYou ? seat.hand.map((card) => ({ ...card, faceUp: true })) : seat.hand,
+    hand: isYou
+      ? [...seat.hand, ...seat.consultativeOffice, ...seat.planetNextBank].map((card) => ({ ...card, faceUp: true }))
+      : seat.hand,
+    handTags: isYou
+      ? Object.fromEntries([
+          ...seat.consultativeOffice.map((card) => [card.instanceId, "Office"]),
+          ...seat.planetNextBank.map((card) => [card.instanceId, "Banked"]),
+        ])
+      : {},
     tableau: seat.tableau,
     support: Object.fromEntries(
       DISTRICTS.map((district) => [district, seat.support[district].length]),
@@ -120,7 +130,7 @@ function playerView(state: GameState, player: PlayerId, isYou: boolean, electora
     influence: Object.fromEntries(
       DISTRICTS.map((district) => [district, playerDistrictInfluence(state, player, district)]),
     ) as Record<DistrictId, DistrictInfluence>,
-    setAside: [...seat.consultativeOffice, ...seat.planetNextBank],
+    setAside: isYou ? [] : [...seat.consultativeOffice, ...seat.planetNextBank],
     partyId,
     monuments: seat.monuments.map((card) => card.cardId),
     partisans: seat.partisans,

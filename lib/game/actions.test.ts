@@ -66,7 +66,7 @@ function toPolitics(state: GameState): GameState {
     "Alliance lands in its district",
   );
   assert(playerDistrictInfluence(state, actor, district).civil === 0, "Alliances add no district influence");
-  assert(state.phase === "politics", "Alliance play is a main action");
+  assert(state.turn.mainActionDone, "Alliance play is a main action");
 
   const second = takeFromDeck(
     state,
@@ -158,17 +158,22 @@ function toPolitics(state: GameState): GameState {
   start.players[actor].hand = [...five];
   start.deck = start.deck.filter((card) => !isKind(card, CardKind.Election));
 
-  const { state } = apply(start, {
+  const built = apply(start, {
     type: "construct",
     player: actor,
     instanceIds: five.map((card) => card.instanceId),
     monumentInstanceId: monument.instanceId,
   }, rng);
+  const state = built.state;
   assert(state.players[actor].monuments.some((card) => card.cardId === monument.cardId), "Monument claimed");
   assert(state.availableMonuments.length === 4, "Monument row replenished to 4");
   assert(state.players[actor].support[district].length === 5, "Five cards discarded");
-  assert(state.phase === "politics", "Construct is a main action");
-  assert(state.players[actor].hand.length === 1, "Politics starts with a draw after constructing");
+  assert(built.state.turn.mainActionDone, "Construct is a main action");
+  // A free action (e.g. Intel Network) can keep the action step open; end it explicitly.
+  const politics =
+    built.state.phase === "action" ? apply(built.state, { type: "endAction", player: actor }, rng).state : built.state;
+  assert(politics.phase === "politics", "Then Politics");
+  assert(politics.players[actor].hand.length === 1, "Politics starts with a draw after constructing");
 }
 
 // --- Influence Senate ------------------------------------------------------------

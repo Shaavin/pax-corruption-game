@@ -55,8 +55,8 @@ function PartyChoice({
       title={`${playerLabel(viewer)}, choose your party`}
       body={
         viewer === 0
-          ? "Pick one, then choose your starting cards. Player 2 chooses a party after you."
-          : "Pick one. You get all 4 of your listed starting cards."
+          ? "Pick one in secret. Player 2 picks next. The lower party number goes first and keeps 3 of its 4 starting cards. The other player gets all 4."
+          : "Pick one in secret. The lower party number goes first and keeps 3 of its 4 starting cards. The other player gets all 4."
       }
     >
       <div className="flex flex-wrap items-end justify-center gap-4">

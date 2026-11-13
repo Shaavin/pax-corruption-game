@@ -114,7 +114,36 @@ export type SetupState = {
 export type TurnState = {
   /** A monument was constructed this turn (Politics step starts with a draw). */
   constructedMonument: boolean;
+  /** The mandatory main action is done; only free actions or "end action step" remain. */
+  mainActionDone: boolean;
+  /** Kybernetik Inc.: no income step this turn (so no Market refill either). */
+  skipIncome: boolean;
+  /** Instance ids of alliances/monuments whose free action was used this turn. */
+  freeActionsUsed: string[];
 };
+
+/** A decision the active player must make before the turn moves on. */
+export type PendingChoice =
+  /** Currency Ballots: after drawing, discard one card from hand. */
+  | { kind: "discardOne"; player: PlayerId }
+  /** Urban Aristocrats: optionally swap one of your Dragonara civils with one of theirs. */
+  | { kind: "swapCivils"; player: PlayerId }
+  /** Intel Network: move one of the top cards (instance ids, top first) to the top. */
+  | { kind: "intelNetwork"; player: PlayerId; instanceIds: string[] }
+  /** People's Press: draw from the deck or take a card from your Smarbbit pile. */
+  | { kind: "peoplesPress"; player: PlayerId }
+  /** Space Agency: optionally move just-discarded cards to your other piles (max 1 each). */
+  | { kind: "routeDiscards"; player: PlayerId; instanceIds: string[] };
+
+/** Where the turn picks up once every pending choice is resolved. */
+export type Continuation =
+  | "action"
+  | "afterMain"
+  | "afterFree"
+  | "politics"
+  | "income"
+  | "incomeDraw"
+  | "incomeEnd";
 
 export type GameState = {
   mode: GameModeId;
@@ -141,6 +170,9 @@ export type GameState = {
   /** One-shot markers for the current turn (free actions later). */
   flags: Record<string, boolean>;
   pendingDecrees: PendingDecrees | null;
+  /** Choices the active player owes, resolved front to back. */
+  pending: PendingChoice[];
+  resume: Continuation | null;
   victory: Victory | null;
 };
 
@@ -234,6 +266,52 @@ export type ActivateDecreeAction = {
   decreeId: DecreeIdValue;
 };
 
+/** Free actions from alliances and monuments (action step, once per source per turn). */
+export type FreeActionAction = {
+  type: "freeAction";
+  player: PlayerId;
+  /** Instance id of the alliance or monument granting it. */
+  source: string;
+} & (
+  | { ability: "kybernetik" }
+  | { ability: "foreignInc"; instanceId: string }
+  | { ability: "centuryInc"; instanceId: string; target: { owner: PlayerId; instanceId: string } }
+  | { ability: "architectureInc"; instanceIds: string[]; monumentInstanceId: string }
+  | { ability: "rebelInc"; instanceIds: string[] }
+  | {
+      ability: "capitolInc";
+      revealIds: string[];
+      discardId: string;
+      district: DistrictId;
+      policyId: PolicyIdValue | null;
+    }
+  | { ability: "intelNetwork" }
+);
+
+/** Planet Next / Consultative Office: move cards from hand into a face-up zone (own turn only). */
+export type SetAsideAction = {
+  type: "setAside";
+  player: PlayerId;
+  zone: "planetNextBank" | "consultativeOffice";
+  instanceIds: string[];
+};
+
+export type ChooseDiscardAction = { type: "chooseDiscard"; player: PlayerId; instanceId: string };
+/** `null` declines the swap. */
+export type ChooseSwapAction = {
+  type: "chooseSwap";
+  player: PlayerId;
+  swap: { mine: string; theirs: string } | null;
+};
+export type ChooseIntelAction = { type: "chooseIntel"; player: PlayerId; instanceId: string };
+/** `null` draws from the deck as usual. */
+export type ChoosePressAction = { type: "choosePress"; player: PlayerId; instanceId: string | null };
+export type RouteDiscardsAction = {
+  type: "routeDiscards";
+  player: PlayerId;
+  moves: { instanceId: string; district: DistrictId }[];
+};
+
 export type Action =
   | ChoosePartyAction
   | ChooseStartingHandAction
@@ -248,7 +326,14 @@ export type Action =
   | DeclareVictoryAction
   | EndPoliticsAction
   | TakeMarketAction
-  | ActivateDecreeAction;
+  | ActivateDecreeAction
+  | FreeActionAction
+  | SetAsideAction
+  | ChooseDiscardAction
+  | ChooseSwapAction
+  | ChooseIntelAction
+  | ChoosePressAction
+  | RouteDiscardsAction;
 
 export type GameEvent =
   | { type: "districtsShuffled"; order: DistrictId[] }
@@ -357,7 +442,14 @@ export type GameEvent =
   | { type: "decreeChoiceNeeded"; player: PlayerId; count: number }
   | { type: "decreeActivated"; player: PlayerId; decreeId: DecreeIdValue }
   | { type: "electionEnded" }
-  | { type: "turnEnded"; nextPlayer: PlayerId };
+  | { type: "turnEnded"; nextPlayer: PlayerId }
+  | { type: "freeActionUsed"; player: PlayerId; sourceCardId: string; ability: FreeActionAction["ability"] }
+  | { type: "cardsSetAside"; player: PlayerId; zone: SetAsideAction["zone"]; cardIds: string[] }
+  | { type: "civilsSwapped"; player: PlayerId; mineCardId: string; theirsCardId: string }
+  | { type: "allianceReplaced"; player: PlayerId; owner: PlayerId; cardId: string; replacedCardId: string; district: DistrictId }
+  | { type: "deckReordered"; player: PlayerId }
+  | { type: "cardRetrieved"; player: PlayerId; cardId: string; district: DistrictId }
+  | { type: "discardsRouted"; player: PlayerId; moves: { cardId: string; district: DistrictId }[] }
 
 export type ApplyResult = {
   state: GameState;

@@ -34,6 +34,8 @@ type SidePanelProps = {
   monuments: CardInstance[];
   deckCount: number;
   takeableIds?: ReadonlySet<string>;
+  /** Market cards currently selected (State Enterprise plays them as if in hand). */
+  selectedIds?: ReadonlySet<string>;
   onTake?: (instanceId: string) => void;
   claimableIds?: ReadonlySet<string>;
   onClaimMonument?: (instanceId: string) => void;
@@ -243,7 +245,7 @@ function Dot({ on, color }: { on: boolean; color: string }) {
   );
 }
 
-function MarketSection({ market, electionActive, takeableIds, onTake }: SidePanelProps) {
+function MarketSection({ market, electionActive, takeableIds, selectedIds, onTake }: SidePanelProps) {
   return (
     <Section
       title="Market"
@@ -266,6 +268,7 @@ function MarketSection({ market, electionActive, takeableIds, onTake }: SidePane
                   size="panel"
                   cardId={entry.cardId}
                   playable={takeable}
+                  selected={selectedIds?.has(entry.instanceId) ?? false}
                   selectLabel={takeable ? `Take ${catalog.name}` : undefined}
                   onSelect={takeable && onTake ? () => onTake(entry.instanceId) : undefined}
                 />

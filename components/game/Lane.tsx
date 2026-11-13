@@ -229,7 +229,7 @@ function ScoreRow({
       <span
         className={["text-base font-semibold tabular-nums", leading ? "" : "text-stone-300"].join(" ")}
         style={leading ? { color } : undefined}
-        title={`Influence ${side.influence.total}: ${side.influence.civil} civil + ${side.influence.support} support${side.influence.bank ? ` + ${side.influence.bank} banked` : ""}`}
+        title={`Influence ${side.influence.total}: ${side.influence.civil} civil + ${side.influence.support} support${side.influence.bank ? ` + ${side.influence.bank} banked` : ""}${side.influence.bonus ? ` + ${side.influence.bonus} from abilities` : ""}`}
       >
         {side.influence.total}
       </span>

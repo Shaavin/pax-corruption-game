@@ -161,6 +161,7 @@ export function Table({
                 cards={model.you.hand}
                 variant="you"
                 tourId="your-hand"
+                tags={model.you.handTags}
                 playableIds={interaction?.playableHandIds}
                 selectableIds={interaction?.selectableHandIds}
                 selectedIds={interaction?.selectedHandIds}
@@ -183,6 +184,7 @@ export function Table({
           monuments={model.availableMonuments}
           deckCount={model.deckCount}
           takeableIds={interaction?.takeableMarketIds}
+          selectedIds={interaction?.selectedHandIds}
           onTake={interaction?.onTakeMarket}
           claimableIds={interaction?.claimableMonumentIds}
           onClaimMonument={interaction?.onClaimMonument}

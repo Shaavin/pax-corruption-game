@@ -33,6 +33,14 @@ None right now. If new card text or a rulebook update conflicts with this file, 
 
 | Topic | Decision |
 | --- | --- |
+| Diet of Saints | "Discard ALL civil cards in Shavvinne after an election" discards **both players'** Shavvinne civils, each to its **owner's** support pile. |
+| Currency Ballots | Triggers whenever a **Dragonara-labeled** card goes into a player's lane: civil, alliance, or conspiracy (including alliances played by Century Inc.). |
+| Free actions | Once **per card per turn**, and only during the **action step**. Capitol Inc.'s free proposal is **in addition to** the normal Politics-step options. |
+| People's Press | Changes the **income-step draw** only: instead of drawing from the deck, you may take a card from your Smarbbit support pile. Other card draws are unaffected. |
+| Urban Aristocrats | The swapped civil cards **change owners**: yours goes into the opponent's Dragonara lane and theirs into yours. |
+| State Enterprise | Dragonara civil cards in the Market can be used straight from the Market for main and free actions, including playing them, recruiting partisans, and building monuments. The Market stays short until the next refill. Civils only, as printed: Market alliances (even Dragonara ones) can't be used, not even to build or recruit. |
+| Consultative Office | Like Planet Next: set cards aside only during your own turn. |
+| Diet of Saints vs. Divine Inquisitors (provisional) | If both claim Shavvinne for different players (possible only after Century Inc. moves Diet of Saints), the claims cancel and nobody wins Shavvinne. |
 | Propose Policy reveals | Revealed cards go back to your hand (except the one you discard); cards you didn't reveal never leave it. |
 | Propose Policy target | The changed policy must be in a district of one of the **revealed** cards. Example: revealing a Smarbbit alliance and a Shavvinne civil lets you change Smarbbit's or Shavvinne's policy, not Horsard's. (Interpretation of "must relate to the revealed cards"; implemented.) |
 | Buying an event for its effect (expansion; not yet in the rulebook) | When you purchase an event and play it **for its event effect** (not as a civil card), **draw a card**. This makes playing an event for its effect effectively 1 card cheaper than playing it as a civil card. |

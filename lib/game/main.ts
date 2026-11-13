@@ -1,8 +1,9 @@
 import { getCard } from "../cards/catalog.ts";
-import { CardKind, DISTRICTS, type DistrictId } from "../cards/schema.ts";
+import { EffectId } from "../cards/effects.ts";
+import { CardKind, District, DISTRICTS, type DistrictId } from "../cards/schema.ts";
+import { allianceLimit, hasActiveAlliance } from "./abilities.ts";
 import type { CardInstance, GameState, PlayerId } from "./types.ts";
 
-export const DEFAULT_ALLIANCE_LIMIT = 1;
 export const RECRUIT_COST = 3;
 export const CONSTRUCT_COST = 5;
 
@@ -30,16 +31,56 @@ export function allianceCount(state: GameState, player: PlayerId, district: Dist
   ).length;
 }
 
-export function allianceLimit(): number {
-  return DEFAULT_ALLIANCE_LIMIT;
-}
-
 export function canPlayAlliance(
   state: GameState,
   player: PlayerId,
   district: DistrictId,
 ): boolean {
-  return allianceCount(state, player, district) < allianceLimit();
+  return allianceCount(state, player, district) < allianceLimit(state, player, district);
+}
+
+/**
+ * Cards usable "as if in hand": the hand itself, the Consultative Office and
+ * Planet Next zones, and — for main and free actions with State Enterprise —
+ * Dragonara civil cards in the Market.
+ */
+export function handLikeCards(
+  state: GameState,
+  player: PlayerId,
+  opts: { market: boolean },
+): CardInstance[] {
+  const seat = state.players[player];
+  const cards = [...seat.hand, ...seat.consultativeOffice, ...seat.planetNextBank];
+  if (opts.market && hasActiveAlliance(state, player, EffectId.TreatMarketCivilAsHand, District.Dragonara)) {
+    for (const card of state.market) {
+      const def = getCard(card.cardId);
+      if (def.kind === CardKind.Civil && def.district === District.Dragonara) cards.push(card);
+    }
+  }
+  return cards;
+}
+
+/** Remove a card from wherever it sits among the hand-like zones. */
+export function takeHandLike(
+  state: GameState,
+  player: PlayerId,
+  instanceId: string,
+  opts: { market: boolean },
+): CardInstance {
+  if (!handLikeCards(state, player, opts).some((card) => card.instanceId === instanceId)) {
+    throw new Error("That card is not in your hand");
+  }
+  const seat = state.players[player];
+  for (const zone of [seat.hand, seat.consultativeOffice, seat.planetNextBank, state.market]) {
+    const index = zone.findIndex((card) => card.instanceId === instanceId);
+    if (index >= 0) return zone.splice(index, 1)[0]!;
+  }
+  throw new Error("That card is not in your hand");
+}
+
+/** Put a card back where it came from (used when a play turns out to be illegal). */
+export function returnToHand(state: GameState, player: PlayerId, card: CardInstance): void {
+  state.players[player].hand.push(card);
 }
 
 export function handCardsInDistrict(
@@ -47,7 +88,7 @@ export function handCardsInDistrict(
   player: PlayerId,
   district: DistrictId,
 ): CardInstance[] {
-  return state.players[player].hand.filter((card) => {
+  return handLikeCards(state, player, { market: true }).filter((card) => {
     const def = getCard(card.cardId);
     return def.kind !== CardKind.Election && "district" in def && def.district === district;
   });
@@ -72,8 +113,10 @@ export function combinations<T>(items: readonly T[], k: number): T[][] {
   return result;
 }
 
+/** Validate and remove `count` same-district cards from the hand-like zones (Market allowed). */
 export function takeSpend(
-  hand: CardInstance[],
+  state: GameState,
+  player: PlayerId,
   instanceIds: readonly string[],
   count: number,
 ): { cards: CardInstance[]; district: DistrictId } {
@@ -83,22 +126,18 @@ export function takeSpend(
   if (new Set(instanceIds).size !== instanceIds.length) {
     throw new Error("Spend cards must be unique");
   }
+  const available = handLikeCards(state, player, { market: true });
   const cards = instanceIds.map((id) => {
-    const index = hand.findIndex((card) => card.instanceId === id);
-    if (index < 0) {
-      throw new Error(`Card ${id} is not in hand`);
-    }
-    return hand[index]!;
+    const card = available.find((entry) => entry.instanceId === id);
+    if (!card) throw new Error(`Card ${id} is not in hand`);
+    return card;
   });
   const districts = cards.map((card) => printedDistrict(card.cardId));
   const district = districts[0];
   if (!district || districts.some((entry) => entry !== district)) {
     throw new Error("Spend cards must share a printed district");
   }
-  for (const id of instanceIds) {
-    const index = hand.findIndex((card) => card.instanceId === id);
-    hand.splice(index, 1);
-  }
+  for (const id of instanceIds) takeHandLike(state, player, id, { market: true });
   return { cards, district };
 }
 

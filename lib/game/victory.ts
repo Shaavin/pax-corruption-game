@@ -1,5 +1,6 @@
 import { getCard, getParty } from "../cards/catalog.ts";
 import { CardKind, MonumentId, SYMBOLS, type SymbolId } from "../cards/schema.ts";
+import { ownsMonument } from "./abilities.ts";
 import { activeDecrees, decreeSymbol, satisfiedDecrees } from "./decrees.ts";
 import { Phase, PLAYERS, VictoryKind, type GameEvent, type GameState, type PlayerId, type Victory } from "./types.ts";
 import { otherPlayer } from "./zones.ts";
@@ -16,9 +17,6 @@ function zeroCounts(): SymbolCounts {
   return Object.fromEntries(SYMBOLS.map((symbol) => [symbol, 0])) as SymbolCounts;
 }
 
-export function ownsMonument(state: GameState, player: PlayerId, monumentId: string): boolean {
-  return state.players[player].monuments.some((card) => card.cardId === monumentId);
-}
 
 /** Private copies: party, built monuments, and Smart Doctrine (one per active decree symbol). */
 export function privateSymbols(state: GameState, player: PlayerId): SymbolCounts {
