@@ -18,6 +18,10 @@ type PlayerBarProps = {
   /** Council of Lords handshake symbols in play. */
   lords: number;
   active: boolean;
+  /** Phone layout: tighter spacing, smaller labels. */
+  compact?: boolean;
+  /** Phone layout: the opponent's hand as a count instead of fanned backs. */
+  handCount?: number;
   children?: ReactNode;
 };
 
@@ -33,13 +37,15 @@ export function PlayerBar({
   electorates,
   lords,
   active,
+  compact = false,
+  handCount,
   children,
 }: PlayerBarProps) {
   const color = seat === "you" ? "var(--you)" : "var(--opp)";
   const party = partyId ? resolveCard(partyId) : null;
 
   return (
-    <div className="flex min-w-0 items-center gap-3">
+    <div className={["flex min-w-0 items-center", compact ? "w-max gap-2.5" : "gap-3"].join(" ")}>
       <div className="flex shrink-0 items-center gap-2">
         <div className="relative">
           {party ? (
@@ -60,9 +66,11 @@ export function PlayerBar({
         <div className="leading-tight">
           <div className="flex items-center gap-1.5">
             <span className="h-2 w-2 rounded-full" style={{ background: color }} aria-hidden />
-            <span className="text-sm font-semibold text-stone-100">{name}</span>
+            <span className={["font-semibold whitespace-nowrap text-stone-100", compact ? "text-xs" : "text-sm"].join(" ")}>
+              {name}
+            </span>
           </div>
-          <div className="text-[0.6rem] tracking-wide text-stone-400">
+          <div className="text-[0.6rem] tracking-wide whitespace-nowrap text-stone-400">
             {party ? party.name : "Choosing a party"}
             {active ? (
               <span className="ml-1.5 font-semibold" style={{ color }}>
@@ -73,7 +81,11 @@ export function PlayerBar({
         </div>
       </div>
 
-      <dl className="flex shrink-0 items-center gap-3" data-tour={seat === "you" ? "partisans" : undefined}>
+      <dl
+        className={["flex shrink-0 items-center", compact ? "gap-2" : "gap-3"].join(" ")}
+        data-tour={seat === "you" ? "partisans" : undefined}
+      >
+        {handCount !== undefined ? <Stat label="Hand" value={handCount} title="Cards in their hand" /> : null}
         <Stat label="Partisans" value={partisans} />
         <Stat label="Wins" value={electionWins} />
         <Stat label="Lords" value={lords} title="Council of Lords: alliance handshake symbols in play" />

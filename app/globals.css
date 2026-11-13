@@ -72,6 +72,23 @@ body {
   filter: saturate(0.6) blur(2px);
 }
 
+/* Each lane is a size container: cards and the district plate scale to the lane,
+   so four lanes fit a phone as well as a desktop. */
+.lane {
+  container-type: inline-size;
+  --card-board: min(clamp(26px, 4.8vw, 74px), 30cqw);
+  --card-mini: min(clamp(22px, 3vw, 46px), 24cqw);
+}
+
+/* Touch: no double-tap zoom on the table, no long-press callout on cards. */
+.table-shell {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.table-shell img {
+  -webkit-touch-callout: none;
+}
+
 /* Quiet glass panel for chrome (rails, side panel, bars). */
 .glass {
   background: var(--panel);

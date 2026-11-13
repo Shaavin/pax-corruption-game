@@ -85,6 +85,10 @@ export function CardView({
 }: CardViewProps) {
   const { setPeek } = usePeek();
   const peekTimer = useRef<number | null>(null);
+  /** Touch: the last press was a finger (tap = inspect), and whether it was held long enough to peek. */
+  const touchPress = useRef(false);
+  const longPressed = useRef(false);
+  const pressTimer = useRef<number | null>(null);
   const src = faceUp ? art : back;
   const label = faceUp ? name : "Facedown card";
   const canPeek = faceUp && size !== "zoom" && size !== "related" && size !== "relatedMonument";
@@ -151,13 +155,34 @@ export function CardView({
     setPeek(null);
   }
 
+  function clearPressTimer() {
+    if (pressTimer.current !== null) {
+      window.clearTimeout(pressTimer.current);
+      pressTimer.current = null;
+    }
+  }
+
   useEffect(() => {
     return () => {
-      if (peekTimer.current !== null) {
-        window.clearTimeout(peekTimer.current);
-      }
+      if (peekTimer.current !== null) window.clearTimeout(peekTimer.current);
+      if (pressTimer.current !== null) window.clearTimeout(pressTimer.current);
     };
   }, []);
+
+  /** Long press on touch: show the preview instead of choosing the card. */
+  function startPress(event: React.PointerEvent<HTMLElement>) {
+    touchPress.current = event.pointerType !== "mouse";
+    longPressed.current = false;
+    if (!touchPress.current || !canPeek) return;
+    const target = event.currentTarget;
+    clearPressTimer();
+    pressTimer.current = window.setTimeout(() => {
+      longPressed.current = true;
+      pressTimer.current = null;
+      const box = target.getBoundingClientRect();
+      setPeek({ name, art, cardId, anchorX: box.left + box.width / 2 });
+    }, 420);
+  }
 
   if (!interactive) {
     return (
@@ -177,13 +202,33 @@ export function CardView({
       aria-label={ariaLabel}
       aria-pressed={onSelect ? selected : undefined}
       className={frameClass}
-      onClick={() => {
+      onPointerDown={startPress}
+      onPointerUp={clearPressTimer}
+      onPointerCancel={clearPressTimer}
+      onPointerLeave={clearPressTimer}
+      onContextMenu={(event) => {
+        if (touchPress.current) event.preventDefault();
+      }}
+      onClick={(event) => {
+        if (longPressed.current) {
+          // The long press already opened the preview; don't also choose the card.
+          longPressed.current = false;
+          return;
+        }
+        if (touchPress.current && !onSelect && canPeek) {
+          // Touch has no hover: a tap on a card you can't act on inspects it.
+          touchPress.current = false;
+          clearPeekTimer();
+          const box = event.currentTarget.getBoundingClientRect();
+          setPeek({ name, art, cardId, anchorX: box.left + box.width / 2 });
+          return;
+        }
         hidePeek();
         onSelect?.();
       }}
       onMouseEnter={canPeek ? showPeek : undefined}
       onMouseLeave={canPeek ? hidePeek : undefined}
-      onFocus={canPeek ? showPeek : undefined}
+      onFocus={canPeek ? (event) => !touchPress.current && showPeek(event) : undefined}
       onBlur={canPeek ? hidePeek : undefined}
     >
       {image}

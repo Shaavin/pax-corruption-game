@@ -12,13 +12,16 @@ import { CardKind, type PartyCard } from "@/lib/cards/schema";
 
 export function ZoomPreview({ card }: { card: PeekCard | null }) {
   if (!card) return null;
-  const party = resolvePeekParty(card);
+  // Phones: just the card; a party's starting cards and monument don't fit beside it.
+  const small = typeof window !== "undefined" && window.innerWidth < 768;
+  const party = small ? null : resolvePeekParty(card);
   const related = party ? partyRelatedCards(party) : null;
   const contents = card.contents ?? [];
 
   // Open on the half of the screen away from the hovered card, so it is never covered.
+  // Phones: always centered (there's no room beside the card).
   const side =
-    card.anchorX === undefined || typeof window === "undefined"
+    card.anchorX === undefined || typeof window === "undefined" || window.innerWidth < 768
       ? "center"
       : card.anchorX > window.innerWidth / 2
         ? "left"

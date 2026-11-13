@@ -54,6 +54,9 @@ type SidePanelProps = {
   dock: ReactNode;
 };
 
+/** The shared zones' props, without the turn controls. */
+export type ZoneProps = Omit<SidePanelProps, "dock">;
+
 /** Shared zones live on the right edge so the four lanes keep the centre of the screen. */
 export function SidePanel(props: SidePanelProps) {
   return (
@@ -62,15 +65,35 @@ export function SidePanel(props: SidePanelProps) {
       className="relative z-10 flex h-full w-[19.5rem] shrink-0 flex-col border-l border-[var(--line)] bg-black/25"
     >
       <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-2.5 [scrollbar-width:thin]">
-        <ElectionStatus active={props.electionActive} electionsOut={props.electionsOut} marketLeft={props.market.length} />
-        <SenateSection {...props} />
-        <DecreeSection decrees={props.decrees} />
-        <MarketSection {...props} />
-        {props.expansion ? <WorldSection expansion={props.expansion} /> : null}
-        <SupplySection {...props} />
+        <SharedZones {...props} />
       </div>
       <div className="shrink-0 border-t border-[var(--line)] p-2.5">{props.dock}</div>
     </aside>
+  );
+}
+
+/** Everything players share (election status, Senate, decrees, Market, world, monuments). */
+export function SharedZones(props: ZoneProps) {
+  return (
+    <>
+      <ElectionStatus active={props.electionActive} electionsOut={props.electionsOut} marketLeft={props.market.length} />
+      <SenateSection {...props} />
+      <DecreeSection decrees={props.decrees} />
+      <MarketSection {...props} />
+      {props.expansion ? <WorldSection expansion={props.expansion} /> : null}
+      <SupplySection {...props} />
+    </>
+  );
+}
+
+/** Whether anything in the shared zones is waiting on the player (for the phone layout's tab badge). */
+export function sharedNeedsAttention(props: ZoneProps): boolean {
+  return Boolean(
+    (props.takeableIds && props.takeableIds.size > 0) ||
+      (props.claimableIds && props.claimableIds.size > 0) ||
+      (props.buyableIds && props.buyableIds.size > 0) ||
+      props.revealVotes !== null ||
+      props.seatArmed,
   );
 }
 
@@ -143,7 +166,7 @@ function SenateSection({
   convinced,
   revealVotes,
   seatArmed,
-}: SidePanelProps) {
+}: ZoneProps) {
   const proposing = revealVotes !== null;
   const passing = proposing && revealVotes >= senateVotesNeeded;
   return (
@@ -275,7 +298,7 @@ function MarketSection({
   expansion,
   buyableIds,
   onBuy,
-}: SidePanelProps) {
+}: ZoneProps) {
   const rows = expansion ? expansion.rows : [market];
   return (
     <Section
@@ -455,7 +478,7 @@ function WorldSection({ expansion }: { expansion: ExpansionView }) {
   );
 }
 
-function SupplySection({ monuments, deckCount, claimableIds, onClaimMonument }: SidePanelProps) {
+function SupplySection({ monuments, deckCount, claimableIds, onClaimMonument }: ZoneProps) {
   return (
     <Section title="Monuments" aside={`deck ${deckCount}`}>
       <div className="flex items-end justify-between gap-1">

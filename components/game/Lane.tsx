@@ -73,7 +73,7 @@ export function Lane({ district, policyId, you, opponent, electors, tourAnchor, 
             aria-label={`${target.label} ${DISTRICT_LABEL[district]}`}
             onClick={target.onSelect}
           >
-            <span className="absolute inset-x-3 bottom-2 rounded-full bg-[var(--act)] px-2 py-1 text-center text-[0.65rem] font-semibold tracking-wide text-stone-950 shadow-lg">
+            <span className="absolute inset-x-3 bottom-2 rounded-full bg-[var(--act)] px-2 py-1 text-center text-[0.65rem] font-semibold tracking-wide text-stone-950 shadow-lg @max-[10rem]:inset-x-1 @max-[10rem]:px-1 @max-[10rem]:text-[0.55rem]">
               {target.label}
             </span>
           </button>
@@ -164,7 +164,7 @@ function Plate({
   return (
     <div
       data-tour={tourAnchor ? "district" : undefined}
-      className="relative z-10 mx-1.5 flex shrink-0 items-center gap-2 rounded-xl bg-[rgb(12_15_20/0.85)] px-2 py-1.5 shadow-[0_6px_18px_rgba(0,0,0,0.45)]"
+      className="relative z-10 mx-1.5 flex shrink-0 items-center gap-2 rounded-xl bg-[rgb(12_15_20/0.85)] px-2 py-1.5 shadow-[0_6px_18px_rgba(0,0,0,0.45)] @max-[10rem]:mx-0.5 @max-[10rem]:flex-col @max-[10rem]:items-stretch @max-[10rem]:gap-1 @max-[10rem]:rounded-lg @max-[10rem]:px-1 @max-[10rem]:py-1"
       style={{ boxShadow: `0 0 0 1px ${ring}, 0 6px 18px rgba(0,0,0,0.45)` }}
     >
       <div className="flex min-w-0 flex-1 flex-col gap-1">
@@ -174,18 +174,20 @@ function Plate({
             style={{ background: `var(--${district})` }}
             aria-hidden
           />
-          <span className="truncate text-[0.7rem] font-semibold tracking-[0.12em] text-stone-100 uppercase">
+          <span className="truncate text-[0.7rem] font-semibold tracking-[0.12em] text-stone-100 uppercase @max-[10rem]:text-[0.55rem] @max-[10rem]:tracking-[0.04em]">
             {DISTRICT_LABEL[district]}
           </span>
+          <span className="contents @max-[10rem]:hidden">
           <InfoTip label="How to read a district">
             <b>Inf</b> is influence: civil card values + 1 per support-pile card (+1 per
             Planet Next banked card in Horsard). The higher total wins the district at an
             election; the plate border shows who leads. <b>Pop</b> is the support-pile count:
             lead by 9 in one district to declare Popularity Victory.
           </InfoTip>
+          </span>
           {electors !== null ? (
             <span
-              className="ml-auto shrink-0 rounded-full bg-[var(--act)]/15 px-1.5 text-[0.55rem] font-semibold text-[var(--act)]"
+              className="ml-auto shrink-0 rounded-full bg-[var(--act)]/15 px-1.5 text-[0.55rem] font-semibold text-[var(--act)] @max-[10rem]:px-1 @max-[10rem]:text-[0.5rem]"
               title="Electors this district awards in the current election"
             >
               {electors} el.
@@ -195,11 +197,11 @@ function Plate({
         <ScoreRow label="Opp" side={opponent} color="var(--opp)" leading={leader === "opponent"} />
         <ScoreRow label="You" side={you} color="var(--you)" leading={leader === "you"} />
       </div>
-      <div className="shrink-0">
+      <div className="shrink-0 @max-[10rem]:flex @max-[10rem]:justify-center">
         {policy ? (
           <CardView name={policy.name} art={policy.art} size="mini" cardId={policyId ?? undefined} />
         ) : (
-          <div className="flex aspect-[825/1125] w-[var(--card-mini)] items-center justify-center rounded-[0.32em] border border-dashed border-white/20 text-[0.5rem] font-medium tracking-wide text-stone-400">
+          <div className="flex aspect-[825/1125] w-[var(--card-mini)] items-center justify-center rounded-[0.32em] border border-dashed border-white/20 text-[0.5rem] font-medium tracking-wide text-stone-400 @max-[10rem]:aspect-auto @max-[10rem]:w-full @max-[10rem]:py-0.5 @max-[10rem]:text-[0.45rem]">
             Neutral
           </div>
         )}
@@ -223,21 +225,25 @@ function ScoreRow({
 }) {
   return (
     <div className="flex items-center gap-1.5 leading-none" data-tour={tour}>
-      <span className="w-6 text-[0.55rem] font-semibold tracking-[0.1em] uppercase" style={{ color }}>
+      <span className="w-6 text-[0.55rem] font-semibold tracking-[0.1em] uppercase @max-[10rem]:w-auto @max-[10rem]:text-[0.45rem] @max-[10rem]:tracking-normal" style={{ color }}>
         {label}
       </span>
       <span
-        className={["text-base font-semibold tabular-nums", leading ? "" : "text-stone-300"].join(" ")}
+        className={["text-base font-semibold tabular-nums @max-[10rem]:text-sm", leading ? "" : "text-stone-300"].join(" ")}
         style={leading ? { color } : undefined}
         title={`Influence ${side.influence.total}: ${side.influence.civil} civil + ${side.influence.support} support${side.influence.bank ? ` + ${side.influence.bank} banked` : ""}${side.influence.bonus ? ` + ${side.influence.bonus} from abilities` : ""}`}
       >
         {side.influence.total}
       </span>
-      <span className="text-[0.5rem] tracking-[0.1em] text-stone-500 uppercase">inf</span>
+      <span className="text-[0.5rem] tracking-[0.1em] text-stone-500 uppercase @max-[10rem]:hidden">inf</span>
       <span className="ml-auto flex items-center gap-1" title={`${side.support} card${side.support === 1 ? "" : "s"} in the support pile (popularity)`}>
-        <PileIcon count={side.support} />
-        <span className="text-xs font-semibold tabular-nums text-stone-200">{side.support}</span>
-        <span className="text-[0.5rem] tracking-[0.1em] text-stone-500 uppercase">pop</span>
+        <span className="contents @max-[10rem]:hidden">
+          <PileIcon count={side.support} />
+        </span>
+        <span className="text-xs font-semibold tabular-nums text-stone-200 @max-[10rem]:text-[0.6rem] @max-[10rem]:text-stone-400">
+          {side.support}
+        </span>
+        <span className="text-[0.5rem] tracking-[0.1em] text-stone-500 uppercase @max-[10rem]:hidden">pop</span>
       </span>
     </div>
   );
