@@ -11,7 +11,7 @@ The working brief for anyone (human or agent) building the simulator.
 
 ## Current status
 
-The game's rules were revised in 2026-11. The Senate, Propose Policy, and decree objectives replaced policy supporters, the referendum, and executive power. The engine, catalog, and hotseat UI were migrated on 2026-11-11 (Phase R). Card abilities (Phase 6) were completed on 2026-11-12, and the hotseat finish (Phase 7: save and resume, undo, victory prompts, player aid) on 2026-11-13. **Next work is Phase 8 — troubleshooting** in [development-plan.md](development-plan.md).
+The game's rules were revised in 2026-11. The Senate, Propose Policy, and decree objectives replaced policy supporters, the referendum, and executive power. The engine, catalog, and hotseat UI were migrated on 2026-11-11 (Phase R). Card abilities (Phase 6) were completed on 2026-11-12, the hotseat finish (Phase 7: save and resume, undo, victory prompts, player aid) and troubleshooting (Phase 8: bug reports, `/troubleshoot` replay viewer) on 2026-11-13. **Phase 9** (online play, setup modes, expansion) is the remaining backlog in [development-plan.md](development-plan.md).
 
 ## Product intent
 

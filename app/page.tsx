@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ContinueGame } from "@/components/game/ContinueGame";
+import { SeedForm } from "@/components/game/Troubleshooter";
 
 export default function Home() {
   return (
@@ -31,6 +32,15 @@ export default function Home() {
         <p className="text-sm text-stone-500">
           Standard · play civil, draw, pass the device
         </p>
+        <details className="w-full text-sm text-stone-400">
+          <summary className="cursor-pointer select-none hover:text-stone-200">More options</summary>
+          <div className="mt-3 flex flex-col items-center gap-3">
+            <SeedForm />
+            <Link href="/troubleshoot" prefetch={false} className="underline hover:text-stone-200">
+              Troubleshooting: replay a bug report or game record
+            </Link>
+          </div>
+        </details>
       </main>
     </div>
   );

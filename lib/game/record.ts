@@ -10,10 +10,33 @@ import { Phase, type Action, type GameEvent, type GameState } from "./types.ts";
  */
 export const RECORD_VERSION = 1;
 
+/**
+ * Bump whenever a rules or engine change can make an old action list replay
+ * differently. Records carry it so troubleshooting can flag a mismatch.
+ */
+export const ENGINE_VERSION = "2026-11-13";
+
 export type GameRecord = {
   version: typeof RECORD_VERSION;
   seed: number;
   actions: Action[];
+  /** `ENGINE_VERSION` of the build that recorded the game. */
+  engineVersion?: string;
+  /** App build (git commit) that recorded the game, when known. */
+  build?: string;
+};
+
+/** What a player sends when something went wrong. */
+export type BugReport = {
+  kind: "pax-bug-report";
+  record: GameRecord;
+  /** Number of actions taken when the report was made. */
+  stepCount: number;
+  /** Seat that was looking at the table, if any. */
+  viewer: number | null;
+  description: string;
+  createdAt: string;
+  userAgent?: string;
 };
 
 export type ReplayStep = {
@@ -74,8 +97,14 @@ export function replayRecord(record: GameRecord): Replay {
   return replay;
 }
 
-export function toRecord(replay: Replay): GameRecord {
-  return { version: RECORD_VERSION, seed: replay.seed, actions: replay.steps.map((step) => step.action) };
+export function toRecord(replay: Replay, build?: string): GameRecord {
+  return {
+    version: RECORD_VERSION,
+    seed: replay.seed,
+    actions: replay.steps.map((step) => step.action),
+    engineVersion: ENGINE_VERSION,
+    ...(build ? { build } : {}),
+  };
 }
 
 /** Events that show a player something they could not see before the action. */
@@ -137,5 +166,63 @@ export function parseRecord(value: unknown): GameRecord | null {
   if (!candidate.actions.every((action) => action && typeof action === "object" && typeof action.type === "string")) {
     return null;
   }
-  return { version: RECORD_VERSION, seed: candidate.seed >>> 0, actions: candidate.actions as Action[] };
+  return {
+    version: RECORD_VERSION,
+    seed: candidate.seed >>> 0,
+    actions: candidate.actions as Action[],
+    ...(typeof candidate.engineVersion === "string" ? { engineVersion: candidate.engineVersion } : {}),
+    ...(typeof candidate.build === "string" ? { build: candidate.build } : {}),
+  };
+}
+
+export function parseBugReport(value: unknown): BugReport | null {
+  if (!value || typeof value !== "object") return null;
+  const candidate = value as Partial<BugReport>;
+  if (candidate.kind !== "pax-bug-report") return null;
+  const record = parseRecord(candidate.record);
+  if (!record) return null;
+  const stepCount = Number(candidate.stepCount);
+  return {
+    kind: "pax-bug-report",
+    record,
+    stepCount: Number.isInteger(stepCount) && stepCount >= 0 ? Math.min(stepCount, record.actions.length) : record.actions.length,
+    viewer: candidate.viewer === 0 || candidate.viewer === 1 ? candidate.viewer : null,
+    description: typeof candidate.description === "string" ? candidate.description : "",
+    createdAt: typeof candidate.createdAt === "string" ? candidate.createdAt : "",
+    ...(typeof candidate.userAgent === "string" ? { userAgent: candidate.userAgent } : {}),
+  };
+}
+
+const CODE_PREFIX = "PAX1:";
+
+/** A copy-and-paste code for a record or report: `PAX1:` + base64url JSON. */
+export function encodeShareCode(value: GameRecord | BugReport): string {
+  const bytes = new TextEncoder().encode(JSON.stringify(value));
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return CODE_PREFIX + btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+/**
+ * Read anything a player might paste or upload: a share code, a record's
+ * JSON, or a bug report's JSON. Returns null if it is none of those.
+ */
+export function parseImport(text: string): { record: GameRecord; report: BugReport | null } | null {
+  const trimmed = text.trim();
+  let value: unknown;
+  try {
+    if (trimmed.startsWith(CODE_PREFIX)) {
+      const base64 = trimmed.slice(CODE_PREFIX.length).replace(/\s+/g, "").replace(/-/g, "+").replace(/_/g, "/");
+      const binary = atob(base64 + "=".repeat((4 - (base64.length % 4)) % 4));
+      value = JSON.parse(new TextDecoder().decode(Uint8Array.from(binary, (char) => char.charCodeAt(0))));
+    } else {
+      value = JSON.parse(trimmed);
+    }
+  } catch {
+    return null;
+  }
+  const report = parseBugReport(value);
+  if (report) return { record: report.record, report };
+  const record = parseRecord(value);
+  return record ? { record, report: null } : null;
 }

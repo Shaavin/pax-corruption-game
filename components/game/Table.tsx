@@ -52,6 +52,10 @@ type TableProps = {
   /** Shown in the turn dock when it isn't this seat's move (setup, waiting, game over). */
   idlePrompt: string;
   interaction?: TableInteraction | null;
+  /** Opens the "Report a problem" dialog. */
+  onReport?: () => void;
+  /** Replaces the Menu link (troubleshooting uses its own exit). */
+  menuHref?: string;
   children?: ReactNode;
 };
 
@@ -64,6 +68,8 @@ export function Table({
   history,
   idlePrompt,
   interaction,
+  onReport,
+  menuHref = "/",
   children,
 }: TableProps) {
   const [peek, setPeek] = useState<PeekCard | null>(null);
@@ -123,10 +129,23 @@ export function Table({
                   Player aid
                 </button>
               )}
+              {onReport ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPeek(null);
+                    onReport();
+                  }}
+                  className="cursor-pointer tracking-[0.14em] uppercase hover:text-stone-300"
+                  title="Send the developer this game's moves and a description"
+                >
+                  Report
+                </button>
+              ) : null}
               <span className="tabular-nums" title="Deterministic setup seed">
                 Seed {seed}
               </span>
-              <Link href="/" className="tracking-[0.14em] uppercase hover:text-stone-300">
+              <Link href={menuHref} className="tracking-[0.14em] uppercase hover:text-stone-300">
                 Menu
               </Link>
             </div>

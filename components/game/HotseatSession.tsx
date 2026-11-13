@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ChoiceOverlay } from "./ChoiceOverlay";
 import { DecreeChoice } from "./DecreeChoice";
 import { GameOverOverlay } from "./GameOverOverlay";
 import { PassDeviceGate } from "./PassDeviceGate";
 import { playerLabel } from "./players";
+import { ReportDialog } from "./ReportDialog";
 import { saveGame } from "./saved-game";
 import { SetupOverlay } from "./SetupOverlay";
 import { Table, type DockBanner, type ExtraAction } from "./Table";
@@ -106,6 +107,8 @@ export function HotseatSession(props: HotseatSessionProps) {
   const [proposeTarget, setProposeTarget] = useState<PolicyTarget | null>(null);
   /** Free-action source driving the current mode (Rebel, Architecture, Capitol, Foreign, Century). */
   const [via, setVia] = useState<string | null>(null);
+  const [reportOpen, setReportOpen] = useState(false);
+  const closeReport = useCallback(() => setReportOpen(false), []);
 
   const { state } = session.replay;
   const history = useMemo(() => session.replay.steps.flatMap((step) => step.events), [session.replay]);
@@ -562,6 +565,7 @@ export function HotseatSession(props: HotseatSessionProps) {
       veiled={veiled || waitingFirstSeat}
       hotseat={viewer}
       interaction={interaction}
+      onReport={() => setReportOpen(true)}
     >
       {veiled || waitingFirstSeat ? null : (
         <SetupOverlay state={state} viewer={viewer} onAction={dispatch} />
@@ -579,6 +583,7 @@ export function HotseatSession(props: HotseatSessionProps) {
         <ChoiceOverlay state={state} choice={choice} viewer={viewer} onAction={dispatch} />
       ) : null}
       {state.victory ? <GameOverOverlay victory={state.victory} /> : null}
+      {reportOpen ? <ReportDialog replay={session.replay} viewer={seated} onClose={closeReport} /> : null}
       {showGate ? (
         <PassDeviceGate
           to={actor}

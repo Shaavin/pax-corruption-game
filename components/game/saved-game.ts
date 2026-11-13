@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import { parseRecord, toRecord, type GameRecord, type Replay } from "@/lib/game/record";
+import { APP_BUILD } from "./share";
 
 /** The one in-progress hotseat game, kept in this browser so a reload can resume it. */
 export const SAVE_KEY = "pax-hotseat-game-v1";
@@ -15,7 +16,19 @@ export type SavedGame = {
 const listeners = new Set<() => void>();
 
 export function saveGame(replay: Replay): void {
-  const saved: SavedGame = { record: toRecord(replay), over: Boolean(replay.state.victory), savedAt: Date.now() };
+  writeSave(toSaved(replay));
+}
+
+/** Save an arbitrary record (troubleshooting: "play on from here"). */
+export function saveRecord(record: GameRecord, over = false): void {
+  writeSave({ record, over, savedAt: Date.now() });
+}
+
+function toSaved(replay: Replay): SavedGame {
+  return { record: toRecord(replay, APP_BUILD), over: Boolean(replay.state.victory), savedAt: Date.now() };
+}
+
+function writeSave(saved: SavedGame): void {
   try {
     localStorage.setItem(SAVE_KEY, JSON.stringify(saved));
   } catch {

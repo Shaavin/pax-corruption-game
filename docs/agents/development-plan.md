@@ -4,7 +4,7 @@ Local hotseat simulator first. The same rules engine should later run a networke
 
 ## Where things stand (2026-11-13)
 
-**Phase R (rules migration), Phase 6 (card abilities), and Phase 7 (hotseat finish) are done.** Engine, catalog, art, tests, and hotseat UI follow the current rulebook, every base-game card ability works, and a hotseat game saves, resumes, and supports undo. Next up is **Phase 8 — troubleshooting**.
+**Phases R (rules migration), 6 (card abilities), 7 (hotseat finish), and 8 (troubleshooting) are done.** Engine, catalog, art, tests, and hotseat UI follow the current rulebook, every base-game card ability works, a hotseat game saves, resumes, and supports undo, and reported games can be replayed step by step at `/troubleshoot`. **Phase 9** (online play, setup modes, expansion) is the remaining backlog.
 
 | Area | State |
 | --- | --- |
@@ -18,6 +18,7 @@ Local hotseat simulator first. The same rules engine should later run a networke
 | UI (`components/game`) | Senate + decree row (`SenateRow`), propose flow (reveal → policy → discard), Seat in the Senate, Declare buttons, `DecreeChoice` overlay. Executive, referendum, and first-player UI removed. |
 | Action log (`action-log.ts`, `HistoryRail`) | Live: the left rail lists every public action; deck draws stay hidden. |
 | Records (`record.ts`, `saved-game.ts`) | A game is its seed + action list. Replay rebuilds it; the browser saves it after every action; the menu offers **Continue game**; Undo replays all but the last action. |
+| Troubleshooting (`diagnostics.ts`, `/troubleshoot`) | Bug reports (in-game **Report**), share codes, step-through replay with hidden info, failure and invariant checks, engine version stamps, **Play on from here**. |
 | Lint | Two pre-existing `react-hooks/set-state-in-effect` errors in `TableTour.tsx` (not from the migration). |
 
 ## Principles
@@ -78,7 +79,8 @@ lib/
     decrees.ts              # NEW: decree conditions
     victory.ts              # declarable victories, Civil at final election, ideological math
     action-log.ts
-    record.ts               # game records: replay, undo rules, record parsing
+    record.ts               # game records: replay, undo rules, bug reports, share codes, ENGINE_VERSION
+    diagnostics.ts          # simulate a record, invariant checks, readable action lines
     abilities/              # one file per effect id or family
   cards/
     catalog.ts, deck.ts, setup-cards.ts, schema.ts, effects.ts
@@ -146,7 +148,7 @@ Each ability gets at least one engine test. An unimplemented ability is unusable
 
 Tests: `record.test.ts` (replay determinism, JSON round trip, `ReplayError` index, undo rules).
 
-### Phase 8 — Troubleshooting
+### Phase 8 — Troubleshooting (done 2026-11-13)
 
 Tools to reproduce and diagnose games that players report as broken. Everything builds on deterministic replay: a game is fully described by its seed and its action list.
 
@@ -156,6 +158,21 @@ Tools to reproduce and diagnose games that players report as broken. Everything 
 - Divergence checks: replay validates every action and reports the first one that is illegal or throws, plus engine invariants (card conservation, zone sizes) after each step
 - Bug report: one button that bundles the record, the current step, and a short description for the player to send
 - Version stamp: records carry the engine version so a record from an older rules build is flagged instead of silently replaying differently
+
+How it works:
+
+| Piece | Where |
+| --- | --- |
+| Seed entry | Menu → **More options** (a plain GET form to `/play?seed=`); also on `/troubleshoot` |
+| Bug report | In-game **Report** (top bar): description + the record → **Download report** (`.json`) or **Copy report code** (`PAX1:` + base64url JSON). `BugReport` and the codec live in `record.ts` |
+| Records | `GameRecord` carries `engineVersion` (`ENGINE_VERSION` in `record.ts`) and `build` (git short hash, injected as `PAX_BUILD` by `next.config.ts`) |
+| Re-simulate | `/troubleshoot`: paste a code or JSON, open a file, or open this browser's saved game. Step with the slider, buttons, or ←/→/Home/End; view as either seat (both hands face up); tabs for the move list, hidden info (hands, set-aside zones, top of deck, turn and pending choices, the step's events), and the raw state |
+| Divergence checks | `simulate()` in `diagnostics.ts` keeps every state, stops at the first move that throws, and runs `invariantIssues()` after each step: no card in two places, card count constant after setup, Senate at 5, Market at most 8, partisans not negative, victory only in `gameOver` |
+| Follow-up | **Play on from here** saves the record up to the current step as this browser's game and opens it in hotseat; **Download / Copy code to here** exports that prefix |
+
+**Bump `ENGINE_VERSION`** whenever a change can make an existing action list replay differently (a rule fix, a new choice, a changed legal action).
+
+Tests: `diagnostics.test.ts` (clean simulation, failure index, invariants, version stamps, share codes, action descriptions).
 
 ### Phase 9 — Later, not now
 
