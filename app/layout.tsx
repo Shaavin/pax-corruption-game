@@ -1,4 +1,5 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_TITLE, SITE_URL, THEME_COLOR } from "@/lib/site";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -13,11 +14,42 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: "Pax Corruption",
-    template: "%s · Pax Corruption",
+    default: SITE_TITLE,
+    template: `%s · ${SITE_NAME}`,
   },
-  description: "Local hotseat simulator for the two-player political card game.",
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  keywords: [
+    "Pax Corruption",
+    "political card game",
+    "two-player card game",
+    "board game online",
+    "play in browser",
+    "pass and play",
+    "online card game",
+  ],
+  category: "games",
+  openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+  },
+  appleWebApp: { capable: true, title: SITE_NAME, statusBarStyle: "black-translucent" },
+  formatDetection: { telephone: false },
+};
+
+export const viewport: Viewport = {
+  themeColor: THEME_COLOR,
+  colorScheme: "dark",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

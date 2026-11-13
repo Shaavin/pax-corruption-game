@@ -1,7 +1,48 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { HomeLauncher } from "@/components/home/HomeLauncher";
 import { SeedForm } from "@/components/game/Troubleshooter";
+import { MARKETING_URL, SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+  openGraph: { url: "/" },
+};
+
+/** Structured data: a free, two-player browser game based on the tabletop card game. */
+const JSON_LD = {
+  "@context": "https://schema.org",
+  "@type": "VideoGame",
+  name: SITE_NAME,
+  url: SITE_URL,
+  description: SITE_DESCRIPTION,
+  image: `${SITE_URL}/opengraph-image.jpg`,
+  genre: ["Card game", "Strategy", "Political"],
+  gamePlatform: "Web browser",
+  applicationCategory: "Game",
+  operatingSystem: "Any",
+  playMode: ["MultiPlayer"],
+  numberOfPlayers: { "@type": "QuantitativeValue", minValue: 2, maxValue: 2 },
+  offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+  creator: { "@type": "Person", name: "Joe Zhao" },
+  sameAs: [MARKETING_URL],
+};
+
+const WAYS_TO_PLAY = [
+  {
+    title: "Pass and play",
+    body: "Two players, one screen. A handoff screen hides your hand when the device changes hands.",
+  },
+  {
+    title: "Online with a friend",
+    body: "Start a game, send the link, and play on your own devices. Your hand stays private. No account needed.",
+  },
+  {
+    title: "Every rule built in",
+    body: "Legal moves light up as you play, with all four deck modes and the Legacy & Diplomacy expansion.",
+  },
+] as const;
 
 const DISTRICTS = [
   { name: "Dragonara", theme: "the Technocrats", color: "var(--dragonara)" },
@@ -10,9 +51,8 @@ const DISTRICTS = [
   { name: "Smarbbit", theme: "the Vocals", color: "var(--smarbbit)" },
 ] as const;
 
-/** The game's own site: what it is, the rulebook, and how to get a physical copy. */
-const MARKETING_SITE = "https://pax-corruption-marketing.vercel.app/";
-const GET_A_COPY = `${MARKETING_SITE}#request`;
+const MARKETING_SITE = `${MARKETING_URL}/`;
+const GET_A_COPY = `${MARKETING_URL}/#request`;
 
 export default function Home() {
   return (
@@ -68,7 +108,7 @@ export default function Home() {
           </h1>
           <p className="mt-6 max-w-md text-base leading-relaxed text-stone-300 sm:text-lg">
             Two rival parties fight over a city of four districts. Play civil cards, forge alliances, sway the Senate,
-            and steer the elections toward one of five victories.
+            and steer the elections toward one of five victories. Free to play in your browser.
           </p>
 
           <ul aria-label="Districts" className="mt-8 grid max-w-md grid-cols-2 gap-2 sm:gap-2.5">
@@ -117,6 +157,26 @@ export default function Home() {
         </div>
       </main>
 
+      <section aria-labelledby="ways-to-play" className="mx-auto max-w-6xl px-5 pb-12 sm:px-8">
+        <h2 id="ways-to-play" className="sr-only">
+          Ways to play
+        </h2>
+        <ul className="grid gap-3 sm:grid-cols-3">
+          {WAYS_TO_PLAY.map((way) => (
+            <li key={way.title} className="rounded-2xl border border-white/[0.07] bg-white/[0.025] px-5 py-4">
+              <h3 className="text-sm font-semibold text-stone-100">{way.title}</h3>
+              <p className="mt-1.5 text-sm leading-relaxed text-stone-400">{way.body}</p>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <script
+        type="application/ld+json"
+        // Static, trusted data; escaping "<" keeps it inert inside the script tag.
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD).replace(/</g, "\\u003c") }}
+      />
+
       <footer className="mx-auto max-w-6xl px-5 pb-8 sm:px-8">
         <details className="group border-t border-white/[0.08] pt-5 text-sm text-stone-500">
           <summary className="flex cursor-pointer list-none items-center gap-2 select-none hover:text-stone-300 [&::-webkit-details-marker]:hidden">
@@ -130,6 +190,13 @@ export default function Home() {
             </Link>
           </div>
         </details>
+        <p className="mt-6 text-xs text-stone-600">
+          Pax Corruption is designed by Joe Zhao. This is its digital table;{" "}
+          <a href={MARKETING_SITE} className="underline-offset-4 hover:text-stone-400 hover:underline">
+            the physical game lives here
+          </a>
+          .
+        </p>
       </footer>
     </div>
   );

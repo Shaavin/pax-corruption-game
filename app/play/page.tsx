@@ -8,7 +8,9 @@ import { GameMode } from "@/lib/game/types";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Table",
+  title: "Game table",
+  // Each table is a fresh random game: nothing for search to index.
+  robots: { index: false, follow: true },
 };
 
 export default async function PlayPage({
