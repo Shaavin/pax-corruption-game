@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { Action, GameEvent, GameState, PlayerId } from "@/lib/game";
+import { currentActor, type Action, type GameEvent, type GameState, type PlayerId } from "@/lib/game";
+import { captureCards } from "../game/card-motion";
 import { NO_NAMES, parseNames, type PlayerNames } from "@/lib/game/names";
 import {
   PROTOCOL_VERSION,
@@ -118,6 +119,8 @@ export function useOnlineGame(gameId: string, token: string | null): OnlineGame 
     names: NO_NAMES,
   });
   const socket = useRef<WebSocket | null>(null);
+  /** The last state shown, so the next update can animate from it. */
+  const shown = useRef<GameState | null>(null);
 
   useEffect(() => {
     if (!token) return;
@@ -140,6 +143,9 @@ export function useOnlineGame(gameId: string, token: string | null): OnlineGame 
         if (event.data === "pong") return;
         const message = JSON.parse(String(event.data)) as ServerMessage;
         if (message.t === "state") {
+          // Animate from the table as it is now (not on the first load: nothing to move from).
+          if (shown.current) captureCards(currentActor(shown.current));
+          shown.current = message.state;
           setSnapshot((previous) => ({
             seat: message.seat,
             settings: message.settings,

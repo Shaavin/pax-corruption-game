@@ -109,16 +109,19 @@ function Section({
   aside,
   tour,
   info,
+  motionZone,
   children,
 }: {
   title: string;
   aside?: ReactNode;
   tour?: string;
+  /** Card motion: new cards here come from the deck. */
+  motionZone?: string;
   info?: ReactNode;
   children: ReactNode;
 }) {
   return (
-    <section data-tour={tour} className="glass rounded-xl px-2.5 py-2">
+    <section data-tour={tour} data-motion-zone={motionZone} className="glass rounded-xl px-2.5 py-2">
       <header className="mb-1.5 flex items-center gap-1.5">
         <h3 className="label">{title}</h3>
         {info ? <InfoTip label={`About ${title}`}>{info}</InfoTip> : null}
@@ -233,6 +236,7 @@ function SenateSection({
                 art={def.art}
                 size="panel"
                 cardId={entry.cardId}
+                motionKey={entry.instanceId}
                 selected={isConvinced}
                 dimmed={(proposing && !isConvinced) || leaving}
               />
@@ -332,6 +336,7 @@ function MarketSection({
     <Section
       title="Market"
       tour="market"
+      motionZone="market"
       aside={
         electionActive
           ? "no refill during the election"
@@ -367,6 +372,7 @@ function MarketSection({
                     art={event.art}
                     size="panel"
                     cardId={entry.cardId}
+                    motionKey={entry.instanceId}
                     playable={buyable}
                     className="ring-2 ring-[var(--brass)]/60"
                     selectLabel={buyable ? `Buy ${event.name} (costs ${cost})` : undefined}
@@ -391,6 +397,7 @@ function MarketSection({
                   faceUp={entry.faceUp}
                   size="panel"
                   cardId={entry.cardId}
+                  motionKey={entry.instanceId}
                   playable={takeable}
                   selected={selectedIds?.has(entry.instanceId) ?? false}
                   selectLabel={
@@ -436,7 +443,7 @@ function WorldSection({ expansion }: { expansion: ExpansionView }) {
             const event = getEvent(entry.card.cardId);
             return (
               <li key={entry.card.instanceId} className="relative">
-                <CardView name={event.name} art={event.art} size="panel" cardId={entry.card.cardId} />
+                <CardView name={event.name} art={event.art} size="panel" cardId={entry.card.cardId} motionKey={entry.card.instanceId} />
                 <span
                   className={[
                     "pointer-events-none absolute -bottom-1 left-1/2 -translate-x-1/2 rounded px-1 text-[0.5rem] font-bold uppercase ring-1 ring-black/40",
@@ -520,6 +527,7 @@ function SupplySection({ monuments, deckCount, claimableIds, onClaimMonument }: 
               name={catalog.name}
               art={catalog.art}
               faceUp={entry.faceUp}
+              motionKey={`monument:${entry.cardId}`}
               back={CardBack.monument}
               size="panel"
               cardId={entry.cardId}
@@ -529,7 +537,7 @@ function SupplySection({ monuments, deckCount, claimableIds, onClaimMonument }: 
             />
           );
         })}
-        <div className="ml-1 flex flex-col items-center gap-0.5" title={`${deckCount} cards left in the draw deck`}>
+        <div data-motion-origin="deck" className="ml-1 flex flex-col items-center gap-0.5" title={`${deckCount} cards left in the draw deck`}>
           <CardView name="Draw deck" art={CardBack.common} faceUp={false} size="mini" />
           <span className="text-[0.6rem] font-semibold tabular-nums text-stone-300">{deckCount}</span>
         </div>

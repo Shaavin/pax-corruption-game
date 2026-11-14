@@ -131,7 +131,7 @@ function LaneCards({
   // The first row sits next to the district plate on both sides of the lane.
   if (side === "opponent") rows.reverse();
   return (
-    <div data-tour={tourId} className="flex flex-col items-center gap-1 py-1">
+    <div data-tour={tourId} data-motion-side={side} className="flex flex-col items-center gap-1 py-1">
       {rows.map((row, rowIndex) => {
         const overlap = row.length >= 5 ? 0.42 : row.length === 4 ? 0.2 : 0;
         return (
@@ -153,6 +153,7 @@ function LaneCards({
                     faceUp={entry.faceUp}
                     size="board"
                     cardId={entry.cardId}
+                    motionKey={entry.instanceId}
                     {...(pickable?.labels.has(entry.instanceId)
                       ? {
                           playable: true,

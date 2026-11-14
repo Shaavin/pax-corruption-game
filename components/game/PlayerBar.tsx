@@ -101,11 +101,30 @@ export function PlayerBar({
         <div className="flex shrink-0 items-center gap-1">
           {monuments.map((id) => {
             const monument = resolveCard(id);
-            return <CardView key={id} name={monument.name} art={monument.art} back={CardBack.monument} size="mini" cardId={id} />;
+            return (
+              <CardView
+                key={id}
+                name={monument.name}
+                art={monument.art}
+                back={CardBack.monument}
+                size="mini"
+                cardId={id}
+                motionKey={`monument:${id}`}
+              />
+            );
           })}
           {setAside.map((entry) => {
             const card = resolveCard(entry.cardId);
-            return <CardView key={entry.instanceId} name={card.name} art={card.art} size="mini" cardId={entry.cardId} />;
+            return (
+              <CardView
+                key={entry.instanceId}
+                name={card.name}
+                art={card.art}
+                size="mini"
+                cardId={entry.cardId}
+                motionKey={entry.instanceId}
+              />
+            );
           })}
         </div>
       ) : null}

@@ -61,6 +61,8 @@ type CardViewProps = {
   cardId?: string;
   /** Ms before the inspect zoom appears. Choice cards default to a short delay. */
   peekDelay?: number;
+  /** Card motion: the instance id, so moves between zones animate (see card-motion.ts). */
+  motionKey?: string;
   /** Extra fields for the blow-up (e.g. which decree side is in effect). */
   peekExtra?: Pick<PeekCard, "decreeActive">;
   /** Square card (decree objectives) instead of the 825×1125 card shape. */
@@ -84,6 +86,7 @@ export function CardView({
   cardId,
   peekDelay,
   peekExtra,
+  motionKey,
   square = false,
 }: CardViewProps) {
   const { setPeek } = usePeek();
@@ -187,9 +190,15 @@ export function CardView({
     }, 420);
   }
 
+  // Redacted cards ("hidden-…") get fresh ids on every update: no stable identity to animate.
+  const motion =
+    motionKey && !motionKey.startsWith("hidden-")
+      ? { "data-card-key": motionKey, "data-face-down": faceUp ? undefined : "1" }
+      : {};
+
   if (!interactive) {
     return (
-      <div className={frameClass} role="img" aria-label={label}>
+      <div className={frameClass} role="img" aria-label={label} {...motion}>
         {image}
       </div>
     );
@@ -201,6 +210,7 @@ export function CardView({
 
   return (
     <button
+      {...motion}
       type="button"
       aria-label={ariaLabel}
       aria-pressed={onSelect ? selected : undefined}

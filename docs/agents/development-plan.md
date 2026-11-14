@@ -19,6 +19,7 @@ Local hotseat simulator first. The same rules engine should later run a networke
 | Action log (`action-log.ts`, `HistoryRail`) | Live: the left rail lists every public action; deck draws stay hidden. |
 | Records (`record.ts`, `saved-game.ts`) | A game is its seed + action list. Replay rebuilds it; the browser saves it after every action; the menu offers **Continue game**; Undo replays all but the last action. |
 | Troubleshooting (`diagnostics.ts`, `/troubleshoot`) | Bug reports (in-game **Report**), share codes, step-through replay with hidden info, failure and invariant checks, engine version stamps, **Play on from here**. |
+| Card motion (`card-motion.ts`) | Cards carry `data-card-key` (instance id). `captureCards()` runs before every change (move, undo, server update, replay step); `Table` calls `playCardMotion()` after the commit, so cards slide from old to new spots, new cards fly in from a hand or the deck, and removed cards fade. Hotseat handoffs replay the other player's moves since the new seat last looked (final history, so undone moves never show; Skip available). Off with reduced motion. |
 | Table guide (`TableTour.tsx`) | Spotlight tour, controlled by `Table`: opens once per browser (`pax-table-tour-v9`), reopens from **Table guide** (desktop) or the ⋯ menu (phone). Steps point at `data-tour` anchors; on phones each step pins the Districts or Senate · Market view. Expansion games add a World step. |
 
 ## Principles

@@ -32,7 +32,7 @@ export function Hand({ cards, variant, tourId, tags, playableIds, selectableIds,
 
   if (variant === "opponent") {
     return (
-      <ul className="flex items-start" aria-label={`Opponent hand, ${cards.length} cards`}>
+      <ul className="flex items-start" data-motion-origin="hand-opponent" aria-label={`Opponent hand, ${cards.length} cards`}>
         {cards.map((entry, index) => {
           const mid = (cards.length - 1) / 2;
           const turn = (index - mid) * -fanStep(cards.length) * 0.7;
@@ -50,6 +50,7 @@ export function Hand({ cards, variant, tourId, tags, playableIds, selectableIds,
                 art={resolveCard(entry.cardId).art}
                 faceUp={entry.faceUp}
                 size="mini"
+                motionKey={entry.instanceId}
               />
             </li>
           );
@@ -65,6 +66,8 @@ export function Hand({ cards, variant, tourId, tags, playableIds, selectableIds,
   return (
     <ul
       data-tour={tourId}
+      data-motion-zone="hand-you"
+      data-motion-origin="hand-you"
       aria-label={`Your hand, ${cards.length} cards`}
       className="flex items-end justify-center"
     >
@@ -102,6 +105,7 @@ export function Hand({ cards, variant, tourId, tags, playableIds, selectableIds,
               selected={selected}
               dimmed={Boolean(selectableIds) && !selectable}
               cardId={entry.cardId}
+              motionKey={entry.instanceId}
               peekDelay={600}
               selectLabel={selectable ? (selected ? `Deselect ${catalog.name}` : `Choose ${catalog.name}`) : undefined}
               onSelect={selectable && onSelect ? () => onSelect(entry.instanceId) : undefined}

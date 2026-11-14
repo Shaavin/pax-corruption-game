@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { captureCards } from "./card-motion";
 import { ChoiceOverlay } from "./ChoiceOverlay";
 import { DecreeChoice } from "./DecreeChoice";
 import { GameOverOverlay } from "./GameOverOverlay";
@@ -49,6 +50,7 @@ import {
   replayRecord,
   SetupStep,
   stepReplay,
+  toRecord,
   undoReplay,
   VictoryKind,
   type Action,
@@ -144,6 +146,11 @@ export function HotseatSession(props: HotseatSessionProps) {
   const [localNames] = useState<PlayerNames>(() => props.record?.names ?? props.names ?? NO_NAMES);
   const names = remote ? (remote.names ?? NO_NAMES) : localNames;
   const [localSeated, setSeated] = useState<PlayerId | null>(null);
+  /** Hotseat: how many moves each seat had seen when it last held the device. */
+  const [lastSeen, setLastSeen] = useState<Partial<Record<PlayerId, number>>>({});
+  /** Hotseat: the other player's moves, replayed one at a time after the handoff. */
+  const [playback, setPlayback] = useState<{ states: GameState[]; actions: Action[]; index: number } | null>(null);
+  const replaying = playback !== null;
   const seated = remote ? remote.seat : localSeated;
   const [selectedHandIds, setSelectedHandIds] = useState<string[]>([]);
   const [spendKind, setSpendKind] = useState<SpendKind | null>(null);
@@ -173,7 +180,9 @@ export function HotseatSession(props: HotseatSessionProps) {
   const waitingFirstSeat = seated === null;
   const myMove = !remote || actor === remote.seat;
   const viewer: PlayerId = seated ?? 0;
-  const model = useMemo(() => tableModel(state, viewer), [state, viewer]);
+  // During a replay the table shows the replayed position; everything else uses the real one.
+  const shownState = playback ? playback.states[playback.index]! : state;
+  const model = useMemo(() => tableModel(shownState, viewer), [shownState, viewer]);
   const inSetup = state.phase === Phase.Setup;
   const legal = useMemo(
     () => (veiled || waitingFirstSeat ? [] : legalActions(state, viewer)),
@@ -205,6 +214,7 @@ export function HotseatSession(props: HotseatSessionProps) {
     if (remote) return;
     resetSelection();
     setSession({ replay, lastEvents });
+    if (seated !== null) setLastSeen((seen) => ({ ...seen, [seated]: replay.steps.length }));
     if (replay.steps.length > 0) saveGame(replay, names);
   }
 
@@ -216,12 +226,61 @@ export function HotseatSession(props: HotseatSessionProps) {
     }
     const replay = stepReplay(session.replay, action);
     const events = replay.steps.at(-1)!.events;
+    captureCards(action.player);
     commit(replay, START_OF_TURN.has(action.type) ? events : [...session.lastEvents, ...events]);
   }
 
+  /**
+   * Hotseat handoff: seat `next`, then replay the moves made since they last held the
+   * device (the other player's turn), one at a time, so they can see what changed.
+   * Uses the final history, so moves the other player undid never show.
+   */
+  function takeSeat(next: PlayerId) {
+    setSeated(next);
+    const from = lastSeen[next];
+    const total = session.replay.steps.length;
+    setLastSeen((seen) => ({ ...seen, [next]: total }));
+    if (from === undefined || from >= total) return;
+    const record = toRecord(session.replay);
+    let step = replayRecord({ ...record, actions: record.actions.slice(0, from) });
+    let states = [step.state];
+    let actions: Action[] = [];
+    for (const action of record.actions.slice(from)) {
+      step = stepReplay(step, action);
+      states.push(step.state);
+      actions.push(action);
+    }
+    // Setup choices are private picks: start the replay once the game is under way.
+    const start = states.findIndex((entry) => entry.phase !== Phase.Setup);
+    if (start < 0) return;
+    states = states.slice(start);
+    actions = actions.slice(start);
+    if (actions.length === 0) return;
+    setPlayback({ states, actions, index: 0 });
+  }
+
+  // Advance the replay: quiet steps (ending a step) go fast, moves get time to be seen.
+  useEffect(() => {
+    if (!playback) return;
+    if (playback.index >= playback.actions.length) {
+      const done = window.setTimeout(() => setPlayback(null), 400);
+      return () => window.clearTimeout(done);
+    }
+    const action = playback.actions[playback.index]!;
+    const quiet = action.type === "endAction" || action.type === "endPolitics";
+    const timer = window.setTimeout(
+      () => {
+        captureCards(action.player);
+        setPlayback((current) => current && { ...current, index: current.index + 1 });
+      },
+      playback.index === 0 ? 700 : quiet ? 250 : 950,
+    );
+    return () => window.clearTimeout(timer);
+  }, [playback]);
+
   const undoAvailable = remote
     ? remote.canUndo && actor === viewer
-    : canUndo(session.replay) && !veiled && !waitingFirstSeat && actor === viewer;
+    : canUndo(session.replay) && !veiled && !waitingFirstSeat && actor === viewer && !replaying;
 
   function undo() {
     if (remote) {
@@ -230,6 +289,7 @@ export function HotseatSession(props: HotseatSessionProps) {
       return;
     }
     if (!canUndo(session.replay)) return;
+    captureCards(viewer);
     commit(undoReplay(session.replay), []);
   }
 
@@ -630,7 +690,7 @@ export function HotseatSession(props: HotseatSessionProps) {
   const pendingDecrees = state.phase === Phase.DecreeChoice ? state.pendingDecrees : null;
 
   const interaction =
-    veiled || waitingFirstSeat || inSetup || state.victory || pendingDecrees || choice
+    veiled || waitingFirstSeat || inSetup || state.victory || pendingDecrees || choice || replaying
       ? null
       : {
           playableHandIds: spendKind ? selectableHandIds : playableHandIds,
@@ -702,7 +762,13 @@ export function HotseatSession(props: HotseatSessionProps) {
       mode={settings.mode}
       expansion={settings.expansion}
       history={history}
-      idlePrompt={remote && !myMove && !state.victory ? remote.waitingText : statusLine(state)}
+      idlePrompt={
+        replaying
+          ? `Replaying ${playerLabel(otherPlayer(viewer), names)}'s moves…`
+          : remote && !myMove && !state.victory
+            ? remote.waitingText
+            : statusLine(state)
+      }
       showTour={!veiled && !waitingFirstSeat && !inSetup && !state.victory}
       veiled={veiled || waitingFirstSeat}
       hotseat={viewer}
@@ -712,7 +778,7 @@ export function HotseatSession(props: HotseatSessionProps) {
       {veiled || waitingFirstSeat ? null : (
         <SetupOverlay state={state} viewer={viewer} onAction={dispatch} />
       )}
-      {pendingDecrees && !veiled && !waitingFirstSeat ? (
+      {pendingDecrees && !veiled && !waitingFirstSeat && !replaying ? (
         <DecreeChoice
           winner={pendingDecrees.player}
           chooserIsYou={viewer === pendingDecrees.player}
@@ -740,7 +806,7 @@ export function HotseatSession(props: HotseatSessionProps) {
       {buying && state.market.some((card) => card.instanceId === buying) && !veiled && !waitingFirstSeat ? (
         <BuyEventDialog state={state} viewer={viewer} instanceId={buying} onAction={dispatch} onClose={() => setBuying(null)} />
       ) : null}
-      {choice && choice.player === viewer && !veiled && !waitingFirstSeat ? (
+      {choice && choice.player === viewer && !veiled && !waitingFirstSeat && !replaying ? (
         <ChoiceOverlay state={state} choice={choice} viewer={viewer} onAction={dispatch} />
       ) : null}
       {state.victory ? (
@@ -754,12 +820,29 @@ export function HotseatSession(props: HotseatSessionProps) {
         />
       ) : null}
       {reportOpen && !remote ? <ReportDialog replay={session.replay} names={names} viewer={seated} onClose={closeReport} /> : null}
+      {replaying ? (
+        <div className="pointer-events-none fixed inset-x-0 top-14 z-[56] flex justify-center px-4">
+          <div className="pointer-events-auto flex items-center gap-3 rounded-full glass-strong px-4 py-2 text-sm shadow-xl ring-1 ring-[var(--brass)]/50">
+            <span className="text-stone-200">
+              Replaying {playerLabel(otherPlayer(viewer), names)}&apos;s moves · {Math.min(playback.index + 1, playback.actions.length)}/
+              {playback.actions.length}
+            </span>
+            <button
+              type="button"
+              onClick={() => setPlayback(null)}
+              className="cursor-pointer rounded-full bg-[var(--brass)] px-3 py-1 text-xs font-semibold text-stone-950 hover:brightness-110"
+            >
+              Skip
+            </button>
+          </div>
+        </div>
+      ) : null}
       {showGate ? (
         <PassDeviceGate
           to={actor}
           firstHandoff={waitingFirstSeat}
           hint={gateHint(state, session.lastEvents, names)}
-          onConfirm={() => setSeated(actor)}
+          onConfirm={() => takeSeat(actor)}
         />
       ) : null}
     </Table>

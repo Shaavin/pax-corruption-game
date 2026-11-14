@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { playCardMotion } from "./card-motion";
 import { Hand } from "./Hand";
 import { HistoryRail } from "./HistoryRail";
 import { Lane, type InPlayPick } from "./Lane";
@@ -122,6 +123,10 @@ export function Table({
     },
     [tourOpen, veiled],
   );
+  // Slide cards from where they were (captured just before the change) to where they are now.
+  useLayoutEffect(() => {
+    playCardMotion(hotseat);
+  }, [model, hotseat, compact]);
   const yourTurn = model.activePlayer === hotseat;
   const live = model.phase !== "setup" && model.phase !== "over";
 
@@ -474,7 +479,10 @@ function CompactTable({
   const panelStyle = { "--card-panel": "min(4.4rem, 16.5vw)" } as CSSProperties;
 
   const opponentBar = (
-    <div className="flex shrink-0 items-center gap-2 border-b border-[var(--line)] bg-black/30 px-2 py-1.5">
+    <div
+      data-motion-origin="hand-opponent"
+      className="flex shrink-0 items-center gap-2 border-b border-[var(--line)] bg-black/30 px-2 py-1.5"
+    >
       <div className="min-w-0 flex-1 overflow-x-auto [scrollbar-width:none]">
         <PlayerBar
           compact
