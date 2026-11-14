@@ -38,12 +38,46 @@ export function readTicket(gameId: string): SeatTicket | null {
   }
 }
 
-function saveTicket(gameId: string, ticket: SeatTicket): void {
+export function saveTicket(gameId: string, ticket: SeatTicket): void {
   try {
     localStorage.setItem(ticketKey(gameId), JSON.stringify(ticket));
   } catch {
     // Without storage the seat only lasts until the tab closes.
   }
+}
+
+/** Games this browser has a seat in (newest key order isn't guaranteed; ids only). */
+export function listTicketGames(): string[] {
+  const ids: string[] = [];
+  try {
+    for (let index = 0; index < localStorage.length; index++) {
+      const key = localStorage.key(index);
+      if (key?.startsWith("pax-online-")) ids.push(key.slice("pax-online-".length));
+    }
+  } catch {
+    // No storage: no list.
+  }
+  return ids.sort();
+}
+
+export function forgetTicket(gameId: string): void {
+  try {
+    localStorage.removeItem(ticketKey(gameId));
+  } catch {
+    // Nothing to forget.
+  }
+}
+
+/** A private link that seats whoever opens it in this seat (the token stays out of server logs: it's after #). */
+export function rejoinLink(gameId: string, seat: PlayerId, token: string): string {
+  return `${window.location.origin}/online/${gameId}#seat=${seat}.${token}`;
+}
+
+/** Read a rejoin link's seat from the address bar. */
+export function readRejoinHash(): SeatTicket | null {
+  if (typeof window === "undefined") return null;
+  const match = window.location.hash.match(/^#seat=([01])\.([A-Za-z0-9_-]{16,64})$/);
+  return match ? { seat: Number(match[1]) as PlayerId, token: match[2]! } : null;
 }
 
 async function post<T>(path: string, body: unknown): Promise<T> {
@@ -90,6 +124,9 @@ export type OnlineGame = {
   joined: [boolean, boolean];
   connected: [boolean, boolean];
   names: PlayerNames;
+  /** A rematch exists (started by `by`): this seat's ticket for it. */
+  rematch: { gameId: string; token: string; by: PlayerId } | null;
+  requestRematch: () => void;
   send: (action: Action) => void;
   undo: () => void;
   clearError: () => void;
@@ -121,6 +158,7 @@ export function useOnlineGame(gameId: string, token: string | null): OnlineGame 
   const socket = useRef<WebSocket | null>(null);
   /** The last state shown, so the next update can animate from it. */
   const shown = useRef<GameState | null>(null);
+  const [rematch, setRematch] = useState<{ gameId: string; token: string; by: PlayerId } | null>(null);
 
   useEffect(() => {
     if (!token) return;
@@ -156,6 +194,8 @@ export function useOnlineGame(gameId: string, token: string | null): OnlineGame 
           setPresence({ joined: message.joined, connected: message.connected, names: parseNames(message.names) });
         } else if (message.t === "presence") {
           setPresence({ joined: message.joined, connected: message.connected, names: parseNames(message.names) });
+        } else if (message.t === "rematch") {
+          setRematch({ gameId: message.gameId, token: message.token, by: message.by });
         } else if (message.t === "error") {
           setError(message.message);
         }
@@ -199,6 +239,8 @@ export function useOnlineGame(gameId: string, token: string | null): OnlineGame 
     joined: presence.joined,
     connected: presence.connected,
     names: presence.names,
+    rematch,
+    requestRematch: useCallback(() => sendMessage({ t: "rematch" }), [sendMessage]),
     send: useCallback((action: Action) => sendMessage({ t: "action", action }), [sendMessage]),
     undo: useCallback(() => sendMessage({ t: "undo" }), [sendMessage]),
     clearError: useCallback(() => setError(null), []),

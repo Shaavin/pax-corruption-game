@@ -131,6 +131,37 @@ const again = await connect(created.gameId, joined.token, 1);
 await until(() => Boolean(again.state), "reconnect state");
 check(JSON.stringify(again.state!.market) === JSON.stringify(p0.state!.market), "Reconnect sees the same table");
 
+// Rematch: only after the game, one per game, both seats carried over.
+if (!p0.state!.victory) {
+  const mark = p0.messages.length;
+  p0.ws.send(JSON.stringify({ t: "rematch" } satisfies ClientMessage));
+  await until(() => p0.messages.length > mark, "early rematch reply");
+  check(p0.errors.at(-1) === "The game isn't over yet", "No rematch before the game ends");
+} else {
+  const offer = (client: Client) => client.messages.filter((message) => message.t === "rematch").at(-1);
+  p0.ws.send(JSON.stringify({ t: "rematch" } satisfies ClientMessage));
+  await until(() => Boolean(offer(p0) && offer(again)), "rematch offers");
+  const mine = offer(p0)!;
+  const theirs = offer(again)!;
+  check(mine.t === "rematch" && theirs.t === "rematch" && mine.gameId === theirs.gameId, "Both seats get the same rematch");
+  check(mine.t === "rematch" && theirs.t === "rematch" && mine.token !== theirs.token && mine.by === 0, "Each seat has its own token");
+  const count = again.messages.length;
+  again.ws.send(JSON.stringify({ t: "rematch" } satisfies ClientMessage));
+  await until(() => again.messages.length > count, "second rematch request");
+  check(offer(again)!.t === "rematch" && (offer(again) as { gameId: string }).gameId === (mine as { gameId: string }).gameId, "A second request joins the same rematch");
+  if (mine.t === "rematch" && theirs.t === "rematch") {
+    const info = (await (await fetch(`${base}/api/games/${mine.gameId}`)).json()) as { open: boolean; settings: { expansion: boolean } };
+    check(info.open === false && info.settings.expansion === expansion, "The rematch has both seats and the same settings");
+    const n0 = await connect(mine.gameId, mine.token, 0);
+    const n1 = await connect(mine.gameId, theirs.token, 1);
+    await until(() => Boolean(n0.state && n1.state), "rematch state");
+    const seats = [n0, n1].map((client) => client.messages.find((message) => message.t === "state"));
+    check(seats[0]?.t === "state" && seats[0].seat === 0 && seats[1]?.t === "state" && seats[1].seat === 1, "Seats carry over");
+    check(n0.state!.phase === "setup" && !n0.state!.victory, "The rematch is a fresh game");
+    for (const client of [n0, n1]) client.ws.close();
+  }
+}
+
 for (const client of [p0, again]) client.ws.close();
 console.log(
   failures.length === 0

@@ -50,6 +50,8 @@ export type ClientMessage =
   | { t: "hello"; token: string; protocol: number }
   | { t: "action"; action: Action }
   | { t: "undo" }
+  /** After the game ends: start (or join) a rematch with the same settings and seats. */
+  | { t: "rematch" }
   | { t: "ping" };
 
 export type ServerMessage =
@@ -72,11 +74,20 @@ export type ServerMessage =
     }
   | { t: "presence"; joined: [boolean, boolean]; connected: [boolean, boolean]; names?: [string | null, string | null] }
   | { t: "error"; message: string }
+  /** A rematch exists: this seat's place in it. */
+  | { t: "rematch"; gameId: string; token: string; by: PlayerId }
   | { t: "pong" };
 
 /** Game ids: 10 characters from an unambiguous alphabet. */
 export const GAME_ID_PATTERN = /^[a-z2-9]{10}$/;
 export const GAME_ID_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789";
+
+/** A fresh random game id. */
+export function newGameId(): string {
+  const bytes = new Uint8Array(10);
+  crypto.getRandomValues(bytes);
+  return [...bytes].map((byte) => GAME_ID_ALPHABET[byte % GAME_ID_ALPHABET.length]).join("");
+}
 
 export function isGameId(value: string): boolean {
   return GAME_ID_PATTERN.test(value);

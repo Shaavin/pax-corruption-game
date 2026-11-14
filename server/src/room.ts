@@ -12,6 +12,7 @@ import {
   type ClientMessage,
   type CreateGameRequest,
   type GameSettings,
+  newGameId,
   type ServerMessage,
 } from "../../lib/online/protocol.ts";
 
@@ -27,6 +28,8 @@ type Meta = {
   tokens: [string, string | null];
   /** Display names by seat (optional; games from before names have none). */
   names?: [string | null, string | null];
+  /** After the game: the rematch, with each seat's token in it. */
+  rematch?: { gameId: string; tokens: [string, string]; by: PlayerId };
   createdAt: number;
 };
 
@@ -88,6 +91,15 @@ export class GameRoom extends DurableObject<Env> {
     return { seat: 0, token: meta.tokens[0] };
   }
 
+  /** A rematch: same settings, names, and seats; both seats are taken by the old players' new tokens. */
+  async createRematch(settings: GameSettings, names: [string | null, string | null], tokens: [string, string]): Promise<void> {
+    if (await this.ctx.storage.get<Meta>("meta")) throw new Error("Game already exists");
+    const meta: Meta = { seed: randomUint32(), settings, tokens, names, createdAt: Date.now() };
+    await this.ctx.storage.put("meta", meta);
+    await this.touch();
+    this.meta = meta;
+  }
+
   /** Public: what's being played and whether Player 2's seat is free. Never the seed or tokens. */
   async info(): Promise<{ settings: GameSettings; open: boolean } | { error: string }> {
     const meta = await this.loadMeta();
@@ -140,6 +152,7 @@ export class GameRoom extends DurableObject<Env> {
       ws.serializeAttachment({ seat: seat as PlayerId } satisfies Attachment);
       await this.sendState(ws, seat as PlayerId, null, true);
       this.broadcastPresence();
+      if (meta.rematch) this.sendRematch(ws, seat as PlayerId, meta.rematch);
       return;
     }
 
@@ -164,6 +177,23 @@ export class GameRoom extends DurableObject<Env> {
       this.replay = next;
       await this.touch();
       await this.broadcastState(next.steps.at(-1)!.events, false);
+      return;
+    }
+
+    if (message.t === "rematch") {
+      if (!replay.state.victory) return this.send(ws, { t: "error", message: "The game isn't over yet" });
+      const meta = (await this.loadMeta())!;
+      if (!meta.rematch) {
+        // Only one rematch per game: the first request creates it; later ones just get their seat.
+        const gameId = newGameId();
+        const tokens: [string, string] = [randomToken(), randomToken()];
+        const room = this.env.GAMES.get(this.env.GAMES.idFromName(gameId));
+        await room.createRematch(meta.settings, [meta.names?.[0] ?? null, meta.names?.[1] ?? null], tokens);
+        meta.rematch = { gameId, tokens, by: seat };
+        await this.ctx.storage.put("meta", meta);
+        await this.touch();
+      }
+      for (const entry of this.seats()) this.sendRematch(entry.ws, entry.seat, meta.rematch);
       return;
     }
 
@@ -275,6 +305,10 @@ export class GameRoom extends DurableObject<Env> {
       canUndo: Boolean(last?.undoable && last.action.player === seat && currentActor(replay.state) === seat),
       ...this.presence(),
     });
+  }
+
+  private sendRematch(ws: WebSocket, seat: PlayerId, rematch: NonNullable<Meta["rematch"]>): void {
+    this.send(ws, { t: "rematch", gameId: rematch.gameId, token: rematch.tokens[seat], by: rematch.by });
   }
 
   private send(ws: WebSocket, message: ServerMessage): void {

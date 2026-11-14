@@ -1,12 +1,23 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { HotseatSession } from "../game/HotseatSession";
 import { playerLabel, rememberedNames, rememberNames } from "../game/players";
 import { cleanName, MAX_NAME_LENGTH, nameProblem } from "@/lib/game/names";
 import { copyText } from "../game/share";
-import { fetchGameInfo, joinOnlineGame, onlineConfigured, readTicket, useOnlineGame } from "./online-client";
+import {
+  fetchGameInfo,
+  joinOnlineGame,
+  onlineConfigured,
+  readRejoinHash,
+  readTicket,
+  rejoinLink,
+  saveTicket,
+  useOnlineGame,
+} from "./online-client";
+import { playTurnChime, readTurnAlerts, writeTurnAlerts } from "./turn-alerts";
 import { describeSettings, type GameInfoResponse, type GameSettings } from "@/lib/online/protocol";
 import { currentActor } from "@/lib/game";
 
@@ -21,8 +32,15 @@ export function OnlineGameView({ gameId }: { gameId: string }) {
     () => undefined,
   );
   const [joinedToken, setJoinedToken] = useState<string | null>(null);
+  // A private rejoin link (…#seat=1.token) seats this browser; keep it, then clear it from the address bar.
+  const [claim] = useState(readRejoinHash);
+  useEffect(() => {
+    if (!claim) return;
+    saveTicket(gameId, claim);
+    window.history.replaceState(null, "", window.location.pathname);
+  }, [claim, gameId]);
   const ticket = useMemo(() => (stored ? (JSON.parse(stored) as ReturnType<typeof readTicket>) : null), [stored]);
-  const token = joinedToken ?? ticket?.token ?? null;
+  const token = joinedToken ?? claim?.token ?? ticket?.token ?? null;
 
   if (!onlineConfigured()) return <Message title="Online play isn't set up here" body="No game server is configured for this site." />;
   if (stored === undefined) return <div className="h-dvh bg-[#16120e]" />;
@@ -34,6 +52,40 @@ function Connected({ gameId, token }: { gameId: string; token: string }) {
   const game = useOnlineGame(gameId, token);
   const [copied, setCopied] = useState(false);
   const [settingsSeen, setSettingsSeen] = useState(false);
+  const [alerts, setAlerts] = useState(readTurnAlerts);
+  const [wantRematch, setWantRematch] = useState(false);
+  const router = useRouter();
+
+  const opponentSeat = game.seat === 0 ? 1 : 0;
+  const myTurn = Boolean(
+    game.state && game.seat !== null && !game.state.victory && game.joined[opponentSeat] && currentActor(game.state) === game.seat,
+  );
+  // Your turn: say so in the tab title, and (if turned on) chime and notify while the tab is in the background.
+  useEffect(() => {
+    if (!myTurn) return;
+    const previous = document.title;
+    document.title = "● Your turn · Pax Corruption";
+    if (alerts && document.hidden) {
+      playTurnChime();
+      try {
+        if ("Notification" in window && Notification.permission === "granted") {
+          new Notification("Your turn in Pax Corruption", { body: "Your opponent has moved.", tag: `pax-${gameId}` });
+        }
+      } catch {
+        // Some browsers only allow notifications from a service worker; the title and chime still work.
+      }
+    }
+    return () => {
+      document.title = previous;
+    };
+  }, [myTurn, alerts, gameId]);
+
+  // Rematch: whoever asked for it goes straight there once the server has made it.
+  useEffect(() => {
+    if (!wantRematch || !game.rematch || game.seat === null) return;
+    saveTicket(game.rematch.gameId, { seat: game.seat, token: game.rematch.token });
+    router.push(`/online/${game.rematch.gameId}`);
+  }, [wantRematch, game.rematch, game.seat, router]);
 
   if (!game.state || game.seat === null || !game.settings) {
     if (game.status === "closed") return <Message title="Can't open this game" body={game.error ?? "The connection closed."} />;
@@ -63,6 +115,48 @@ function Connected({ gameId, token }: { gameId: string; token: string }) {
           undo: game.undo,
           waitingText,
           names: game.names,
+          rematch: game.state.victory
+            ? game.rematch
+              ? {
+                  label: game.rematch.by === seat ? "Go to the rematch" : "Join the rematch",
+                  note: game.rematch.by === seat ? undefined : `${playerLabel(other, game.names)} wants a rematch!`,
+                  onClick: () => setWantRematch(true),
+                }
+              : { label: wantRematch ? "Starting…" : "Rematch", onClick: () => (setWantRematch(true), game.requestRematch()) }
+            : null,
+          menu: [
+            {
+              label: alerts ? "Turn alerts: on" : "Turn alerts: off",
+              title: "A chime and a notification when it's your turn while this tab is in the background",
+              onClick: async () => {
+                if (alerts) {
+                  writeTurnAlerts(false);
+                  setAlerts(false);
+                  return "Turn alerts are off.";
+                }
+                writeTurnAlerts(true);
+                setAlerts(true);
+                playTurnChime(true);
+                let permission: string = "unsupported";
+                try {
+                  if ("Notification" in window) permission = await Notification.requestPermission();
+                } catch {
+                  // Unsupported: chime and title only.
+                }
+                return permission === "granted"
+                  ? "Turn alerts are on: a chime and a notification when it's your turn."
+                  : "Turn alerts are on: a chime when it's your turn (notifications aren't allowed in this browser).";
+              },
+            },
+            {
+              label: "Play on another device",
+              title: "Copy a private link that opens your seat elsewhere",
+              onClick: async () =>
+                (await copyText(rejoinLink(gameId, seat, token)))
+                  ? "Private link copied. Open it on your other device. Anyone with it can play your seat, so keep it to yourself."
+                  : "Couldn't copy the link.",
+            },
+          ],
         }}
       />
       <div className="pointer-events-none absolute top-12 left-1/2 z-[55] flex -translate-x-1/2 flex-col items-center gap-2">

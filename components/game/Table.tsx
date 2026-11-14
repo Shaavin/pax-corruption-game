@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { playCardMotion } from "./card-motion";
-import { NoticeProvider } from "./notice";
+import { NoticeProvider, useNotice } from "./notice";
+import { markPrimerSeen, Primer, usePrimerSeen } from "./Primer";
 import { Hand } from "./Hand";
 import { HistoryRail } from "./HistoryRail";
 import { Lane, type InPlayPick } from "./Lane";
@@ -73,9 +74,18 @@ type TableProps = {
   interaction?: TableInteraction | null;
   /** Opens the "Report a problem" dialog. */
   onReport?: () => void;
+  /** Extra menu entries (online: rejoin link, turn alerts). */
+  extraMenu?: TableMenuItem[];
   /** Replaces the Menu link (troubleshooting uses its own exit). */
   menuHref?: string;
   children?: ReactNode;
+};
+
+/** An extra menu entry. A returned string is shown as a short note (e.g. "Link copied"). */
+export type TableMenuItem = {
+  label: string;
+  title?: string;
+  onClick: () => string | void | Promise<string | void>;
 };
 
 /** The game table, with a note area for "why can't I?" messages. */
@@ -99,11 +109,13 @@ function TableView({
   idlePrompt,
   interaction,
   onReport,
+  extraMenu,
   menuHref = "/",
   children,
 }: TableProps) {
   const playerLabel = usePlayerLabel();
   const [peek, setPeek] = useState<PeekCard | null>(null);
+  const notify = useNotice();
   const [aidOpen, setAidOpen] = useState(false);
   const [policyFocus, setPolicyFocus] = useState<DistrictId | null>(null);
   const closePolicies = useCallback(() => setPolicyFocus(null), []);
@@ -114,7 +126,25 @@ function TableView({
   const tourSeen = useTourSeen();
   const [tourRequest, setTourRequest] = useState<"auto" | "open" | "closed">("auto");
   const [tourStep, setTourStep] = useState(0);
-  const tourOpen = showTour && (tourRequest === "open" || (tourRequest === "auto" && !tourSeen));
+  // First game: "How to play" comes first, then the table guide.
+  const primerSeen = usePrimerSeen();
+  const [primerRequest, setPrimerRequest] = useState<"auto" | "open" | "closed">("auto");
+  const [primerPage, setPrimerPage] = useState(0);
+  const primerOpen = showTour && (primerRequest === "open" || (primerRequest === "auto" && !primerSeen));
+  const primerFirstRun = primerRequest === "auto";
+  const openPrimer = useCallback(() => {
+    setPeek(null);
+    setAidOpen(false);
+    setPrimerPage(0);
+    setPrimerRequest("open");
+  }, []);
+  const closePrimer = useCallback(() => {
+    markPrimerSeen();
+    setPrimerRequest("closed");
+    setPrimerPage(0);
+  }, []);
+  const tourOpen =
+    showTour && !primerOpen && (tourRequest === "open" || (tourRequest === "auto" && !tourSeen));
   const tourSteps = useMemo(() => tableTourSteps({ compact, expansion }), [compact, expansion]);
   const step = Math.min(tourStep, tourSteps.length - 1);
   const tourView: TourView | null = tourOpen ? (tourSteps[step]?.view ?? null) : null;
@@ -131,9 +161,9 @@ function TableView({
   }, []);
   const setPeekSafe = useCallback(
     (card: PeekCard | null) => {
-      if (!tourOpen && !veiled) setPeek(card);
+      if (!tourOpen && !primerOpen && !veiled) setPeek(card);
     },
-    [tourOpen, veiled],
+    [tourOpen, primerOpen, veiled],
   );
   // Slide cards from where they were (captured just before the change) to where they are now.
   useLayoutEffect(() => {
@@ -249,7 +279,7 @@ function TableView({
     <>
       {children}
       {aidOpen && !veiled ? <PlayerAid onClose={closeAid} expansion={expansion} /> : null}
-      {tourOpen || veiled || aidOpen ? null : <ZoomPreview card={peek} />}
+      {tourOpen || primerOpen || veiled || aidOpen ? null : <ZoomPreview card={peek} />}
       {policyFocus && !veiled ? (
         <PolicyChooser
           districtOrder={model.districtOrder}
@@ -261,6 +291,9 @@ function TableView({
         />
       ) : null}
       {tourOpen ? <TableTour steps={tourSteps} step={step} onStep={setTourStep} onClose={closeTour} /> : null}
+      {primerOpen ? (
+        <Primer page={primerPage} onPage={setPrimerPage} onClose={closePrimer} firstRun={primerFirstRun} />
+      ) : null}
     </>
   );
   const modeLabel = `${GAME_MODES.find((entry) => entry.id === mode)?.name ?? mode}${expansion ? " + L&D" : ""} · ${
@@ -298,7 +331,9 @@ function TableView({
             setAidOpen(true);
           }}
           onReport={onReport}
+          extraMenu={extraMenu}
           onTour={showTour ? openTour : undefined}
+          onPrimer={showTour ? openPrimer : undefined}
           pinnedView={tourView}
           clearPeek={() => setPeek(null)}
           peekOpen={peek !== null}
@@ -332,13 +367,22 @@ function TableView({
             <Hand cards={model.opponent.hand} variant="opponent" />
             <div className="flex items-center justify-end gap-3 text-[0.65rem] text-stone-500">
               {showTour ? (
-                <button
-                  type="button"
-                  onClick={openTour}
-                  className="cursor-pointer tracking-[0.14em] uppercase hover:text-stone-300"
-                >
-                  Table guide
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={openPrimer}
+                    className="cursor-pointer tracking-[0.14em] uppercase hover:text-stone-300"
+                  >
+                    How to play
+                  </button>
+                  <button
+                    type="button"
+                    onClick={openTour}
+                    className="cursor-pointer tracking-[0.14em] uppercase hover:text-stone-300"
+                  >
+                    Table guide
+                  </button>
+                </>
               ) : null}
               {veiled ? null : (
                 <button
@@ -352,6 +396,20 @@ function TableView({
                   Player aid
                 </button>
               )}
+              {(extraMenu ?? []).map((item) => (
+                <button
+                  key={item.label}
+                  type="button"
+                  onClick={async () => {
+                    const note = await item.onClick();
+                    if (note) notify(note);
+                  }}
+                  className="cursor-pointer tracking-[0.14em] uppercase hover:text-stone-300"
+                  title={item.title}
+                >
+                  {item.label}
+                </button>
+              ))}
               {onReport ? (
                 <button
                   type="button"
@@ -419,8 +477,11 @@ type CompactTableProps = {
   menuHref: string;
   onPlayerAid: () => void;
   onReport?: () => void;
+  extraMenu?: TableMenuItem[];
   /** Opens the table guide (absent while it can't run, e.g. during setup). */
   onTour?: () => void;
+  /** Opens "How to play". */
+  onPrimer?: () => void;
   /** The tour holds the view on the half it's pointing at. */
   pinnedView: CompactView | null;
   clearPeek: () => void;
@@ -451,7 +512,9 @@ function CompactTable({
   menuHref,
   onPlayerAid,
   onReport,
+  extraMenu,
   onTour,
+  onPrimer,
   pinnedView,
   clearPeek,
   peekOpen,
@@ -459,6 +522,7 @@ function CompactTable({
 }: CompactTableProps) {
   const playerLabel = usePlayerLabel();
   const [chosenView, setView] = useState<CompactView>("districts");
+  const notify = useNotice();
   const view = pinnedView ?? chosenView;
   const [logOpen, setLogOpen] = useState(false);
   const landscape = useCompactLandscape();
@@ -522,8 +586,20 @@ function CompactTable({
         </summary>
         <div className="absolute top-11 right-0 z-[60] flex w-52 flex-col rounded-xl border border-white/10 bg-[#0d1117] p-1.5 text-sm shadow-2xl">
           <p className="px-3 py-1.5 text-xs text-stone-500 tabular-nums">{modeLabel}</p>
+          {onPrimer ? <MenuButton onClick={onPrimer}>How to play</MenuButton> : null}
           {onTour ? <MenuButton onClick={onTour}>Table guide</MenuButton> : null}
           {veiled ? null : <MenuButton onClick={onPlayerAid}>Player aid</MenuButton>}
+          {(extraMenu ?? []).map((item) => (
+            <MenuButton
+              key={item.label}
+              onClick={async () => {
+                const note = await item.onClick();
+                if (note) notify(note);
+              }}
+            >
+              {item.label}
+            </MenuButton>
+          ))}
           {onReport ? <MenuButton onClick={onReport}>Report a problem</MenuButton> : null}
           <Link href={menuHref} className="rounded-lg px-3 py-2 text-stone-200 hover:bg-white/8">
             Leave game

@@ -61,10 +61,14 @@ node --experimental-strip-types server/smoke.ts http://127.0.0.1:8787 300 expans
 
 | Route | Purpose |
 | --- | --- |
-| `POST /api/games` | Create a game → `{ gameId, seat: 0, token }` |
-| `POST /api/games/:id/join` | Claim seat 1 → `{ gameId, seat: 1, token }` (409 when full) |
-| `GET /api/games/:id/ws` | WebSocket. Send `{ t: "hello", token, protocol }`, then `action` / `undo` messages |
+| `POST /api/games` | Create a game (optional `name`) → `{ gameId, seat: 0, token }` |
+| `GET /api/games/:id` | Public settings and whether seat 1 is free → `{ gameId, settings, open }` (for invites) |
+| `POST /api/games/:id/join` | Claim seat 1 (optional `name`) → `{ gameId, seat: 1, token }` (409 when full) |
+| `GET /api/games/:id/ws` | WebSocket. Send `{ t: "hello", token, protocol }`, then `action` / `undo` / `rematch` messages |
 
 The server answers every change with a `state` message per seat (redacted state,
-new or full events, `canUndo`, presence). Bump `PROTOCOL_VERSION` when the
+new or full events, `canUndo`, presence and names). After a game ends, `rematch`
+creates one new game with the same settings, names, and seats; each seat gets a
+`rematch` message with its own token (also re-sent on reconnect). Seat tokens can
+travel in a rejoin link after `#seat=<seat>.<token>` (the client stores and strips it). Bump `PROTOCOL_VERSION` when the
 messages change; old clients are asked to reload.

@@ -8,7 +8,7 @@
  *   POST /api/games/:id/join   claim Player 2
  *   GET  /api/games/:id/ws     WebSocket (send `hello` with your seat token)
  */
-import { GAME_ID_ALPHABET, isGameId, type CreateGameRequest, type JoinGameRequest } from "../../lib/online/protocol.ts";
+import { isGameId, newGameId, type CreateGameRequest, type JoinGameRequest } from "../../lib/online/protocol.ts";
 import { GameRoom, type Env } from "./room.ts";
 
 export { GameRoom };
@@ -42,11 +42,6 @@ function json(request: Request, env: Env, body: unknown, status = 200): Response
   });
 }
 
-function newGameId(): string {
-  const bytes = new Uint8Array(10);
-  crypto.getRandomValues(bytes);
-  return [...bytes].map((byte) => GAME_ID_ALPHABET[byte % GAME_ID_ALPHABET.length]).join("");
-}
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {

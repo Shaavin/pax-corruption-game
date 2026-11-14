@@ -42,7 +42,16 @@ function victoryReason(victory: Victory): string {
   }
 }
 
-export function GameOverOverlay({ victory, newGameHref = "/play" }: { victory: Victory; newGameHref?: string }) {
+export function GameOverOverlay({
+  victory,
+  newGameHref = "/play",
+  rematch,
+}: {
+  victory: Victory;
+  newGameHref?: string;
+  /** Online: start or join a rematch (same settings and seats). */
+  rematch?: { label: string; note?: string; onClick: () => void } | null;
+}) {
   const playerLabel = usePlayerLabel();
   const [reviewing, setReviewing] = useState(false);
 
@@ -73,6 +82,7 @@ export function GameOverOverlay({ victory, newGameHref = "/play" }: { victory: V
         </h2>
         <p className="mt-2 text-lg font-semibold text-[var(--brass)]">★ {KIND_LABEL[victory.kind]}</p>
         <p className="mt-1 text-sm text-stone-300">{victoryReason(victory)}</p>
+        {rematch?.note ? <p className="mt-3 text-sm font-semibold text-[var(--brass)]">{rematch.note}</p> : null}
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
             type="button"
@@ -81,9 +91,22 @@ export function GameOverOverlay({ victory, newGameHref = "/play" }: { victory: V
           >
             Review the table
           </button>
+          {rematch ? (
+            <button
+              type="button"
+              onClick={rematch.onClick}
+              className="cursor-pointer rounded-xl bg-[var(--act)] px-5 py-2.5 text-sm font-semibold text-stone-950 hover:brightness-110"
+            >
+              {rematch.label}
+            </button>
+          ) : null}
           <a
             href={newGameHref}
-            className="rounded-xl bg-[var(--act)] px-5 py-2.5 text-sm font-semibold text-stone-950 hover:brightness-110"
+            className={
+              rematch
+                ? "rounded-xl px-4 py-2.5 text-sm font-semibold text-stone-200 ring-1 ring-white/20 hover:bg-white/8"
+                : "rounded-xl bg-[var(--act)] px-5 py-2.5 text-sm font-semibold text-stone-950 hover:brightness-110"
+            }
           >
             New game
           </a>

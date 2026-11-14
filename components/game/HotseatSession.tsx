@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { captureCards } from "./card-motion";
+import type { TableMenuItem } from "./Table";
 import { ChoiceOverlay } from "./ChoiceOverlay";
 import { DecreeChoice } from "./DecreeChoice";
 import { GameOverOverlay } from "./GameOverOverlay";
@@ -123,6 +124,10 @@ export type RemoteGame = {
   /** Shown in the turn dock while it is the other player's move. */
   waitingText: string;
   names?: PlayerNames;
+  /** Game over: start or join a rematch. */
+  rematch?: { label: string; note?: string; onClick: () => void } | null;
+  /** Extra menu entries (rejoin link, turn alerts). A returned string is shown as a note. */
+  menu?: TableMenuItem[];
 };
 
 type LocalProps = { remote?: undefined };
@@ -825,6 +830,7 @@ export function HotseatSession(props: HotseatSessionProps) {
       hotseat={viewer}
       interaction={myMove ? interaction : null}
       onReport={remote ? undefined : () => setReportOpen(true)}
+      extraMenu={remote?.menu}
     >
       {veiled || waitingFirstSeat ? null : (
         <SetupOverlay state={state} viewer={viewer} onAction={dispatch} />
@@ -863,6 +869,7 @@ export function HotseatSession(props: HotseatSessionProps) {
       {state.victory ? (
         <GameOverOverlay
           victory={state.victory}
+          rematch={remote?.rematch ?? null}
           newGameHref={
             remote
               ? "/online"

@@ -23,7 +23,7 @@ export default async function OnlineGamePage({ params }: { params: Promise<{ id:
   if (!isGameId(id)) notFound();
   return (
     <div className="h-full overflow-hidden">
-      <OnlineGameView gameId={id} />
+      <OnlineGameView key={id} gameId={id} />
     </div>
   );
 }
