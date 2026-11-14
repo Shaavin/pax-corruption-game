@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { HotseatSession } from "../game/HotseatSession";
 import { playerLabel, rememberedNames, rememberNames } from "../game/players";
-import { cleanName, MAX_NAME_LENGTH } from "@/lib/game/names";
+import { cleanName, MAX_NAME_LENGTH, nameProblem } from "@/lib/game/names";
 import { copyText } from "../game/share";
 import { fetchGameInfo, joinOnlineGame, onlineConfigured, readTicket, useOnlineGame } from "./online-client";
 import { describeSettings, type GameInfoResponse, type GameSettings } from "@/lib/online/protocol";
@@ -173,6 +173,12 @@ function JoinScreen({ gameId, onJoined }: { gameId: string; onJoined: (token: st
         onClick={async () => {
           setBusy(true);
           try {
+            const problem = nameProblem(name);
+            if (problem) {
+              setError(problem);
+              setBusy(false);
+              return;
+            }
             const chosen = cleanName(name);
             if (chosen) rememberNames([chosen, rememberedNames()[1]]);
             onJoined((await joinOnlineGame(gameId, chosen)).token);

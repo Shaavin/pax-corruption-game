@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { rememberedNames, rememberNames } from "../game/players";
 import { createOnlineGame, onlineConfigured } from "./online-client";
-import { cleanName, MAX_NAME_LENGTH } from "@/lib/game/names";
+import { cleanName, MAX_NAME_LENGTH, nameProblem } from "@/lib/game/names";
 import { GAME_MODES, isGameMode } from "@/lib/game/setup";
 
 /** `/online`: start a game and get a link to send the other player. */
@@ -18,6 +18,11 @@ export function OnlineLobby() {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const mode = String(form.get("mode"));
+    const problem = nameProblem(form.get("name"));
+    if (problem) {
+      setError(problem);
+      return;
+    }
     const name = cleanName(form.get("name"));
     if (name) rememberNames([name, rememberedNames()[1]]);
     setBusy(true);

@@ -1,3 +1,4 @@
+import { isProfane } from "./profanity.ts";
 import type { PlayerId } from "./types.ts";
 
 /** Optional display names, by seat. Purely cosmetic: the engine never reads them. */
@@ -6,8 +7,19 @@ export type PlayerNames = readonly [string | null, string | null];
 export const NO_NAMES: PlayerNames = [null, null];
 export const MAX_NAME_LENGTH = 20;
 
-/** Trim, collapse spaces, drop control characters, cap the length. Empty → null. */
+/** Why a typed name can't be used, or null if it's fine (an empty name is fine: it's optional). */
+export function nameProblem(raw: unknown): string | null {
+  const name = tidyName(raw);
+  return name && isProfane(name) ? "Please choose a different name." : null;
+}
+
+/** Trim, collapse spaces, drop control characters, cap the length; profanity → no name. Empty → null. */
 export function cleanName(raw: unknown): string | null {
+  const name = tidyName(raw);
+  return name && !isProfane(name) ? name : null;
+}
+
+function tidyName(raw: unknown): string | null {
   if (typeof raw !== "string") return null;
   const name = raw
     .replace(/[\u0000-\u001f\u007f-\u009f]/g, "")

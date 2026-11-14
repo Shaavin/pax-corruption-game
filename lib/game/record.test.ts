@@ -10,7 +10,8 @@ import {
   undoReplay,
   type Replay,
 } from "./record.ts";
-import { cleanName, playerName } from "./names.ts";
+import { cleanName, nameProblem, playerName } from "./names.ts";
+import { isProfane } from "./profanity.ts";
 import { createSeededRng } from "./rng.ts";
 import { assert, expectIllegal, fail, report } from "./test-helpers.ts";
 
@@ -122,6 +123,16 @@ for (const seed of [3, 11, 42]) {
   assert(!("names" in toRecord(newReplay(5, {}), undefined, [null, null])), "No names, no field");
   const hostile = parseRecord({ ...named, names: ["<b>" + "y".repeat(40), 7] });
   assert(hostile?.names?.[0]?.length === 20 && hostile.names[1] === null, "Imported names are cleaned");
+  // Profanity, including look-alike spellings, is not a name; ordinary names that contain a blocked word are.
+  for (const name of ["fuck", "f.u.c.k", "fvck", "sh1t", "$hit", "b!tch", "a$$", "@ss", "a s s", "c0ck", "n1gg3r", "Mr Dick", "dumbass"]) {
+    assert(isProfane(name), `Blocks ${name}`);
+  }
+  for (const name of ["Ann", "Cassandra", "Dickens", "Scunthorpe", "Hancock", "Classic", "Essex", "Titan", "Therapist", "Fukuda", "Peacock", "Assassin", "Joe Zhao"]) {
+    assert(!isProfane(name), `Allows ${name}`);
+  }
+  assert(cleanName("sh1thead") === null, "A profane name is no name");
+  assert(nameProblem("b1tch") !== null && nameProblem("Ann") === null && nameProblem("") === null, "Forms explain a blocked name");
+  assert(parseRecord({ ...named, names: ["Ann", "a$$hole"] })?.names?.[1] === null, "Imported profane names are dropped");
 }
 
 report("Record ok: deterministic replay, JSON round trip, ReplayError index, undo rules, player names.");

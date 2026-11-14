@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "rea
 import { ContinueGame } from "../game/ContinueGame";
 import { rememberedNames, rememberNames } from "../game/players";
 import { createOnlineGame, onlineConfigured } from "../online/online-client";
-import { cleanName, MAX_NAME_LENGTH } from "@/lib/game/names";
+import { cleanName, MAX_NAME_LENGTH, nameProblem } from "@/lib/game/names";
 import { GAME_MODES, isGameMode } from "@/lib/game/setup";
 
 type Where = "local" | "online";
@@ -30,6 +30,13 @@ export function HomeLauncher() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     const form = new FormData(event.currentTarget);
+    const problem = nameProblem(form.get("n1")) ?? (online ? null : nameProblem(form.get("n2")));
+    if (problem) {
+      event.preventDefault();
+      setError(problem);
+      return;
+    }
+    setError(null);
     const n1 = cleanName(form.get("n1"));
     const n2 = online ? rememberedNames()[1] : cleanName(form.get("n2"));
     rememberNames([n1, n2]);
