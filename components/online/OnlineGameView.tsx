@@ -17,6 +17,7 @@ import {
   saveTicket,
   useOnlineGame,
 } from "./online-client";
+import { PageShell, ShellCard } from "./PageShell";
 import { playTurnChime, readTurnAlerts, writeTurnAlerts } from "./turn-alerts";
 import { describeSettings, type GameInfoResponse, type GameSettings } from "@/lib/online/protocol";
 import { currentActor } from "@/lib/game";
@@ -43,7 +44,7 @@ export function OnlineGameView({ gameId }: { gameId: string }) {
   const token = joinedToken ?? claim?.token ?? ticket?.token ?? null;
 
   if (!onlineConfigured()) return <Message title="Online play isn't set up here" body="No game server is configured for this site." />;
-  if (stored === undefined) return <div className="h-dvh bg-[#16120e]" />;
+  if (stored === undefined) return <div className="h-dvh bg-[#0a0c10]" />;
   if (!token) return <JoinScreen gameId={gameId} onJoined={setJoinedToken} />;
   return <Connected gameId={gameId} token={token} />;
 }
@@ -235,6 +236,18 @@ function JoinScreen({ gameId, onJoined }: { gameId: string; onJoined: (token: st
   if (info && !info.open) {
     return <Message title="This game is full" body="Both seats are taken. Ask your friend for a new invite." />;
   }
+  if (!info && error && !busy) {
+    return (
+      <Message
+        title="Can't find this game"
+        body={
+          error === "No such game"
+            ? "This invite doesn't match a game. It may have expired after a month without moves. Ask your friend for a new one."
+            : error
+        }
+      />
+    );
+  }
   return (
     <Message
       title="You're invited to a game"
@@ -259,7 +272,7 @@ function JoinScreen({ gameId, onJoined }: { gameId: string; onJoined: (token: st
         maxLength={MAX_NAME_LENGTH}
         autoComplete="off"
         spellCheck={false}
-        className="w-64 rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-center text-sm text-stone-100 placeholder:text-stone-500 focus:border-[var(--brass,#c6a56c)] focus:outline-none"
+        className="w-64 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3.5 py-2.5 text-center text-sm text-stone-100 placeholder:text-stone-500 focus:border-[var(--brass)]/70 focus:outline-none"
       />
       <button
         type="button"
@@ -281,7 +294,7 @@ function JoinScreen({ gameId, onJoined }: { gameId: string; onJoined: (token: st
             setBusy(false);
           }
         }}
-        className="cursor-pointer rounded-full bg-[var(--brass,#c6a56c)] px-6 py-3 text-sm font-semibold text-stone-950 hover:bg-[#d4b57c] disabled:opacity-60"
+        className="w-64 cursor-pointer rounded-2xl bg-[var(--brass)] px-6 py-3 text-sm font-semibold text-stone-950 shadow-[0_10px_30px_-10px_rgba(198,165,108,0.7)] hover:bg-[#d6b97f] disabled:opacity-60"
       >
         {busy ? "Joining…" : "Join game"}
       </button>
@@ -292,15 +305,15 @@ function JoinScreen({ gameId, onJoined }: { gameId: string; onJoined: (token: st
 
 function Message({ title, body, children }: { title: string; body: string; children?: React.ReactNode }) {
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-[#16120e] px-6 text-stone-100">
-      <div className="flex max-w-md flex-col items-center gap-4 text-center">
+    <PageShell>
+      <ShellCard>
         <h1 className="text-2xl font-semibold">{title}</h1>
         <p className="text-sm text-stone-400">{body}</p>
         {children}
-        <Link href="/" className="text-sm text-stone-500 underline hover:text-stone-300">
-          Menu
-        </Link>
-      </div>
-    </div>
+      </ShellCard>
+      <Link href="/" className="text-center text-sm text-stone-400 underline-offset-4 hover:text-stone-200 hover:underline">
+        Back to the home page
+      </Link>
+    </PageShell>
   );
 }

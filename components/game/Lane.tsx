@@ -88,7 +88,7 @@ export function Lane({ district, policyId, you, opponent, electors, leader, tour
             aria-label={`${target.label} ${DISTRICT_LABEL[district]}`}
             onClick={target.onSelect}
           >
-            <span className="absolute inset-x-3 bottom-2 rounded-full bg-[var(--act)] px-2 py-1 text-center text-[0.65rem] font-semibold tracking-wide text-stone-950 shadow-lg @max-[10rem]:inset-x-1 @max-[10rem]:px-1 @max-[10rem]:text-[0.55rem]">
+            <span className="absolute inset-x-3 bottom-2 rounded-full bg-[var(--act)] px-2 py-1 text-center text-[0.65rem] font-semibold tracking-wide text-stone-950 shadow-lg @max-[15rem]:inset-x-1 @max-[15rem]:px-1 @max-[15rem]:text-[0.55rem]">
               {target.label}
             </span>
           </button>
@@ -211,7 +211,7 @@ function Plate({
             : `A card effect wins this district for ${leader === "you" ? "you" : "your opponent"}, whatever the influence`
           : undefined
       }
-      className="relative z-10 mx-1.5 flex shrink-0 items-center gap-2 rounded-xl bg-[rgb(12_15_20/0.85)] px-2 py-1.5 shadow-[0_6px_18px_rgba(0,0,0,0.45)] @max-[10rem]:mx-0.5 @max-[10rem]:flex-col @max-[10rem]:items-stretch @max-[10rem]:gap-1 @max-[10rem]:rounded-lg @max-[10rem]:px-1 @max-[10rem]:py-1"
+      className="relative z-10 mx-1.5 flex shrink-0 items-center gap-2 rounded-xl bg-[rgb(12_15_20/0.85)] px-2 py-1.5 shadow-[0_6px_18px_rgba(0,0,0,0.45)] @max-[15rem]:mx-0.5 @max-[15rem]:flex-col @max-[15rem]:items-stretch @max-[15rem]:gap-1 @max-[15rem]:rounded-lg @max-[15rem]:px-1 @max-[15rem]:py-1"
       style={{ boxShadow: `0 0 0 1px ${ring}, 0 6px 18px rgba(0,0,0,0.45)` }}
     >
       <div className="flex min-w-0 flex-1 flex-col gap-1">
@@ -221,10 +221,10 @@ function Plate({
             style={{ background: `var(--${district})` }}
             aria-hidden
           />
-          <span className="truncate text-[0.7rem] font-semibold tracking-[0.12em] text-stone-100 uppercase @max-[10rem]:text-[0.55rem] @max-[10rem]:tracking-[0.04em]">
+          <span className="truncate text-[0.7rem] font-semibold tracking-[0.12em] text-stone-100 uppercase @max-[15rem]:text-[0.55rem] @max-[15rem]:tracking-[0.04em]">
             {DISTRICT_LABEL[district]}
           </span>
-          <span className="contents @max-[10rem]:hidden">
+          <span className="contents @max-[15rem]:hidden">
           <InfoTip label="How to read a district">
             <b>Inf</b> is influence: civil card values + 1 per support-pile card (+1 per
             Planet Next banked card in Horsard). The higher total wins the district at an
@@ -234,23 +234,23 @@ function Plate({
           </span>
           {electors !== null ? (
             <span
-              className="ml-auto shrink-0 rounded-full bg-[var(--act)]/15 px-1.5 text-[0.55rem] font-semibold text-[var(--act)] @max-[10rem]:px-1 @max-[10rem]:text-[0.5rem]"
+              className="ml-auto shrink-0 rounded-full bg-[var(--act)]/15 px-1.5 text-[0.55rem] font-semibold text-[var(--act)] @max-[15rem]:px-1 @max-[15rem]:text-[0.5rem]"
               title="Electors this district awards in the current election"
             >
               {electors}
-              <span className="@max-[10rem]:hidden"> {electors === 1 ? "elector" : "electors"}</span>
-              <span className="hidden @max-[10rem]:inline"> el.</span>
+              <span className="@max-[15rem]:hidden"> {electors === 1 ? "elector" : "electors"}</span>
+              <span className="hidden @max-[15rem]:inline"> el.</span>
             </span>
           ) : null}
         </div>
         <ScoreRow label="Opp" side={opponent} color="var(--opp)" leading={leader === "opponent"} />
         <ScoreRow label="You" side={you} color="var(--you)" leading={leader === "you"} />
       </div>
-      <div className="flex shrink-0 flex-col items-center gap-0.5 @max-[10rem]:items-stretch">
+      <div className="flex shrink-0 flex-col items-center gap-0.5 @max-[15rem]:items-stretch">
         {policy ? (
           <CardView name={policy.name} art={policy.art} size="mini" cardId={policyId ?? undefined} />
         ) : (
-          <div className="flex aspect-[825/1125] w-[var(--card-mini)] items-center justify-center rounded-[0.32em] border border-dashed border-white/20 text-[0.5rem] font-medium tracking-wide text-stone-400 @max-[10rem]:aspect-auto @max-[10rem]:w-full @max-[10rem]:py-0.5 @max-[10rem]:text-[0.45rem]">
+          <div className="flex aspect-[825/1125] w-[var(--card-mini)] items-center justify-center rounded-[0.32em] border border-dashed border-white/20 text-[0.5rem] font-medium tracking-wide text-stone-400 @max-[15rem]:aspect-auto @max-[15rem]:w-full @max-[15rem]:py-0.5 @max-[15rem]:text-[0.45rem]">
             Neutral
           </div>
         )}
@@ -260,7 +260,7 @@ function Plate({
             onClick={onShowPolicies}
             aria-label={`${DISTRICT_LABEL[district]} policy options`}
             title="See this district's policies and what a proposal could change"
-            className="cursor-pointer rounded px-1 text-[0.5rem] font-semibold tracking-[0.1em] text-stone-400 uppercase hover:bg-white/8 hover:text-[var(--brass)] @max-[10rem]:text-[0.45rem]"
+            className="relative cursor-pointer rounded px-0.5 text-[0.5rem] font-semibold tracking-[0.08em] text-stone-300 uppercase after:absolute after:-inset-x-1 after:-inset-y-2 after:content-[''] hover:bg-white/8 hover:text-[var(--brass)] @max-[15rem]:text-[0.45rem]"
           >
             Policies
           </button>
@@ -289,26 +289,37 @@ function ScoreRow({
   const supportText = `${who} support pile here: ${side.support} card${side.support === 1 ? "" : "s"} (popularity). Lead by 9 in one district for Popularity Victory.`;
   return (
     <div className="flex items-center gap-1.5 leading-none" data-tour={tour}>
-      <span className="w-6 text-[0.55rem] font-semibold tracking-[0.1em] uppercase @max-[10rem]:w-auto @max-[10rem]:text-[0.45rem] @max-[10rem]:tracking-normal" style={{ color }}>
+      <span className="w-6 text-[0.55rem] font-semibold tracking-[0.1em] uppercase @max-[15rem]:w-auto @max-[15rem]:text-[0.45rem] @max-[15rem]:tracking-normal" style={{ color }}>
         {label}
       </span>
       <span
-        className={["cursor-help text-base font-semibold tabular-nums @max-[10rem]:text-sm", leading ? "" : "text-stone-300"].join(" ")}
+        className={["cursor-help text-base font-semibold tabular-nums @max-[15rem]:text-sm", leading ? "" : "text-stone-300"].join(" ")}
         style={leading ? { color } : undefined}
         title={influenceText}
         onClick={() => notify(influenceText)}
       >
         {side.influence.total}
       </span>
-      <span className="text-[0.5rem] tracking-[0.1em] text-stone-500 uppercase @max-[10rem]:hidden">inf</span>
+      <span className="text-[0.5rem] tracking-[0.1em] text-stone-400 uppercase @max-[15rem]:hidden">inf</span>
+      {leading ? (
+        // Not color alone: say who leads.
+        <span
+          className="rounded-sm px-1 text-[0.5rem] font-bold tracking-[0.08em] uppercase @max-[15rem]:px-0 @max-[15rem]:text-[0.55rem]"
+          style={{ color, background: "color-mix(in srgb, currentColor 14%, transparent)" }}
+          aria-label={label === "You" ? "You lead here" : "They lead here"}
+        >
+          <span className="@max-[15rem]:hidden">leads</span>
+          <span aria-hidden className="hidden @max-[15rem]:inline">▲</span>
+        </span>
+      ) : null}
       <span className="ml-auto flex cursor-help items-center gap-1" title={supportText} onClick={() => notify(supportText)}>
-        <span className="contents @max-[10rem]:hidden">
+        <span className="contents @max-[15rem]:hidden">
           <PileIcon count={side.support} />
         </span>
-        <span className="text-xs font-semibold tabular-nums text-stone-200 @max-[10rem]:text-[0.6rem] @max-[10rem]:text-stone-400">
+        <span className="text-xs font-semibold tabular-nums text-stone-200 @max-[15rem]:text-[0.6rem] @max-[15rem]:text-stone-400">
           {side.support}
         </span>
-        <span className="text-[0.5rem] tracking-[0.1em] text-stone-500 uppercase @max-[10rem]:hidden">pop</span>
+        <span className="text-[0.5rem] tracking-[0.1em] text-stone-400 uppercase @max-[15rem]:hidden">pop</span>
       </span>
     </div>
   );

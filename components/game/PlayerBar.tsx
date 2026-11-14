@@ -83,7 +83,7 @@ export function PlayerBar({
       </div>
 
       <dl
-        className={["flex shrink-0 items-center", compact ? "gap-2" : "gap-3"].join(" ")}
+        className={["flex shrink-0 items-center", compact ? "gap-2" : "gap-2 xl:gap-3"].join(" ")}
         data-tour={seat === "you" ? "partisans" : undefined}
       >
         {handCount !== undefined ? <Stat label="Hand" value={handCount} title="Hand: cards in their hand." /> : null}
@@ -99,7 +99,16 @@ export function PlayerBar({
           title="Lords: alliance handshake symbols in play. More than the other player wins the Council of Lords, the 5th electorate."
         />
         <Stat
-          label={compact ? "Elect." : "Electorates"}
+          label={
+            compact ? (
+              "Elect."
+            ) : (
+              <>
+                <span className="2xl:hidden">Elect.</span>
+                <span className="hidden 2xl:inline">Electorates</span>
+              </>
+            )
+          }
           value={`${electorates}/5`}
           title="Electorates: how many of the 5 (4 districts + Council of Lords) this player would win if the election were scored now."
           color={electorates >= 3 ? color : undefined}
@@ -149,7 +158,7 @@ function Stat({
   title,
   color,
 }: {
-  label: string;
+  label: ReactNode;
   value: number | string;
   title?: string;
   color?: string;

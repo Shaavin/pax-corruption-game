@@ -5,6 +5,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useState, type CSSPro
 import { playCardMotion } from "./card-motion";
 import { NoticeProvider, useNotice } from "./notice";
 import { markPrimerSeen, Primer, usePrimerSeen } from "./Primer";
+import { SettingsDialog } from "./SettingsDialog";
 import { Hand } from "./Hand";
 import { HistoryRail } from "./HistoryRail";
 import { Lane, type InPlayPick } from "./Lane";
@@ -117,6 +118,7 @@ function TableView({
   const [peek, setPeek] = useState<PeekCard | null>(null);
   const notify = useNotice();
   const [aidOpen, setAidOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [policyFocus, setPolicyFocus] = useState<DistrictId | null>(null);
   const closePolicies = useCallback(() => setPolicyFocus(null), []);
   const closeAid = useCallback(() => setAidOpen(false), []);
@@ -279,6 +281,7 @@ function TableView({
     <>
       {children}
       {aidOpen && !veiled ? <PlayerAid onClose={closeAid} expansion={expansion} /> : null}
+      {settingsOpen ? <SettingsDialog onClose={() => setSettingsOpen(false)} hotseat={seed !== null} /> : null}
       {tourOpen || primerOpen || veiled || aidOpen ? null : <ZoomPreview card={peek} />}
       {policyFocus && !veiled ? (
         <PolicyChooser
@@ -296,8 +299,9 @@ function TableView({
       ) : null}
     </>
   );
-  const modeLabel = `${GAME_MODES.find((entry) => entry.id === mode)?.name ?? mode}${expansion ? " + L&D" : ""} · ${
-    seed === null ? "Online" : `Seed ${seed}`
+  // No seed here: anyone could load it in another tab and see the deck order. (Reports carry it.)
+  const modeLabel = `${GAME_MODES.find((entry) => entry.id === mode)?.name ?? mode}${expansion ? " + L&D" : ""}${
+    seed === null ? " · Online" : ""
   }`;
 
   if (compact) {
@@ -334,6 +338,10 @@ function TableView({
           extraMenu={extraMenu}
           onTour={showTour ? openTour : undefined}
           onPrimer={showTour ? openPrimer : undefined}
+          onSettings={() => {
+            setPeek(null);
+            setSettingsOpen(true);
+          }}
           pinnedView={tourView}
           clearPeek={() => setPeek(null)}
           peekOpen={peek !== null}
@@ -365,20 +373,20 @@ function TableView({
               active={!yourTurn && live}
             />
             <Hand cards={model.opponent.hand} variant="opponent" />
-            <div className="flex items-center justify-end gap-3 text-[0.65rem] text-stone-500">
+            <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1 text-[0.68rem] whitespace-nowrap text-stone-400">
               {showTour ? (
                 <>
                   <button
                     type="button"
                     onClick={openPrimer}
-                    className="cursor-pointer tracking-[0.14em] uppercase hover:text-stone-300"
+                    className="cursor-pointer tracking-[0.1em] uppercase hover:text-stone-300"
                   >
                     How to play
                   </button>
                   <button
                     type="button"
                     onClick={openTour}
-                    className="cursor-pointer tracking-[0.14em] uppercase hover:text-stone-300"
+                    className="cursor-pointer tracking-[0.1em] uppercase hover:text-stone-300"
                   >
                     Table guide
                   </button>
@@ -391,11 +399,21 @@ function TableView({
                     setPeek(null);
                     setAidOpen(true);
                   }}
-                  className="cursor-pointer tracking-[0.14em] uppercase hover:text-stone-300"
+                  className="cursor-pointer tracking-[0.1em] uppercase hover:text-stone-300"
                 >
                   Player aid
                 </button>
               )}
+              <button
+                type="button"
+                onClick={() => {
+                  setPeek(null);
+                  setSettingsOpen(true);
+                }}
+                className="cursor-pointer tracking-[0.1em] uppercase hover:text-stone-300"
+              >
+                Settings
+              </button>
               {(extraMenu ?? []).map((item) => (
                 <button
                   key={item.label}
@@ -404,7 +422,7 @@ function TableView({
                     const note = await item.onClick();
                     if (note) notify(note);
                   }}
-                  className="cursor-pointer tracking-[0.14em] uppercase hover:text-stone-300"
+                  className="cursor-pointer tracking-[0.1em] uppercase hover:text-stone-300"
                   title={item.title}
                 >
                   {item.label}
@@ -417,16 +435,16 @@ function TableView({
                     setPeek(null);
                     onReport();
                   }}
-                  className="cursor-pointer tracking-[0.14em] uppercase hover:text-stone-300"
+                  className="cursor-pointer tracking-[0.1em] uppercase hover:text-stone-300"
                   title="Send the developer this game's moves and a description"
                 >
                   Report
                 </button>
               ) : null}
-              <span className="tabular-nums" title="Draw-deck mode and deterministic setup seed">
+              <span className="tabular-nums" title="Draw-deck mode">
                 {modeLabel}
               </span>
-              <Link href={menuHref} className="tracking-[0.14em] uppercase hover:text-stone-300">
+              <Link href={menuHref} className="tracking-[0.1em] uppercase hover:text-stone-300">
                 Menu
               </Link>
             </div>
@@ -482,6 +500,7 @@ type CompactTableProps = {
   onTour?: () => void;
   /** Opens "How to play". */
   onPrimer?: () => void;
+  onSettings: () => void;
   /** The tour holds the view on the half it's pointing at. */
   pinnedView: CompactView | null;
   clearPeek: () => void;
@@ -515,6 +534,7 @@ function CompactTable({
   extraMenu,
   onTour,
   onPrimer,
+  onSettings,
   pinnedView,
   clearPeek,
   peekOpen,
@@ -588,6 +608,7 @@ function CompactTable({
           <p className="px-3 py-1.5 text-xs text-stone-500 tabular-nums">{modeLabel}</p>
           {onPrimer ? <MenuButton onClick={onPrimer}>How to play</MenuButton> : null}
           {onTour ? <MenuButton onClick={onTour}>Table guide</MenuButton> : null}
+          <MenuButton onClick={onSettings}>Settings</MenuButton>
           {veiled ? null : <MenuButton onClick={onPlayerAid}>Player aid</MenuButton>}
           {(extraMenu ?? []).map((item) => (
             <MenuButton

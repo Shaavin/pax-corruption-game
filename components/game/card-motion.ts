@@ -11,6 +11,8 @@
  * where they were. Because it works by position, undo animates in reverse for free.
  */
 
+import { motionScale } from "./settings";
+
 type Snap = { rect: DOMRect; src: string | null; faceDown: boolean };
 
 /** Who made the captured change, by seat (null: the table, e.g. setup). */
@@ -22,8 +24,11 @@ const EXIT_MS = 450;
 /** Gentle in and out, so the eye can follow the card the whole way. */
 const EASE = "cubic-bezier(0.45, 0, 0.2, 1)";
 
+/** Off for the system "reduce motion" setting, or when the player turned animations off. */
 function reducedMotion(): boolean {
-  return typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  return (
+    typeof window !== "undefined" && (window.matchMedia("(prefers-reduced-motion: reduce)").matches || motionScale() === 0)
+  );
 }
 
 function measure(): Map<string, Snap> {
@@ -100,7 +105,7 @@ export function playCardMotion(viewer: number): void {
         { opacity: 1, offset: 0.35 },
         { translate: restTranslate, scale: restScale, opacity: 1, zIndex: 60 },
       ],
-      { duration: old ? MOVE_MS : ENTER_MS, easing: EASE },
+      { duration: (old ? MOVE_MS : ENTER_MS) * motionScale(), easing: EASE },
     );
   }
 
@@ -124,7 +129,7 @@ export function playCardMotion(viewer: number): void {
     } satisfies Partial<CSSStyleDeclaration>);
     document.body.appendChild(ghost);
     ghost
-      .animate([{ opacity: 0.95, scale: "1" }, { opacity: 0, scale: "0.7" }], { duration: EXIT_MS, easing: "ease-in" })
+      .animate([{ opacity: 0.95, scale: "1" }, { opacity: 0, scale: "0.7" }], { duration: EXIT_MS * motionScale(), easing: "ease-in" })
       .finished.finally(() => ghost.remove());
   }
 }

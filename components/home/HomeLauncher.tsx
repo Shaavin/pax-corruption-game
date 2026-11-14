@@ -11,9 +11,9 @@ import { GAME_MODES, isGameMode } from "@/lib/game/setup";
 type Where = "local" | "online";
 
 /** The home page's one control surface: where to play, which deck, which expansion. */
-export function HomeLauncher() {
+export function HomeLauncher({ onlineOnly = false }: { onlineOnly?: boolean } = {}) {
   const router = useRouter();
-  const [where, setWhere] = useState<Where>("local");
+  const [where, setWhere] = useState<Where>(onlineOnly ? "online" : "local");
   const [expansion, setExpansion] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -69,13 +69,17 @@ export function HomeLauncher() {
       aria-labelledby="launcher-title"
       className="w-full rounded-3xl border border-white/10 bg-[#0d1117]/80 p-5 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.8)] backdrop-blur-xl sm:p-6"
     >
-      <ContinueGame />
+      {onlineOnly ? null : <ContinueGame />}
 
       <div className="flex items-center justify-between gap-3">
         <h2 id="launcher-title" className="text-base font-semibold text-stone-100">
-          New game
+          {onlineOnly ? "New online game" : "New game"}
         </h2>
-        <div role="tablist" aria-label="Where to play" className="flex rounded-full bg-white/[0.06] p-1 ring-1 ring-white/10">
+        <div
+          role="tablist"
+          aria-label="Where to play"
+          className={onlineOnly ? "hidden" : "flex rounded-full bg-white/[0.06] p-1 ring-1 ring-white/10"}
+        >
           <Tab selected={!online} onClick={() => setWhere("local")}>
             This device
           </Tab>

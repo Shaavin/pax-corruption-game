@@ -37,17 +37,18 @@ function howToWin(kind: VictoryKindId, target: number): string {
   }
 }
 
-/** "+4 / 9 Horsard", "1 / 2", "3 / 4 Chart"… */
+/** "+4/9", "1/2", "3/4"… */
 function progressText(kind: VictoryKindId, standing: VictoryStanding): string {
   const signed = kind === "military" || kind === "popularity" || kind === "cultural";
   const value = signed && standing.value > 0 ? `+${standing.value}` : String(standing.value);
-  const where =
-    standing.district && standing.value > 0
-      ? ` ${DISTRICT_NAME[standing.district]}`
-      : standing.symbol
-        ? ` ${standing.symbol[0]!.toUpperCase()}${standing.symbol.slice(1)}`
-        : "";
-  return `${value}/${standing.target}${where}`;
+  return `${value}/${standing.target}`;
+}
+
+/** Where the best attempt is: "Horsard", "Chart". */
+function whereText(standing: VictoryStanding): string {
+  if (standing.district && standing.value > 0) return DISTRICT_NAME[standing.district];
+  if (standing.symbol) return `${standing.symbol[0]!.toUpperCase()}${standing.symbol.slice(1)}`;
+  return "";
 }
 
 /** How close each player is to each victory: one step away turns amber, ready to declare glows. */
@@ -71,11 +72,11 @@ export function VictoryRace({ race }: { race: RaceView }) {
           </span>
         ) : null}
       </p>
-      <table className="w-full border-separate border-spacing-y-1 text-[0.65rem]">
+      <table className="w-full table-fixed border-separate border-spacing-y-1 text-[0.65rem]">
         <thead>
           <tr className="text-[0.55rem] font-semibold tracking-[0.12em] uppercase">
-            <th scope="col" className="sr-only">
-              Victory
+            <th scope="col" className="w-[5.4rem]">
+              <span className="sr-only">Victory</span>
             </th>
             <th scope="col" className="px-1.5 text-left text-[var(--you)]">
               You
@@ -88,7 +89,7 @@ export function VictoryRace({ race }: { race: RaceView }) {
         <tbody>
           {race.rows.map((row) => (
             <tr key={row.kind}>
-              <th scope="row" className="w-[5.6rem] pr-1 text-left font-semibold whitespace-nowrap text-stone-200">
+              <th scope="row" className="w-[5.4rem] pr-1 text-left font-semibold whitespace-nowrap text-stone-200">
                 <span className="inline-flex items-center gap-1">
                   {NAME[row.kind]}
                   <InfoTip label={`How to win ${NAME[row.kind]} Victory`}>
@@ -144,11 +145,11 @@ function Cell({
               ? "bg-amber-400/10 ring-1 ring-amber-400/60"
               : "bg-white/[0.04]",
         ].join(" ")}
-        title={`${who}: ${progressText(kind, standing)}${state === "met" ? " (can declare)" : state === "close" ? " (one step away)" : ""}`}
+        title={`${who}: ${progressText(kind, standing)} ${whereText(standing)}${state === "met" ? " (can declare)" : state === "close" ? " (one step away)" : ""}`}
       >
         <div className="flex items-baseline justify-between gap-1 leading-none">
           <span className={noSymbol ? "truncate text-stone-500" : "truncate tabular-nums text-stone-100"}>
-            {noSymbol ? "no symbol lead" : progressText(kind, standing)}
+            {noSymbol ? "no symbol" : progressText(kind, standing)}
           </span>
           {state === "met" ? (
             <span className="shrink-0 text-[0.5rem] font-bold tracking-wide text-[var(--act)] uppercase">Win</span>
@@ -156,6 +157,9 @@ function Cell({
             <span className="shrink-0 text-[0.5rem] font-bold tracking-wide text-amber-300 uppercase">1 away</span>
           ) : null}
         </div>
+        {whereText(standing) ? (
+          <div className="mt-0.5 truncate text-[0.55rem] leading-none text-stone-400">{whereText(standing)}</div>
+        ) : null}
         <div className="mt-1 h-1 overflow-hidden rounded-full bg-white/10">
           <div className="h-full rounded-full" style={{ width: `${fill * 100}%`, background: color }} />
         </div>

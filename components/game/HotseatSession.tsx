@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { captureCards } from "./card-motion";
+import { getSettings } from "./settings";
+import { APP_BUILD, copyText } from "./share";
 import type { TableMenuItem } from "./Table";
 import { ChoiceOverlay } from "./ChoiceOverlay";
 import { DecreeChoice } from "./DecreeChoice";
@@ -52,6 +54,7 @@ import {
   SetupStep,
   stepReplay,
   toRecord,
+  encodeShareCode,
   undoReplay,
   handCardBlockReason,
   victoryRace,
@@ -247,7 +250,7 @@ export function HotseatSession(props: HotseatSessionProps) {
     const from = lastSeen[next];
     const total = session.replay.steps.length;
     setLastSeen((seen) => ({ ...seen, [next]: total }));
-    if (from === undefined || from >= total) return;
+    if (from === undefined || from >= total || !getSettings().replay) return;
     const record = toRecord(session.replay);
     let step = replayRecord({ ...record, actions: record.actions.slice(0, from) });
     let states = [step.state];
@@ -280,7 +283,7 @@ export function HotseatSession(props: HotseatSessionProps) {
         captureCards(action.player);
         setPlayback((current) => current && { ...current, index: current.index + 1 });
       },
-      playback.index === 0 ? 700 : quiet ? 250 : 950,
+      (playback.index === 0 ? 700 : quiet ? 250 : 950) * (getSettings().motion === "fast" ? 0.6 : 1),
     );
     return () => window.clearTimeout(timer);
   }, [playback]);
@@ -870,6 +873,20 @@ export function HotseatSession(props: HotseatSessionProps) {
         <GameOverOverlay
           victory={state.victory}
           rematch={remote?.rematch ?? null}
+          summary={[model.you, model.opponent]
+            .sort((a, b) => a.id - b.id)
+            .map((player) => ({
+              name: playerLabel(player.id, names),
+              winner: player.id === state.victory!.player,
+              districts: Object.values(model.districtLeader).filter(
+                (leader) => leader === (player.id === model.you.id ? "you" : "opponent"),
+              ).length,
+              elections: player.electionWins,
+              partisans: player.partisans,
+              monuments: player.monuments.length,
+              support: Object.values(player.support).reduce((sum, count) => sum + count, 0),
+            }))}
+          onCopyRecord={remote ? undefined : () => copyText(encodeShareCode(toRecord(session.replay, APP_BUILD, names)))}
           newGameHref={
             remote
               ? "/online"
