@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Action, GameEvent, GameState, PlayerId } from "@/lib/game";
+import { NO_NAMES, parseNames, type PlayerNames } from "@/lib/game/names";
 import {
   PROTOCOL_VERSION,
   type ClientMessage,
@@ -69,8 +70,8 @@ export async function createOnlineGame(settings: CreateGameRequest): Promise<Cre
   return created;
 }
 
-export async function joinOnlineGame(gameId: string): Promise<JoinGameResponse> {
-  const joined = await post<JoinGameResponse>(`/api/games/${gameId}/join`, {});
+export async function joinOnlineGame(gameId: string, name?: string | null): Promise<JoinGameResponse> {
+  const joined = await post<JoinGameResponse>(`/api/games/${gameId}/join`, name ? { name } : {});
   saveTicket(gameId, { seat: joined.seat, token: joined.token });
   return joined;
 }
@@ -87,6 +88,7 @@ export type OnlineGame = {
   canUndo: boolean;
   joined: [boolean, boolean];
   connected: [boolean, boolean];
+  names: PlayerNames;
   send: (action: Action) => void;
   undo: () => void;
   clearError: () => void;
@@ -106,9 +108,14 @@ export function useOnlineGame(gameId: string, token: string | null): OnlineGame 
     history: GameEvent[];
     canUndo: boolean;
   } | null>(null);
-  const [presence, setPresence] = useState<{ joined: [boolean, boolean]; connected: [boolean, boolean] }>({
+  const [presence, setPresence] = useState<{
+    joined: [boolean, boolean];
+    connected: [boolean, boolean];
+    names: PlayerNames;
+  }>({
     joined: [true, false],
     connected: [false, false],
+    names: NO_NAMES,
   });
   const socket = useRef<WebSocket | null>(null);
 
@@ -140,9 +147,9 @@ export function useOnlineGame(gameId: string, token: string | null): OnlineGame 
             history: message.full || !previous ? message.events : [...previous.history, ...message.events],
             canUndo: message.canUndo,
           }));
-          setPresence({ joined: message.joined, connected: message.connected });
+          setPresence({ joined: message.joined, connected: message.connected, names: parseNames(message.names) });
         } else if (message.t === "presence") {
-          setPresence({ joined: message.joined, connected: message.connected });
+          setPresence({ joined: message.joined, connected: message.connected, names: parseNames(message.names) });
         } else if (message.t === "error") {
           setError(message.message);
         }
@@ -185,6 +192,7 @@ export function useOnlineGame(gameId: string, token: string | null): OnlineGame 
     canUndo: snapshot?.canUndo ?? false,
     joined: presence.joined,
     connected: presence.connected,
+    names: presence.names,
     send: useCallback((action: Action) => sendMessage({ t: "action", action }), [sendMessage]),
     undo: useCallback(() => sendMessage({ t: "undo" }), [sendMessage]),
     clearError: useCallback(() => setError(null), []),

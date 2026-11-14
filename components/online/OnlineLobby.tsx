@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
+import { rememberedNames, rememberNames } from "../game/players";
 import { createOnlineGame, onlineConfigured } from "./online-client";
+import { cleanName, MAX_NAME_LENGTH } from "@/lib/game/names";
 import { GAME_MODES, isGameMode } from "@/lib/game/setup";
 
 /** `/online`: start a game and get a link to send the other player. */
@@ -16,6 +18,8 @@ export function OnlineLobby() {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const mode = String(form.get("mode"));
+    const name = cleanName(form.get("name"));
+    if (name) rememberNames([name, rememberedNames()[1]]);
     setBusy(true);
     setError(null);
     try {
@@ -23,6 +27,7 @@ export function OnlineLobby() {
         mode: isGameMode(mode) ? mode : "standard",
         expansion: form.get("expansion") === "1",
         foreignInfluence: form.get("fi") === "1",
+        ...(name ? { name } : {}),
       });
       router.push(`/online/${created.gameId}`);
     } catch (caught) {
@@ -54,6 +59,16 @@ export function OnlineLobby() {
           </p>
         ) : (
           <form onSubmit={submit} className="flex flex-col gap-3">
+            <input
+              type="text"
+              name="name"
+              aria-label="Your name (optional)"
+              placeholder="Your name (optional)"
+              maxLength={MAX_NAME_LENGTH}
+              autoComplete="off"
+              spellCheck={false}
+              className="rounded-xl bg-white/[0.04] px-3.5 py-3 text-sm ring-1 ring-white/12 placeholder:text-stone-500 focus:ring-[var(--brass,#c6a56c)] focus:outline-none"
+            />
             <fieldset className="grid grid-cols-2 gap-2">
               <legend className="sr-only">Draw-deck mode</legend>
               {GAME_MODES.map((mode, index) => (

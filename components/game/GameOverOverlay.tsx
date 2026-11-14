@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { playerLabel } from "./players";
+import { usePlayerLabel } from "./players";
 import type { DistrictId } from "@/lib/cards/schema";
 import { MILITARY_LEAD, POPULARITY_LEAD, VictoryKind, type Victory } from "@/lib/game";
 
@@ -43,6 +43,7 @@ function victoryReason(victory: Victory): string {
 }
 
 export function GameOverOverlay({ victory, newGameHref = "/play" }: { victory: Victory; newGameHref?: string }) {
+  const playerLabel = usePlayerLabel();
   const [reviewing, setReviewing] = useState(false);
 
   if (reviewing) {

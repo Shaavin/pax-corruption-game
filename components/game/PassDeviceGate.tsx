@@ -1,6 +1,6 @@
 "use client";
 
-import { playerLabel } from "./players";
+import { usePlayerLabel } from "./players";
 import type { PlayerId } from "@/lib/game/types";
 
 type PassDeviceGateProps = {
@@ -16,6 +16,7 @@ export function PassDeviceGate({
   hint,
   onConfirm,
 }: PassDeviceGateProps) {
+  const playerLabel = usePlayerLabel();
   const name = playerLabel(to);
 
   return (

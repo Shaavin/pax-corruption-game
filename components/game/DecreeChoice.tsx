@@ -1,7 +1,7 @@
 "use client";
 
 import { CardView } from "./CardView";
-import { playerLabel } from "./players";
+import { usePlayerLabel } from "./players";
 import { getCard } from "@/lib/cards/catalog";
 import { CardKind, type DecreeIdValue } from "@/lib/cards/schema";
 import type { PlayerId } from "@/lib/game";
@@ -16,6 +16,7 @@ type DecreeChoiceProps = {
 
 /** The election winner activates one inactive decree per General Election set aside. */
 export function DecreeChoice({ winner, chooserIsYou, remaining, options, onChoose }: DecreeChoiceProps) {
+  const playerLabel = usePlayerLabel();
   return (
     <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center bg-black/70 px-4">
       <div className="pointer-events-auto max-w-3xl rounded-2xl glass-strong px-5 py-6 text-center shadow-2xl ring-1 ring-white/10">

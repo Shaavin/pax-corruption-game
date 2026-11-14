@@ -1,9 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { ContinueGame } from "../game/ContinueGame";
+import { rememberedNames, rememberNames } from "../game/players";
 import { createOnlineGame, onlineConfigured } from "../online/online-client";
+import { cleanName, MAX_NAME_LENGTH } from "@/lib/game/names";
 import { GAME_MODES, isGameMode } from "@/lib/game/setup";
 
 type Where = "local" | "online";
@@ -16,11 +18,23 @@ export function HomeLauncher() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const online = where === "online";
+  const firstName = useRef<HTMLInputElement>(null);
+  const secondName = useRef<HTMLInputElement>(null);
+
+  // Prefill the names typed last time (storage is only readable after mount).
+  useEffect(() => {
+    const [one, two] = rememberedNames();
+    if (firstName.current && !firstName.current.value && one) firstName.current.value = one;
+    if (secondName.current && !secondName.current.value && two) secondName.current.value = two;
+  }, [online]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
-    if (!online) return; // Local games are a plain GET to /play.
-    event.preventDefault();
     const form = new FormData(event.currentTarget);
+    const n1 = cleanName(form.get("n1"));
+    const n2 = online ? rememberedNames()[1] : cleanName(form.get("n2"));
+    rememberNames([n1, n2]);
+    if (!online) return; // Local games are a plain GET to /play (names ride along as n1, n2).
+    event.preventDefault();
     const mode = String(form.get("mode"));
     setBusy(true);
     setError(null);
@@ -29,6 +43,7 @@ export function HomeLauncher() {
         mode: isGameMode(mode) ? mode : "standard",
         expansion: form.get("expansion") === "1",
         foreignInfluence: form.get("fi") === "1",
+        ...(n1 ? { name: n1 } : {}),
       });
       router.push(`/online/${created.gameId}`);
     } catch (caught) {
@@ -108,6 +123,16 @@ export function HomeLauncher() {
           </div>
         </fieldset>
 
+        <fieldset>
+          <legend className="mb-2 text-[0.7rem] font-semibold tracking-[0.14em] text-stone-500 uppercase">
+            {online ? "Your name" : "Players"} <span className="font-normal tracking-normal normal-case">(optional)</span>
+          </legend>
+          <div className={online ? "" : "grid grid-cols-2 gap-2"}>
+            <NameInput ref={firstName} name="n1" placeholder={online ? "Your name" : "Player 1"} label={online ? "Your name" : "Player 1 name"} />
+            {online ? null : <NameInput ref={secondName} name="n2" placeholder="Player 2" label="Player 2 name" />}
+          </div>
+        </fieldset>
+
         {online && !onlineConfigured() ? (
           <p className="rounded-xl bg-amber-500/10 px-3 py-2 text-sm text-amber-200 ring-1 ring-amber-400/30">
             Online play isn&apos;t set up on this site yet.
@@ -125,6 +150,32 @@ export function HomeLauncher() {
         {error ? <p className="text-sm text-red-300">{error}</p> : null}
       </form>
     </section>
+  );
+}
+
+function NameInput({
+  ref,
+  name,
+  placeholder,
+  label,
+}: {
+  ref: React.Ref<HTMLInputElement>;
+  name: string;
+  placeholder: string;
+  label: string;
+}) {
+  return (
+    <input
+      ref={ref}
+      type="text"
+      name={name}
+      aria-label={label}
+      placeholder={placeholder}
+      maxLength={MAX_NAME_LENGTH}
+      autoComplete="off"
+      spellCheck={false}
+      className="w-full rounded-xl border border-white/[0.08] bg-white/[0.03] px-3.5 py-2.5 text-sm text-stone-100 placeholder:text-stone-500 focus:border-[var(--brass)]/70 focus:outline-none"
+    />
   );
 }
 

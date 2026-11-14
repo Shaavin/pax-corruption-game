@@ -19,7 +19,10 @@ export type GameSettings = {
 // --- HTTP -----------------------------------------------------------------------------------
 
 /** POST /api/games */
-export type CreateGameRequest = Partial<GameSettings>;
+export type CreateGameRequest = Partial<GameSettings> & { /** Player 1's display name (optional). */ name?: string };
+
+/** POST /api/games/:id/join body. */
+export type JoinGameRequest = { /** Player 2's display name (optional). */ name?: string };
 export type CreateGameResponse = { gameId: string; seat: PlayerId; token: string };
 
 /** GET /api/games/:id — public settings, so an invite can say what's being played before joining. */
@@ -64,8 +67,10 @@ export type ServerMessage =
       /** Which seats have joined, and which are connected right now. */
       joined: [boolean, boolean];
       connected: [boolean, boolean];
+      /** Display names by seat (absent from older servers). */
+      names?: [string | null, string | null];
     }
-  | { t: "presence"; joined: [boolean, boolean]; connected: [boolean, boolean] }
+  | { t: "presence"; joined: [boolean, boolean]; connected: [boolean, boolean]; names?: [string | null, string | null] }
   | { t: "error"; message: string }
   | { t: "pong" };
 

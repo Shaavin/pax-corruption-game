@@ -8,7 +8,7 @@ import { Lane, type InPlayPick } from "./Lane";
 import { PeekContext, type PeekCard } from "./peek";
 import { PlayerAid } from "./PlayerAid";
 import { PlayerBar } from "./PlayerBar";
-import { playerLabel } from "./players";
+import { usePlayerLabel } from "./players";
 import { SharedZones, sharedNeedsAttention, SidePanel, TurnDock, type DockBanner, type ExtraAction, type ZoneProps } from "./SidePanel";
 import { useCompact, useCompactLandscape } from "./use-compact";
 import type { TableModel } from "./table-model";
@@ -89,6 +89,7 @@ export function Table({
   menuHref = "/",
   children,
 }: TableProps) {
+  const playerLabel = usePlayerLabel();
   const [peek, setPeek] = useState<PeekCard | null>(null);
   const [aidOpen, setAidOpen] = useState(false);
   const [policyFocus, setPolicyFocus] = useState<DistrictId | null>(null);
@@ -437,6 +438,7 @@ function CompactTable({
   peekOpen,
   children,
 }: CompactTableProps) {
+  const playerLabel = usePlayerLabel();
   const [chosenView, setView] = useState<CompactView>("districts");
   const view = pinnedView ?? chosenView;
   const [logOpen, setLogOpen] = useState(false);

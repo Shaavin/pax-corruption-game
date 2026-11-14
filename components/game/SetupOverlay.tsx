@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { CardView } from "./CardView";
-import { playerLabel } from "./players";
+import { usePlayerLabel } from "./players";
 import { getCard, getParty } from "@/lib/cards/catalog";
 import type { PartyIdValue } from "@/lib/cards/schema";
 import {
@@ -49,13 +49,14 @@ function PartyChoice({
   viewer: PlayerId;
   onAction: (action: Action) => void;
 }) {
+  const playerLabel = usePlayerLabel();
   return (
     <ChoiceFrame
       kicker="Setup · parties"
       title={`${playerLabel(viewer)}, choose your party`}
       body={
         viewer === 0
-          ? "Pick one in secret. Player 2 picks next. The lower party number goes first and keeps 3 of its 4 starting cards. The other player gets all 4."
+          ? `Pick one in secret. ${playerLabel(1)} picks next. The lower party number goes first and keeps 3 of its 4 starting cards. The other player gets all 4.`
           : "Pick one in secret. The lower party number goes first and keeps 3 of its 4 starting cards. The other player gets all 4."
       }
     >
@@ -99,6 +100,7 @@ function StartingHandChoice({
   viewer: PlayerId;
   onAction: (action: Action) => void;
 }) {
+  const playerLabel = usePlayerLabel();
   const offer = state.setup!.startingOffers[viewer];
   const [leaveId, setLeaveId] = useState<string | null>(null);
   const second = otherPlayer(viewer);

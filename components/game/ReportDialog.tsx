@@ -1,5 +1,6 @@
 "use client";
 
+import type { PlayerNames } from "@/lib/game/names";
 import { useEffect, useMemo, useState } from "react";
 import { APP_BUILD, copyText, downloadText, stamp } from "./share";
 import { encodeShareCode, toRecord, type BugReport, type Replay } from "@/lib/game/record";
@@ -7,6 +8,7 @@ import type { PlayerId } from "@/lib/game";
 
 type ReportDialogProps = {
   replay: Replay;
+  names?: PlayerNames;
   viewer: PlayerId | null;
   onClose: () => void;
 };
@@ -15,7 +17,7 @@ type ReportDialogProps = {
  * Bundle the game (seed + every action) with a description, so the problem can
  * be replayed exactly on the troubleshooting page.
  */
-export function ReportDialog({ replay, viewer, onClose }: ReportDialogProps) {
+export function ReportDialog({ replay, names, viewer, onClose }: ReportDialogProps) {
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState<string | null>(null);
 
@@ -27,7 +29,7 @@ export function ReportDialog({ replay, viewer, onClose }: ReportDialogProps) {
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const record = useMemo(() => toRecord(replay, APP_BUILD), [replay]);
+  const record = useMemo(() => toRecord(replay, APP_BUILD, names), [replay, names]);
 
   function buildReport(): BugReport {
     return {

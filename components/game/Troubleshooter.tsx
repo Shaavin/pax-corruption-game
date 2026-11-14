@@ -1,5 +1,7 @@
 "use client";
 
+import { PlayerNamesContext } from "./players";
+import { NO_NAMES, playerName } from "@/lib/game/names";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
@@ -313,7 +315,7 @@ function ReplayViewer({ loaded, onClose }: { loaded: Loaded; onClose: () => void
               <div className="rounded-lg bg-white/[0.05] p-2.5 text-xs ring-1 ring-white/10">
                 <p className="font-semibold text-stone-200">
                   Reported at step {report.stepCount}
-                  {report.viewer !== null ? ` by Player ${report.viewer + 1}` : ""}
+                  {report.viewer !== null ? ` by ${playerName(report.record.names, report.viewer === 1 ? 1 : 0)}` : ""}
                   {report.createdAt ? ` · ${new Date(report.createdAt).toLocaleString()}` : ""}
                 </p>
                 <p className="mt-1 whitespace-pre-wrap text-stone-300">{report.description || "(no description)"}</p>
@@ -421,6 +423,7 @@ function ReplayViewer({ loaded, onClose }: { loaded: Loaded; onClose: () => void
         </button>
       )}
       <div className="relative min-w-0 flex-1">
+        <PlayerNamesContext.Provider value={record.names ?? NO_NAMES}>
         <Table
           model={model}
           seed={record.seed}
@@ -434,6 +437,7 @@ function ReplayViewer({ loaded, onClose }: { loaded: Loaded; onClose: () => void
           interaction={null}
           menuHref="/troubleshoot"
         />
+        </PlayerNamesContext.Provider>
       </div>
     </div>
   );

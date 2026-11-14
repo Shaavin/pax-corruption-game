@@ -1,3 +1,4 @@
+import { playerName, type PlayerNames } from "./names.ts";
 import { getCard } from "../cards/catalog.ts";
 import { getEvent, isEventId, WORLD_POWER_NAME } from "../cards/expansion.ts";
 import { CardKind, type DistrictId } from "../cards/schema.ts";
@@ -76,7 +77,19 @@ type Draft = ActionLogEntry & {
  * Fold engine events into public history tiles. Only information both players
  * can see is shown: deck draws never name the card.
  */
-export function buildActionLog(events: readonly GameEvent[], viewer: PlayerId): ActionLogEntry[] {
+/** Names for the build in progress (set for the duration of one synchronous `buildActionLog`). */
+let logNames: PlayerNames | undefined;
+
+export function buildActionLog(events: readonly GameEvent[], viewer: PlayerId, names?: PlayerNames): ActionLogEntry[] {
+  logNames = names;
+  try {
+    return buildEntries(events, viewer);
+  } finally {
+    logNames = undefined;
+  }
+}
+
+function buildEntries(events: readonly GameEvent[], viewer: PlayerId): ActionLogEntry[] {
   const drafts: Draft[] = [];
   const last = (): Draft | undefined => drafts[drafts.length - 1];
   const push = (entry: Omit<Draft, "id">): Draft => {
@@ -393,7 +406,7 @@ function face(cardId: string): ActionLogCard {
 }
 
 function who(player: PlayerId, viewer: PlayerId): string {
-  return player === viewer ? "You" : `Player ${player + 1}`;
+  return player === viewer ? "You" : playerName(logNames, player);
 }
 
 function cardName(cardId: string): string {

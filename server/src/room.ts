@@ -1,3 +1,4 @@
+import { cleanName } from "../../lib/game/names.ts";
 import { DurableObject } from "cloudflare:workers";
 import { currentActor } from "../../lib/game/engine.ts";
 import { IllegalActionError } from "../../lib/game/errors.ts";
@@ -24,6 +25,8 @@ type Meta = {
   settings: GameSettings;
   /** Seat tokens; seat 1 is null until someone joins. */
   tokens: [string, string | null];
+  /** Display names by seat (optional; games from before names have none). */
+  names?: [string | null, string | null];
   createdAt: number;
 };
 
@@ -72,7 +75,13 @@ export class GameRoom extends DurableObject<Env> {
       expansion: Boolean(request.expansion),
       foreignInfluence: Boolean(request.expansion && request.foreignInfluence),
     };
-    const meta: Meta = { seed: randomUint32(), settings, tokens: [randomToken(), null], createdAt: Date.now() };
+    const meta: Meta = {
+      seed: randomUint32(),
+      settings,
+      tokens: [randomToken(), null],
+      names: [cleanName(request.name), null],
+      createdAt: Date.now(),
+    };
     await this.ctx.storage.put("meta", meta);
     await this.touch();
     this.meta = meta;
@@ -86,11 +95,12 @@ export class GameRoom extends DurableObject<Env> {
     return { settings: meta.settings, open: meta.tokens[1] === null };
   }
 
-  async join(): Promise<{ seat: PlayerId; token: string } | { error: string }> {
+  async join(name?: unknown): Promise<{ seat: PlayerId; token: string } | { error: string }> {
     const meta = await this.loadMeta();
     if (!meta) return { error: "No such game" };
     if (meta.tokens[1] !== null) return { error: "This game already has two players" };
     meta.tokens[1] = randomToken();
+    meta.names = [meta.names?.[0] ?? null, cleanName(name)];
     await this.ctx.storage.put("meta", meta);
     this.broadcastPresence();
     return { seat: 1, token: meta.tokens[1] };
@@ -227,12 +237,17 @@ export class GameRoom extends DurableObject<Env> {
       });
   }
 
-  private presence(exclude?: WebSocket): { joined: [boolean, boolean]; connected: [boolean, boolean] } {
+  private presence(exclude?: WebSocket): {
+    joined: [boolean, boolean];
+    connected: [boolean, boolean];
+    names: [string | null, string | null];
+  } {
     const meta = this.meta;
     const online = this.seats(exclude).map((entry) => entry.seat);
     return {
       joined: [true, Boolean(meta?.tokens[1])],
       connected: [online.includes(0), online.includes(1)],
+      names: [meta?.names?.[0] ?? null, meta?.names?.[1] ?? null],
     };
   }
 

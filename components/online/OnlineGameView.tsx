@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { HotseatSession } from "../game/HotseatSession";
-import { playerLabel } from "../game/players";
+import { playerLabel, rememberedNames, rememberNames } from "../game/players";
+import { cleanName, MAX_NAME_LENGTH } from "@/lib/game/names";
 import { copyText } from "../game/share";
 import { fetchGameInfo, joinOnlineGame, onlineConfigured, readTicket, useOnlineGame } from "./online-client";
 import { describeSettings, type GameInfoResponse, type GameSettings } from "@/lib/online/protocol";
@@ -45,8 +46,8 @@ function Connected({ gameId, token }: { gameId: string; token: string }) {
   const waitingText = !game.joined[other]
     ? "Waiting for your opponent to join. Send them the invite link."
     : !game.connected[other]
-      ? `${playerLabel(actor)} is offline. The game continues when they reconnect.`
-      : `Waiting for ${playerLabel(actor)}…`;
+      ? `${playerLabel(actor, game.names)} is offline. The game continues when they reconnect.`
+      : `Waiting for ${playerLabel(actor, game.names)}…`;
   const invite = typeof window === "undefined" ? "" : `${window.location.origin}/online/${gameId}`;
 
   return (
@@ -61,6 +62,7 @@ function Connected({ gameId, token }: { gameId: string; token: string }) {
           send: game.send,
           undo: game.undo,
           waitingText,
+          names: game.names,
         }}
       />
       <div className="pointer-events-none absolute top-12 left-1/2 z-[55] flex -translate-x-1/2 flex-col items-center gap-2">
@@ -125,6 +127,8 @@ function JoinScreen({ gameId, onJoined }: { gameId: string; onJoined: (token: st
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<GameInfoResponse | null>(null);
+  // Prefill with the name this device used last time. (This screen only renders in the browser.)
+  const [name, setName] = useState(() => (typeof window === "undefined" ? "" : (rememberedNames()[0] ?? "")));
   useEffect(() => {
     let live = true;
     fetchGameInfo(gameId)
@@ -152,13 +156,26 @@ function JoinScreen({ gameId, onJoined }: { gameId: string; onJoined: (token: st
           <span className="text-stone-500">Loading the game settings…</span>
         )}
       </div>
+      <input
+        type="text"
+        value={name}
+        onChange={(event) => setName(event.target.value)}
+        aria-label="Your name (optional)"
+        placeholder="Your name (optional)"
+        maxLength={MAX_NAME_LENGTH}
+        autoComplete="off"
+        spellCheck={false}
+        className="w-64 rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-center text-sm text-stone-100 placeholder:text-stone-500 focus:border-[var(--brass,#c6a56c)] focus:outline-none"
+      />
       <button
         type="button"
         disabled={busy}
         onClick={async () => {
           setBusy(true);
           try {
-            onJoined((await joinOnlineGame(gameId)).token);
+            const chosen = cleanName(name);
+            if (chosen) rememberNames([chosen, rememberedNames()[1]]);
+            onJoined((await joinOnlineGame(gameId, chosen)).token);
           } catch (caught) {
             setError(caught instanceof Error ? caught.message : "Couldn't join");
             setBusy(false);

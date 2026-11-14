@@ -8,7 +8,7 @@
  *   POST /api/games/:id/join   claim Player 2
  *   GET  /api/games/:id/ws     WebSocket (send `hello` with your seat token)
  */
-import { GAME_ID_ALPHABET, isGameId, type CreateGameRequest } from "../../lib/online/protocol.ts";
+import { GAME_ID_ALPHABET, isGameId, type CreateGameRequest, type JoinGameRequest } from "../../lib/online/protocol.ts";
 import { GameRoom, type Env } from "./room.ts";
 
 export { GameRoom };
@@ -84,7 +84,13 @@ export default {
       const room = env.GAMES.get(env.GAMES.idFromName(match[1]!));
       if (match[2] === "join" && request.method === "POST") {
         if (!allowedOrigin(request, env)) return json(request, env, { error: "Origin not allowed" }, 403);
-        const result = await room.join();
+        let name: unknown;
+        try {
+          name = ((await request.json()) as JoinGameRequest).name;
+        } catch {
+          // No body: no name.
+        }
+        const result = await room.join(name);
         return "error" in result ? json(request, env, result, 409) : json(request, env, { gameId: match[1], ...result });
       }
       if (match[2] === "ws" && request.method === "GET") {

@@ -5,7 +5,8 @@ import { ChoiceOverlay } from "./ChoiceOverlay";
 import { DecreeChoice } from "./DecreeChoice";
 import { GameOverOverlay } from "./GameOverOverlay";
 import { PassDeviceGate } from "./PassDeviceGate";
-import { playerLabel } from "./players";
+import { playerLabel, PlayerNamesContext } from "./players";
+import { NO_NAMES, type PlayerNames } from "@/lib/game/names";
 import { ReportDialog } from "./ReportDialog";
 import { saveGame } from "./saved-game";
 import { SetupOverlay } from "./SetupOverlay";
@@ -117,15 +118,16 @@ export type RemoteGame = {
   undo: () => void;
   /** Shown in the turn dock while it is the other player's move. */
   waitingText: string;
+  names?: PlayerNames;
 };
 
 type LocalProps = { remote?: undefined };
 type HotseatSessionProps =
-  | (LocalProps & { seed: number; mode?: GameModeId; expansion?: boolean; foreignInfluence?: boolean; record?: undefined })
+  | (LocalProps & { seed: number; mode?: GameModeId; expansion?: boolean; foreignInfluence?: boolean; names?: PlayerNames; record?: undefined })
   /** Resume a saved game. The caller has already checked that it replays. */
-  | (LocalProps & { record: GameRecord; seed?: undefined; mode?: undefined; expansion?: undefined; foreignInfluence?: undefined })
+  | (LocalProps & { record: GameRecord; seed?: undefined; mode?: undefined; expansion?: undefined; foreignInfluence?: undefined; names?: undefined })
   /** Online: render one seat of a server-run game. */
-  | { remote: RemoteGame; record?: undefined; seed?: undefined; mode?: undefined; expansion?: undefined; foreignInfluence?: undefined };
+  | { remote: RemoteGame; record?: undefined; seed?: undefined; mode?: undefined; expansion?: undefined; foreignInfluence?: undefined; names?: undefined };
 
 export function HotseatSession(props: HotseatSessionProps) {
   const remote = props.remote ?? null;
@@ -139,6 +141,8 @@ export function HotseatSession(props: HotseatSessionProps) {
           lastEvents: [],
         },
   );
+  const [localNames] = useState<PlayerNames>(() => props.record?.names ?? props.names ?? NO_NAMES);
+  const names = remote ? (remote.names ?? NO_NAMES) : localNames;
   const [localSeated, setSeated] = useState<PlayerId | null>(null);
   const seated = remote ? remote.seat : localSeated;
   const [selectedHandIds, setSelectedHandIds] = useState<string[]>([]);
@@ -201,7 +205,7 @@ export function HotseatSession(props: HotseatSessionProps) {
     if (remote) return;
     resetSelection();
     setSession({ replay, lastEvents });
-    if (replay.steps.length > 0) saveGame(replay);
+    if (replay.steps.length > 0) saveGame(replay, names);
   }
 
   function dispatch(action: Action) {
@@ -621,7 +625,7 @@ export function HotseatSession(props: HotseatSessionProps) {
     });
   }
 
-  const banner = victoryBanner(state, viewer, declarable);
+  const banner = victoryBanner(state, viewer, declarable, names);
 
   const pendingDecrees = state.phase === Phase.DecreeChoice ? state.pendingDecrees : null;
 
@@ -691,6 +695,7 @@ export function HotseatSession(props: HotseatSessionProps) {
   const showGate = !remote && (waitingFirstSeat || veiled) && !state.victory;
 
   return (
+    <PlayerNamesContext.Provider value={names}>
     <Table
       model={model}
       seed={remote ? null : session.replay.seed}
@@ -744,20 +749,21 @@ export function HotseatSession(props: HotseatSessionProps) {
           newGameHref={
             remote
               ? "/online"
-              : `/play?mode=${settings.mode}${settings.expansion ? "&expansion=1" : ""}${settings.foreignInfluence ? "&fi=1" : ""}`
+              : `/play?mode=${settings.mode}${settings.expansion ? "&expansion=1" : ""}${settings.foreignInfluence ? "&fi=1" : ""}${namesQuery(names)}`
           }
         />
       ) : null}
-      {reportOpen && !remote ? <ReportDialog replay={session.replay} viewer={seated} onClose={closeReport} /> : null}
+      {reportOpen && !remote ? <ReportDialog replay={session.replay} names={names} viewer={seated} onClose={closeReport} /> : null}
       {showGate ? (
         <PassDeviceGate
           to={actor}
           firstHandoff={waitingFirstSeat}
-          hint={gateHint(state, session.lastEvents)}
+          hint={gateHint(state, session.lastEvents, names)}
           onConfirm={() => setSeated(actor)}
         />
       ) : null}
     </Table>
+    </PlayerNamesContext.Provider>
   );
 }
 
@@ -766,7 +772,14 @@ function policyName(policyId: PolicyIdValue | null): string {
 }
 
 /** Victory prompts for the turn dock: yours to declare, or the opponent's threat. */
-function victoryBanner(state: GameState, viewer: PlayerId, declarable: Victory[]): DockBanner | null {
+/** `&n1=…&n2=…` so "play again" keeps the names. */
+function namesQuery(names: PlayerNames): string {
+  return names
+    .map((name, seat) => (name ? `&n${seat + 1}=${encodeURIComponent(name)}` : ""))
+    .join("");
+}
+
+function victoryBanner(state: GameState, viewer: PlayerId, declarable: Victory[], names: PlayerNames): DockBanner | null {
   if (state.phase !== Phase.Action && state.phase !== Phase.Politics) return null;
   const labels = (list: Victory[]) => list.map(victoryLabel).join(", ");
   if (state.phase === Phase.Politics && declarable.length > 0) {
@@ -778,7 +791,7 @@ function victoryBanner(state: GameState, viewer: PlayerId, declarable: Victory[]
   }
   const theirs = declarableVictories(state, otherPlayer(viewer));
   if (theirs.length > 0) {
-    return { tone: "warn", text: `${playerLabel(otherPlayer(viewer))} can declare ${labels(theirs)} in their next Politics step.` };
+    return { tone: "warn", text: `${playerLabel(otherPlayer(viewer), names)} can declare ${labels(theirs)} in their next Politics step.` };
   }
   return null;
 }
@@ -931,15 +944,15 @@ function statusLine(state: GameState): string {
   return state.phase;
 }
 
-function gateHint(state: GameState, events: GameEvent[]): string {
+function gateHint(state: GameState, events: GameEvent[], names: PlayerNames): string {
   if (state.phase === Phase.DecreeChoice && state.pendingDecrees) {
-    return `${playerLabel(state.pendingDecrees.player)} won the election and activates ${state.pendingDecrees.remaining === 1 ? "a decree" : `${state.pendingDecrees.remaining} decrees`}.`;
+    return `${playerLabel(state.pendingDecrees.player, names)} won the election and activates ${state.pendingDecrees.remaining === 1 ? "a decree" : `${state.pendingDecrees.remaining} decrees`}.`;
   }
   if (state.phase === Phase.Setup && state.setup?.step === SetupStep.ChooseParty) {
     return "Choose one of the two parties dealt to you. The lower party number goes first and keeps 3 of its 4 starting cards.";
   }
   if (state.phase === Phase.Setup && state.setup?.step === SetupStep.ChooseStartingHand) {
-    return `Parties revealed. ${playerLabel(state.activePlayer)} has the lower party number, goes first, and keeps 3 of 4 starting cards. ${playerLabel(otherPlayer(state.activePlayer))} has all 4.`;
+    return `Parties revealed. ${playerLabel(state.activePlayer, names)} has the lower party number, goes first, and keeps 3 of 4 starting cards. ${playerLabel(otherPlayer(state.activePlayer), names)} has all 4.`;
   }
 
   const bits: string[] = [];
@@ -958,7 +971,7 @@ function gateHint(state: GameState, events: GameEvent[]): string {
     if (event.type === "cardDrawn") bits.push("Drew from the deck.");
     if (event.type === "electionSetAside") bits.push("A general election was revealed.");
     if (event.type === "electionStarted") bits.push("An election phase has begun: the market is 8 and won't refill.");
-    if (event.type === "electionWon") bits.push(`${playerLabel(event.player)} won the election.`);
+    if (event.type === "electionWon") bits.push(`${playerLabel(event.player, names)} won the election.`);
     if (event.type === "decreeActivated") bits.push(`${getCard(event.decreeId).name} is now active.`);
   }
   bits.push("Your turn is over. Pass the device.");

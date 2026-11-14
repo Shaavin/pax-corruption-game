@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { HotseatSession } from "@/components/game/HotseatSession";
 import { ResumeGame } from "@/components/game/ResumeGame";
 import { randomUint32 } from "@/lib/game/rng";
+import { cleanName } from "@/lib/game/names";
 import { isGameMode } from "@/lib/game/setup";
 import { GameMode } from "@/lib/game/types";
 
@@ -36,5 +37,14 @@ export default async function PlayPage({
   };
   const expansion = flag("expansion");
 
-  return <HotseatSession seed={seed} mode={mode} expansion={expansion} foreignInfluence={expansion && flag("fi")} />;
+  const name = (key: string) => cleanName(Array.isArray(params[key]) ? params[key]![0] : params[key]);
+  return (
+    <HotseatSession
+      seed={seed}
+      mode={mode}
+      expansion={expansion}
+      foreignInfluence={expansion && flag("fi")}
+      names={[name("n1"), name("n2")]}
+    />
+  );
 }

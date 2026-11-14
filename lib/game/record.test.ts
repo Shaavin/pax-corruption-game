@@ -10,6 +10,7 @@ import {
   undoReplay,
   type Replay,
 } from "./record.ts";
+import { cleanName, playerName } from "./names.ts";
 import { createSeededRng } from "./rng.ts";
 import { assert, expectIllegal, fail, report } from "./test-helpers.ts";
 
@@ -109,4 +110,18 @@ for (const seed of [3, 11, 42]) {
   if (replay.steps.length > 0) expectIllegal(() => undoReplay(replay), "Undo past a blocked step");
 }
 
-report("Record ok: deterministic replay, JSON round trip, ReplayError index, undo rules.");
+{
+  // Player names: cleaned, optional, carried by records, ignored by the engine.
+  assert(cleanName("  Ann " + String.fromCharCode(10) + "  Lee" + String.fromCharCode(7) + " ") === "Ann Lee", "Names collapse whitespace and drop control characters");
+  assert(cleanName("   ") === null && cleanName(42) === null, "Blank or non-string names are no name");
+  assert(cleanName("x".repeat(50))!.length === 20, "Names are capped at 20 characters");
+  assert(playerName([null, "Bo"], 0) === "Player 1" && playerName([null, "Bo"], 1) === "Bo", "Unnamed seats fall back");
+  const named = toRecord(newReplay(5, {}), undefined, ["Ann", null]);
+  const parsed = parseRecord(JSON.parse(JSON.stringify(named)));
+  assert(parsed?.names?.[0] === "Ann" && parsed.names[1] === null, "Names survive a JSON round trip");
+  assert(!("names" in toRecord(newReplay(5, {}), undefined, [null, null])), "No names, no field");
+  const hostile = parseRecord({ ...named, names: ["<b>" + "y".repeat(40), 7] });
+  assert(hostile?.names?.[0]?.length === 20 && hostile.names[1] === null, "Imported names are cleaned");
+}
+
+report("Record ok: deterministic replay, JSON round trip, ReplayError index, undo rules, player names.");

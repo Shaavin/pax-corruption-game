@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { CardBack, CardView } from "./CardView";
-import { playerLabel } from "./players";
+import { usePlayerLabel, usePlayerNames } from "./players";
 import { usePeek } from "./peek";
 import { getCard } from "@/lib/cards/catalog";
 import { CardKind, type DistrictId } from "@/lib/cards/schema";
@@ -46,7 +46,8 @@ type HistoryRailProps = {
  * newest at the bottom, tinted by who acted. Hover or click a tile for details.
  */
 export function HistoryRail({ events, viewer }: HistoryRailProps) {
-  const entries = useMemo(() => buildActionLog(events, viewer), [events, viewer]);
+  const names = usePlayerNames();
+  const entries = useMemo(() => buildActionLog(events, viewer, names), [events, viewer, names]);
   const listRef = useRef<HTMLOListElement>(null);
   const rootRef = useRef<HTMLElement>(null);
   const labelId = useId();
@@ -192,6 +193,7 @@ function CroppedArt({ card }: { card: ActionLogCard }) {
 }
 
 function LogPreview({ entry, top, viewer }: { entry: ActionLogEntry; top: number; viewer: PlayerId }) {
+  const playerLabel = usePlayerLabel();
   const related = entry.related.filter(
     (card, index) => card.faceUp && !(entry.primary && index === 0 && card.cardId === entry.primary.cardId),
   );

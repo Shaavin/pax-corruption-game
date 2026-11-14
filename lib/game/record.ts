@@ -1,3 +1,4 @@
+import { hasNames, parseNames, type PlayerNames } from "./names.ts";
 import { apply, currentActor } from "./engine.ts";
 import { IllegalActionError } from "./errors.ts";
 import { createSeededRng, type Rng } from "./rng.ts";
@@ -30,6 +31,8 @@ export type GameRecord = {
   engineVersion?: string;
   /** App build (git commit) that recorded the game, when known. */
   build?: string;
+  /** Optional player names (display only). */
+  names?: PlayerNames;
 };
 
 /** What a player sends when something went wrong. */
@@ -125,7 +128,7 @@ export function replayRecord(record: GameRecord): Replay {
   return replay;
 }
 
-export function toRecord(replay: Replay, build?: string): GameRecord {
+export function toRecord(replay: Replay, build?: string, names?: PlayerNames): GameRecord {
   return {
     version: RECORD_VERSION,
     seed: replay.seed,
@@ -135,6 +138,7 @@ export function toRecord(replay: Replay, build?: string): GameRecord {
     actions: replay.steps.map((step) => step.action),
     engineVersion: ENGINE_VERSION,
     ...(build ? { build } : {}),
+    ...(hasNames(names) ? { names: [names[0], names[1]] as const } : {}),
   };
 }
 
@@ -212,6 +216,7 @@ export function parseRecord(value: unknown): GameRecord | null {
     actions: candidate.actions as Action[],
     ...(typeof candidate.engineVersion === "string" ? { engineVersion: candidate.engineVersion } : {}),
     ...(typeof candidate.build === "string" ? { build: candidate.build } : {}),
+    ...(hasNames(parseNames(candidate.names)) ? { names: parseNames(candidate.names) } : {}),
   };
 }
 
