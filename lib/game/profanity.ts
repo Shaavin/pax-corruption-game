@@ -1,7 +1,7 @@
 /**
  * A small profanity check for player names. Catches common look-alike spellings
  * (3→e, 4/@→a, !/1/|→i or l, 0→o, $/5→s, 7/+→t, v→u), accents, separators ("f.u.c.k"),
- * and stretched letters ("fuuuck"). Not exhaustive; it keeps casual abuse out of
+ * stretched letters ("fuuuck"), and a few letters slipped inside ("FUmomCK"). Not exhaustive; it keeps casual abuse out of
  * names without flagging ordinary ones like Cassandra or Dickens.
  */
 
@@ -19,8 +19,14 @@ const WHOLE_WORD = [
   "fuk", "fk", "sht", "rapist", "spic", "spics", "dyke", "homo", "coon", "gook", "wop", "jap", "paki", "negro", "poop", "butt", "kkk",
 ];
 
+/**
+ * Also caught with 1–4 letters slipped inside ("FUmomCK", "bi-a-tch"). Only words whose
+ * halves don't occur together in ordinary names (not "whore": Whitmore; not "shit": Shanita).
+ */
+const GAPPED = ["fuck", "cunt", "nigger", "nigga", "faggot", "bitch"];
+
 /** Names (and places) that contain an ANYWHERE word innocently. */
-const ALLOWED = ["shiitake", "shitake", "scunthorpe", "matsushita", "cockburn", "hancock", "dickens", "penistone", "pussycat"];
+const ALLOWED = ["fullback", "niger", "shiitake", "shitake", "scunthorpe", "matsushita", "cockburn", "hancock", "dickens", "penistone", "pussycat"];
 
 const LEET: Record<string, string> = {
   "0": "o",
@@ -67,6 +73,15 @@ function readings(name: string): string[] {
 
 const anywhere = ANYWHERE.map((word) => collapse(word.replace(/ /g, ""), 1));
 const wholeWord = new Set(WHOLE_WORD.map((word) => collapse(word, 2)));
+/** "fu" + 1–4 letters + "ck", for every split leaving at least 2 letters on each side. */
+const gapped = GAPPED.flatMap((raw) => {
+  const word = collapse(raw, 1);
+  const patterns: RegExp[] = [];
+  for (let split = 2; split <= word.length - 2; split++) {
+    patterns.push(new RegExp(`${word.slice(0, split)}[a-z]{1,4}${word.slice(split)}`));
+  }
+  return patterns;
+});
 
 /** True if the name contains a blocked word, even disguised. */
 export function isProfane(name: string): boolean {
@@ -76,6 +91,7 @@ export function isProfane(name: string): boolean {
     // Anywhere, ignoring separators and stretched letters.
     const squeezed = collapse(joined, 1);
     if (anywhere.some((word) => squeezed.includes(word))) return true;
+    if (gapped.some((pattern) => pattern.test(squeezed))) return true;
     // Whole words, or the whole name spelled out ("a s s").
     const tokens = reading.split(" ").map((token) => collapse(token, 2));
     if (tokens.some((token) => wholeWord.has(token)) || wholeWord.has(collapse(joined, 2))) return true;

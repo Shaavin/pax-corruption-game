@@ -124,10 +124,10 @@ for (const seed of [3, 11, 42]) {
   const hostile = parseRecord({ ...named, names: ["<b>" + "y".repeat(40), 7] });
   assert(hostile?.names?.[0]?.length === 20 && hostile.names[1] === null, "Imported names are cleaned");
   // Profanity, including look-alike spellings, is not a name; ordinary names that contain a blocked word are.
-  for (const name of ["fuck", "f.u.c.k", "fvck", "sh1t", "$hit", "b!tch", "a$$", "@ss", "a s s", "c0ck", "n1gg3r", "Mr Dick", "dumbass"]) {
+  for (const name of ["fuck", "f.u.c.k", "fvck", "sh1t", "$hit", "b!tch", "a$$", "@ss", "a s s", "c0ck", "n1gg3r", "Mr Dick", "dumbass", "FUmomCK", "biatch"]) {
     assert(isProfane(name), `Blocks ${name}`);
   }
-  for (const name of ["Ann", "Cassandra", "Dickens", "Scunthorpe", "Hancock", "Classic", "Essex", "Titan", "Therapist", "Fukuda", "Peacock", "Assassin", "Joe Zhao"]) {
+  for (const name of ["Ann", "Cassandra", "Dickens", "Scunthorpe", "Hancock", "Classic", "Essex", "Titan", "Therapist", "Fukuda", "Peacock", "Assassin", "Joe Zhao", "Whitmore", "Shanita", "Fullback", "Bianca", "Cunningham"]) {
     assert(!isProfane(name), `Allows ${name}`);
   }
   assert(cleanName("sh1thead") === null, "A profane name is no name");
