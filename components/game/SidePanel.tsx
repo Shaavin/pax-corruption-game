@@ -125,6 +125,7 @@ function Section({
 function ElectionStatus({ active, electionsOut, marketLeft }: { active: boolean; electionsOut: number; marketLeft: number }) {
   return (
     <div
+      data-tour="elections"
       className={[
         "flex items-center gap-2 rounded-xl px-3 py-2",
         active ? "bg-[var(--act)]/12 ring-1 ring-[var(--act)]/50" : "glass",
@@ -392,6 +393,7 @@ function WorldSection({ expansion }: { expansion: ExpansionView }) {
   return (
     <Section
       title="World"
+      tour="world"
       aside={`${expansion.inEffect.length} in effect`}
       info={
         <>
@@ -480,7 +482,7 @@ function WorldSection({ expansion }: { expansion: ExpansionView }) {
 
 function SupplySection({ monuments, deckCount, claimableIds, onClaimMonument }: ZoneProps) {
   return (
-    <Section title="Monuments" aside={`deck ${deckCount}`}>
+    <Section title="Monuments" tour="supply" aside={`deck ${deckCount}`}>
       <div className="flex items-end justify-between gap-1">
         {monuments.map((entry) => {
           const catalog = resolveCard(entry.cardId);

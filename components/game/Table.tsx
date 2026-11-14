@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { Hand } from "./Hand";
 import { HistoryRail } from "./HistoryRail";
 import { Lane } from "./Lane";
@@ -12,7 +12,7 @@ import { playerLabel } from "./players";
 import { SharedZones, sharedNeedsAttention, SidePanel, TurnDock, type DockBanner, type ExtraAction, type ZoneProps } from "./SidePanel";
 import { useCompact, useCompactLandscape } from "./use-compact";
 import type { TableModel } from "./table-model";
-import { TableTour } from "./TableTour";
+import { markTourSeen, TableTour, tableTourSteps, useTourSeen, type TourView } from "./TableTour";
 import { ZoomPreview } from "./ZoomPreview";
 import type { DistrictId } from "@/lib/cards/schema";
 import type { GameEvent, GameModeId, PlayerId } from "@/lib/game";
@@ -84,10 +84,29 @@ export function Table({
   children,
 }: TableProps) {
   const [peek, setPeek] = useState<PeekCard | null>(null);
-  const [tourOpen, setTourOpen] = useState(false);
   const [aidOpen, setAidOpen] = useState(false);
   const closeAid = useCallback(() => setAidOpen(false), []);
   if (veiled && peek !== null) setPeek(null);
+  const compact = useCompact();
+  // The tour opens by itself the first time a game reaches play, and again from the menu.
+  const tourSeen = useTourSeen();
+  const [tourRequest, setTourRequest] = useState<"auto" | "open" | "closed">("auto");
+  const [tourStep, setTourStep] = useState(0);
+  const tourOpen = showTour && (tourRequest === "open" || (tourRequest === "auto" && !tourSeen));
+  const tourSteps = useMemo(() => tableTourSteps({ compact, expansion }), [compact, expansion]);
+  const step = Math.min(tourStep, tourSteps.length - 1);
+  const tourView: TourView | null = tourOpen ? (tourSteps[step]?.view ?? null) : null;
+  const openTour = useCallback(() => {
+    setPeek(null);
+    setAidOpen(false);
+    setTourStep(0);
+    setTourRequest("open");
+  }, []);
+  const closeTour = useCallback(() => {
+    markTourSeen();
+    setTourRequest("closed");
+    setTourStep(0);
+  }, []);
   const setPeekSafe = useCallback(
     (card: PeekCard | null) => {
       if (!tourOpen && !veiled) setPeek(card);
@@ -96,7 +115,6 @@ export function Table({
   );
   const yourTurn = model.activePlayer === hotseat;
   const live = model.phase !== "setup" && model.phase !== "over";
-  const compact = useCompact();
 
   const zoneProps: ZoneProps = {
     senate: model.senate,
@@ -179,6 +197,7 @@ export function Table({
       {children}
       {aidOpen && !veiled ? <PlayerAid onClose={closeAid} expansion={expansion} /> : null}
       {tourOpen || veiled || aidOpen ? null : <ZoomPreview card={peek} />}
+      {tourOpen ? <TableTour steps={tourSteps} step={step} onStep={setTourStep} onClose={closeTour} /> : null}
     </>
   );
   const modeLabel = `${GAME_MODES.find((entry) => entry.id === mode)?.name ?? mode}${expansion ? " + L&D" : ""} · ${
@@ -207,6 +226,8 @@ export function Table({
             setAidOpen(true);
           }}
           onReport={onReport}
+          onTour={showTour ? openTour : undefined}
+          pinnedView={tourView}
           clearPeek={() => setPeek(null)}
           peekOpen={peek !== null}
         >
@@ -239,13 +260,13 @@ export function Table({
             <Hand cards={model.opponent.hand} variant="opponent" />
             <div className="flex items-center justify-end gap-3 text-[0.65rem] text-stone-500">
               {showTour ? (
-                <TableTour
-                  allowAutoOpen={showTour}
-                  onVisibilityChange={(open) => {
-                    setTourOpen(open);
-                    if (open) setPeek(null);
-                  }}
-                />
+                <button
+                  type="button"
+                  onClick={openTour}
+                  className="cursor-pointer tracking-[0.14em] uppercase hover:text-stone-300"
+                >
+                  Table guide
+                </button>
               ) : null}
               {veiled ? null : (
                 <button
@@ -326,6 +347,10 @@ type CompactTableProps = {
   menuHref: string;
   onPlayerAid: () => void;
   onReport?: () => void;
+  /** Opens the table guide (absent while it can't run, e.g. during setup). */
+  onTour?: () => void;
+  /** The tour holds the view on the half it's pointing at. */
+  pinnedView: CompactView | null;
   clearPeek: () => void;
   peekOpen: boolean;
   children: ReactNode;
@@ -354,11 +379,14 @@ function CompactTable({
   menuHref,
   onPlayerAid,
   onReport,
+  onTour,
+  pinnedView,
   clearPeek,
   peekOpen,
   children,
 }: CompactTableProps) {
-  const [view, setView] = useState<CompactView>("districts");
+  const [chosenView, setView] = useState<CompactView>("districts");
+  const view = pinnedView ?? chosenView;
   const [logOpen, setLogOpen] = useState(false);
   const landscape = useCompactLandscape();
   const attention = sharedNeedsAttention(zoneProps);
@@ -418,6 +446,7 @@ function CompactTable({
         </summary>
         <div className="absolute top-11 right-0 z-[60] flex w-52 flex-col rounded-xl border border-white/10 bg-[#0d1117] p-1.5 text-sm shadow-2xl">
           <p className="px-3 py-1.5 text-xs text-stone-500 tabular-nums">{modeLabel}</p>
+          {onTour ? <MenuButton onClick={onTour}>Table guide</MenuButton> : null}
           {veiled ? null : <MenuButton onClick={onPlayerAid}>Player aid</MenuButton>}
           {onReport ? <MenuButton onClick={onReport}>Report a problem</MenuButton> : null}
           <Link href={menuHref} className="rounded-lg px-3 py-2 text-stone-200 hover:bg-white/8">
@@ -439,6 +468,7 @@ function CompactTable({
         </ViewTab>
       </div>
       <button
+        data-tour="history"
         type="button"
         onClick={() => setLogOpen(true)}
         className="shrink-0 cursor-pointer rounded-full px-3 py-1.5 text-xs font-semibold text-stone-300 ring-1 ring-white/15"
