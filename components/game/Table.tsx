@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { Hand } from "./Hand";
 import { HistoryRail } from "./HistoryRail";
-import { Lane } from "./Lane";
+import { Lane, type InPlayPick } from "./Lane";
 import { PeekContext, type PeekCard } from "./peek";
 import { PlayerAid } from "./PlayerAid";
 import { PlayerBar } from "./PlayerBar";
@@ -12,6 +12,7 @@ import { playerLabel } from "./players";
 import { SharedZones, sharedNeedsAttention, SidePanel, TurnDock, type DockBanner, type ExtraAction, type ZoneProps } from "./SidePanel";
 import { useCompact, useCompactLandscape } from "./use-compact";
 import type { TableModel } from "./table-model";
+import { ActionCards, type ActionCardSpec } from "./ActionCards";
 import { PolicyChooser } from "./PolicyChooser";
 import { markTourSeen, TableTour, tableTourSteps, useTourSeen, type TourView } from "./TableTour";
 import { ZoomPreview } from "./ZoomPreview";
@@ -46,6 +47,10 @@ export type TableInteraction = {
   revealVotes?: number | null;
   prompt: string;
   extraActions: ExtraAction[];
+  /** Special actions shown as cards beside the hand. */
+  actionCards?: ActionCardSpec[];
+  /** Cards in play to click (Century Inc.: the alliance to replace). */
+  inPlayPick?: InPlayPick | null;
 };
 
 type TableProps = {
@@ -170,7 +175,9 @@ export function Table({
             influence: model.you.influence[district],
           }}
           electors={model.electors ? model.electors[district] : null}
+          leader={model.districtLeader?.[district]}
           tourAnchor={index === 0}
+          pickable={interaction?.inPlayPick ?? null}
           onShowPolicies={
             veiled
               ? undefined
@@ -188,9 +195,23 @@ export function Table({
       ))}
     </div>
   );
+  const actionCards = interaction?.actionCards ?? [];
   const hand = (
     <div className="relative h-[calc(var(--card-hand)*1.364*0.7)] shrink-0 bg-black/20">
-      <div className="absolute inset-x-0 bottom-0 flex translate-y-[28%] justify-center">
+      {compact ? null : (
+        <div className="absolute right-4 bottom-0 z-10 translate-y-[24%]">
+          <ActionCards cards={actionCards} variant="hand" />
+        </div>
+      )}
+      <div
+        className="absolute inset-x-0 bottom-0 flex translate-y-[28%] justify-center"
+        // Keep the fan clear of the action cards on the right.
+        style={
+          !compact && actionCards.length > 0
+            ? { paddingRight: `calc(${actionCards.length} * (var(--card-hand) * 0.86 + 0.5rem) + 1.5rem)` }
+            : undefined
+        }
+      >
         <Hand
           cards={model.you.hand}
           variant="you"
@@ -240,7 +261,16 @@ export function Table({
           targetDistrict={interaction?.targetDistrict ?? null}
           lanes={lanes}
           dock={dock}
-          hand={hand}
+          hand={
+            <>
+              {actionCards.length > 0 ? (
+                <div className="shrink-0 border-t border-[var(--line)] bg-black/30">
+                  <ActionCards cards={actionCards} variant="strip" />
+                </div>
+              ) : null}
+              {hand}
+            </>
+          }
           modeLabel={modeLabel}
           menuHref={menuHref}
           onPlayerAid={() => {

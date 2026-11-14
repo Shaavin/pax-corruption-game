@@ -45,6 +45,7 @@ export function DecreeChoice({ winner, chooserIsYou, remaining, options, onChoos
                     cardId={decreeId}
                     playable
                     selectLabel={`Activate ${def.name}`}
+                    peekExtra={{ decreeActive: false }}
                     onSelect={() => onChoose(decreeId)}
                   />
                   <span className="text-xs text-stone-300">{def.text}</span>

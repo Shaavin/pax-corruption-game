@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { HotseatSession } from "../game/HotseatSession";
 import { playerLabel } from "../game/players";
 import { copyText } from "../game/share";
-import { joinOnlineGame, onlineConfigured, readTicket, useOnlineGame } from "./online-client";
+import { fetchGameInfo, joinOnlineGame, onlineConfigured, readTicket, useOnlineGame } from "./online-client";
+import { describeSettings, type GameInfoResponse, type GameSettings } from "@/lib/online/protocol";
 import { currentActor } from "@/lib/game";
 
 const noop = () => () => {};
@@ -31,6 +32,7 @@ export function OnlineGameView({ gameId }: { gameId: string }) {
 function Connected({ gameId, token }: { gameId: string; token: string }) {
   const game = useOnlineGame(gameId, token);
   const [copied, setCopied] = useState(false);
+  const [settingsSeen, setSettingsSeen] = useState(false);
 
   if (!game.state || game.seat === null || !game.settings) {
     if (game.status === "closed") return <Message title="Can't open this game" body={game.error ?? "The connection closed."} />;
@@ -62,6 +64,18 @@ function Connected({ gameId, token }: { gameId: string; token: string }) {
         }}
       />
       <div className="pointer-events-none absolute top-12 left-1/2 z-[55] flex -translate-x-1/2 flex-col items-center gap-2">
+        {!settingsSeen ? (
+          <button
+            type="button"
+            onClick={() => setSettingsSeen(true)}
+            title="Dismiss"
+            className="pointer-events-auto flex cursor-pointer items-center gap-2 rounded-full glass-strong px-3 py-1.5 text-xs shadow-xl ring-1 ring-white/10"
+          >
+            <span className="text-stone-400">Playing</span>
+            <SettingsChips settings={game.settings} />
+            <span aria-hidden className="text-stone-500">✕</span>
+          </button>
+        ) : null}
         {!game.joined[other] ? (
           <div className="pointer-events-auto flex items-center gap-2 rounded-full glass-strong px-4 py-2 text-xs shadow-xl ring-1 ring-[var(--brass)]/50">
             <span className="text-stone-200">Invite your opponent:</span>
@@ -95,14 +109,49 @@ function Connected({ gameId, token }: { gameId: string; token: string }) {
   );
 }
 
+function SettingsChips({ settings }: { settings: GameSettings }) {
+  return (
+    <span className="flex flex-wrap items-center justify-center gap-1.5">
+      {describeSettings(settings).map((label) => (
+        <span key={label} className="rounded-full bg-[var(--brass,#c6a56c)]/15 px-2 py-0.5 font-semibold text-[var(--brass,#c6a56c)]">
+          {label}
+        </span>
+      ))}
+    </span>
+  );
+}
+
 function JoinScreen({ gameId, onJoined }: { gameId: string; onJoined: (token: string) => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<GameInfoResponse | null>(null);
+  useEffect(() => {
+    let live = true;
+    fetchGameInfo(gameId)
+      .then((result) => live && setInfo(result))
+      .catch((caught: unknown) => live && setError(caught instanceof Error ? caught.message : "Couldn't load the game"));
+    return () => {
+      live = false;
+    };
+  }, [gameId]);
+  if (info && !info.open) {
+    return <Message title="This game is full" body="Both seats are taken. Ask your friend for a new invite." />;
+  }
   return (
     <Message
       title="You're invited to a game"
       body="Join as Player 2. Your seat is remembered in this browser, so you can close the tab and come back."
     >
+      <div className="flex min-h-7 flex-col items-center gap-1.5 text-xs">
+        {info ? (
+          <>
+            <span className="text-stone-500">Game settings</span>
+            <SettingsChips settings={info.settings} />
+          </>
+        ) : error ? null : (
+          <span className="text-stone-500">Loading the game settings…</span>
+        )}
+      </div>
       <button
         type="button"
         disabled={busy}

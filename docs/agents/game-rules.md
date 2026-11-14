@@ -53,7 +53,7 @@ Per player:
 
 Shared:
 
-- 4 district lanes in a fixed left-to-right order chosen at setup
+- 4 district lanes, always left to right: Shavvinne, Horsard, Dragonara, Smarbbit (the TTS table, from the default seat)
 - Active policy per district: side A, side B, or neutral (no card)
 - **Senate**: always 5 face-up cards in a row, left to right
 - **Market**: 5 face-up cards (8, in two rows, during an election phase)

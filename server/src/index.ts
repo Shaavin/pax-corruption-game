@@ -4,6 +4,7 @@
  * moves, WebSocket hibernation while idle, and only a few keys per game.
  *
  *   POST /api/games            create a game (you are Player 1)
+ *   GET  /api/games/:id        settings and whether the second seat is free (for invites)
  *   POST /api/games/:id/join   claim Player 2
  *   GET  /api/games/:id/ws     WebSocket (send `hello` with your seat token)
  */
@@ -69,6 +70,13 @@ export default {
       const room = env.GAMES.get(env.GAMES.idFromName(gameId));
       const seat = await room.create(body);
       return json(request, env, { gameId, ...seat });
+    }
+
+    const info = url.pathname.match(/^\/api\/games\/([^/]+)$/);
+    if (info && isGameId(info[1]!) && request.method === "GET") {
+      const room = env.GAMES.get(env.GAMES.idFromName(info[1]!));
+      const result = await room.info();
+      return "error" in result ? json(request, env, result, 404) : json(request, env, { gameId: info[1], ...result });
     }
 
     const match = url.pathname.match(/^\/api\/games\/([^/]+)\/(join|ws)$/);

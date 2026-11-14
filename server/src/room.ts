@@ -79,6 +79,13 @@ export class GameRoom extends DurableObject<Env> {
     return { seat: 0, token: meta.tokens[0] };
   }
 
+  /** Public: what's being played and whether Player 2's seat is free. Never the seed or tokens. */
+  async info(): Promise<{ settings: GameSettings; open: boolean } | { error: string }> {
+    const meta = await this.loadMeta();
+    if (!meta) return { error: "No such game" };
+    return { settings: meta.settings, open: meta.tokens[1] === null };
+  }
+
   async join(): Promise<{ seat: PlayerId; token: string } | { error: string }> {
     const meta = await this.loadMeta();
     if (!meta) return { error: "No such game" };

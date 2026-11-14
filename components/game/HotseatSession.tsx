@@ -9,6 +9,7 @@ import { playerLabel } from "./players";
 import { ReportDialog } from "./ReportDialog";
 import { saveGame } from "./saved-game";
 import { SetupOverlay } from "./SetupOverlay";
+import { type ActionCardSpec } from "./ActionCards";
 import { BuyEventDialog } from "./BuyEventDialog";
 import { PolicyChooser } from "./PolicyChooser";
 import { getEvent, isEventId } from "@/lib/cards/expansion";
@@ -415,6 +416,134 @@ export function HotseatSession(props: HotseatSessionProps) {
     setSelectedHandIds((current) => (current.length === 1 && current[0] === instanceId ? [] : [instanceId]));
   }
 
+  // --- Special actions as cards beside the hand (main actions, free actions, politics) ---
+  function runFreeSource(source: (typeof freeSources)[number]) {
+    switch (source.ability) {
+      case "kybernetik":
+      case "intelNetwork":
+        dispatch({ type: "freeAction", player: viewer, source: source.source, ability: source.ability });
+        return;
+      case "foreignInc":
+        startMode("foreign", source.source);
+        return;
+      case "centuryInc":
+        startMode("century", source.source);
+        return;
+      case "architectureInc":
+        startMode("construct", source.source);
+        return;
+      case "rebelInc":
+        startMode("recruit", source.source);
+        return;
+      case "capitolInc":
+        startMode("propose", source.source);
+        return;
+      case "eastTake":
+        startMode("eastTake", source.source);
+        return;
+    }
+  }
+  /** Toggle a mode from its card: a second tap cancels, another card switches. */
+  function modeCard(kind: SpendKind, source: string | null, start: () => void) {
+    return () => (spendKind === kind && via === source ? resetSelection() : (resetSelection(), start()));
+  }
+  const actionCards: ActionCardSpec[] = [];
+  if (inAction && !state.turn.mainActionDone) {
+    actionCards.push({
+      id: "recruit",
+      kind: "recruit",
+      title: "Recruit partisans",
+      detail: "Discard 3 cards of one district: +1 partisan",
+      blockedReason: spendKind === "recruit" && !via ? null : recruitReason,
+      active: spendKind === "recruit" && !via,
+      onClick: modeCard("recruit", null, () => startMode("recruit")),
+    });
+    actionCards.push({
+      id: "construct",
+      kind: "construct",
+      title: "Build monument",
+      detail: "Discard 5 cards of one district to build its monument",
+      blockedReason: spendKind === "construct" && !via ? null : constructReason,
+      active: spendKind === "construct" && !via,
+      onClick: modeCard("construct", null, () => startMode("construct")),
+    });
+  }
+  if (inAction) {
+    for (const source of freeSources) {
+      const def = isEventId(source.cardId) ? getEvent(source.cardId) : getCard(source.cardId);
+      const startsMode = !["kybernetik", "intelNetwork"].includes(source.ability);
+      const mode: SpendKind | null =
+        source.ability === "architectureInc"
+          ? "construct"
+          : source.ability === "rebelInc"
+            ? "recruit"
+            : source.ability === "capitolInc"
+              ? "propose"
+              : source.ability === "foreignInc"
+                ? "foreign"
+                : source.ability === "centuryInc"
+                  ? "century"
+                  : source.ability === "eastTake"
+                    ? "eastTake"
+                    : null;
+      actionCards.push({
+        id: `free-${source.source}-${source.ability}`,
+        kind: "free",
+        title: def.name,
+        detail: `${FREE_LABEL[source.ability](def.name, source.district)} · once this turn`,
+        art: def.art,
+        peek: { name: def.name, art: def.art, cardId: source.cardId },
+        active: mode !== null && spendKind === mode && via === source.source,
+        onClick: startsMode && mode ? modeCard(mode, source.source, () => runFreeSource(source)) : () => runFreeSource(source),
+      });
+    }
+  }
+  if (inPolitics) {
+    actionCards.push({
+      id: "propose",
+      kind: "propose",
+      title: "Propose policy",
+      detail: "Reveal cards that convince more than half of the Senate, then change a district's policy",
+      blockedReason: wholeHandPasses || (spendKind === "propose" && !via) ? null : "your hand can't convince more than half of the Senate",
+      active: spendKind === "propose" && !via,
+      onClick: modeCard("propose", null, () => startMode("propose")),
+    });
+    for (const victory of declarable) {
+      actionCards.push({
+        id: `declare-${victoryLabel(victory)}`,
+        kind: "declare",
+        title: `Declare ${victoryLabel(victory)}`,
+        detail: "Win the game now",
+        onClick: () => dispatch({ type: "declareVictory", player: viewer, victory }),
+      });
+    }
+  }
+
+  // Century Inc.: with an alliance chosen from hand, click the alliance in play it replaces.
+  const centuryPick =
+    spendKind === "century" && via && selectedCard
+      ? {
+          labels: new Map(
+            alliancesInPlay(state).map((target) => [
+              target.card.instanceId,
+              `Replace ${getCard(target.card.cardId).name} (${target.owner === viewer ? "yours" : "theirs"}, ${DISTRICT_NAME[target.occupied]})`,
+            ]),
+          ),
+          onPick: (instanceId: string) => {
+            const target = alliancesInPlay(state).find((entry) => entry.card.instanceId === instanceId);
+            if (!target) return;
+            dispatch({
+              type: "freeAction",
+              player: viewer,
+              source: via,
+              ability: "centuryInc",
+              instanceId: selectedCard.instanceId,
+              target: { owner: target.owner, instanceId },
+            });
+          },
+        }
+      : null;
+
   const extraActions: ExtraAction[] = [];
   if (spendKind) {
     extraActions.push({ label: "Cancel", tone: "ghost", onClick: resetSelection });
@@ -438,74 +567,7 @@ export function HotseatSession(props: HotseatSessionProps) {
         onClick: () => setChoosingPolicy(true),
       });
     }
-    if (spendKind === "century" && via && selectedCard) {
-      for (const target of alliancesInPlay(state)) {
-        const owner = target.owner === viewer ? "yours" : "theirs";
-        extraActions.push({
-          label: `Replace ${getCard(target.card.cardId).name} (${owner}, ${DISTRICT_NAME[target.occupied]})`,
-          onClick: () =>
-            dispatch({
-              type: "freeAction",
-              player: viewer,
-              source: via,
-              ability: "centuryInc",
-              instanceId: selectedCard.instanceId,
-              target: { owner: target.owner, instanceId: target.card.instanceId },
-            }),
-        });
-      }
-    }
   } else if (inAction) {
-    if (!state.turn.mainActionDone) {
-      extraActions.push({
-        label: "Recruit",
-        tone: "neutral",
-        disabled: recruitReason !== null,
-        title: recruitReason ?? "Discard 3 cards of the same district",
-        onClick: () => startMode("recruit"),
-      });
-      extraActions.push({
-        label: "Construct",
-        tone: "neutral",
-        disabled: constructReason !== null,
-        title: constructReason ?? "Discard 5 cards of the same district to claim a monument",
-        onClick: () => startMode("construct"),
-      });
-    }
-    for (const source of freeSources) {
-      const name = isEventId(source.cardId) ? getEvent(source.cardId).name : getCard(source.cardId).name;
-      const label = FREE_LABEL[source.ability](name, source.district);
-      extraActions.push({
-        label,
-        title: "Free action · once this turn",
-        onClick: () => {
-          switch (source.ability) {
-            case "kybernetik":
-            case "intelNetwork":
-              dispatch({ type: "freeAction", player: viewer, source: source.source, ability: source.ability });
-              return;
-            case "foreignInc":
-              startMode("foreign", source.source);
-              return;
-            case "centuryInc":
-              startMode("century", source.source);
-              return;
-            case "architectureInc":
-              startMode("construct", source.source);
-              return;
-            case "rebelInc":
-              startMode("recruit", source.source);
-              return;
-            case "capitolInc":
-              startMode("propose", source.source);
-              return;
-            case "eastTake":
-              startMode("eastTake", source.source);
-              return;
-          }
-        },
-      });
-    }
     for (const action of setAsideFor) {
       extraActions.push({
         label: SET_ASIDE_LABEL[action.zone],
@@ -533,21 +595,6 @@ export function HotseatSession(props: HotseatSessionProps) {
         label: SET_ASIDE_LABEL[action.zone],
         tone: "neutral",
         onClick: () => dispatch(action),
-      });
-    }
-    extraActions.push({
-      label: "Propose policy",
-      tone: wholeHandPasses ? "primary" : "neutral",
-      disabled: !wholeHandPasses,
-      title: wholeHandPasses
-        ? "Reveal cards that convince more than half of the Senate"
-        : "Your hand can't convince more than half of the Senate",
-      onClick: () => startMode("propose"),
-    });
-    for (const victory of declarable) {
-      extraActions.push({
-        label: `Declare ${victoryLabel(victory)}`,
-        onClick: () => dispatch({ type: "declareVictory", player: viewer, victory }),
       });
     }
     extraActions.push({
@@ -637,6 +684,8 @@ export function HotseatSession(props: HotseatSessionProps) {
             declarable: declarable.length,
           }),
           extraActions,
+          actionCards,
+          inPlayPick: centuryPick,
         };
 
   const showGate = !remote && (waitingFirstSeat || veiled) && !state.victory;
@@ -845,7 +894,7 @@ function turnPrompt(
   if (opts.spendKind === "foreign") return "Foreign Inc. · pick a card of its district to seat in the Senate (then draw)";
   if (opts.spendKind === "century") {
     return opts.selectedCount === 1
-      ? "Century Inc. · choose the alliance to replace"
+      ? "Century Inc. · click the alliance in play to replace (yours or theirs)"
       : "Century Inc. · pick an alliance from your hand";
   }
   if (state.phase === Phase.Action && state.turn.mainActionDone) {

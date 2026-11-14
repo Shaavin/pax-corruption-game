@@ -7,6 +7,7 @@ import {
   type ClientMessage,
   type CreateGameRequest,
   type CreateGameResponse,
+  type GameInfoResponse,
   type GameSettings,
   type JoinGameResponse,
   type ServerMessage,
@@ -50,6 +51,14 @@ async function post<T>(path: string, body: unknown): Promise<T> {
     body: JSON.stringify(body),
   });
   const data = (await response.json()) as T & { error?: string };
+  if (!response.ok || data.error) throw new Error(data.error ?? `Server error ${response.status}`);
+  return data;
+}
+
+/** What an invite is for, before joining. */
+export async function fetchGameInfo(gameId: string): Promise<GameInfoResponse> {
+  const response = await fetch(`${SERVER_URL}/api/games/${gameId}`);
+  const data = (await response.json()) as GameInfoResponse & { error?: string };
   if (!response.ok || data.error) throw new Error(data.error ?? `Server error ${response.status}`);
   return data;
 }

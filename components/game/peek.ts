@@ -14,6 +14,8 @@ export type PeekCard = {
   cardId?: string;
   contents?: PeekRelatedCard[];
   contentsLabel?: string;
+  /** Decrees: whether the active side is in effect (defaults to which art is shown). */
+  decreeActive?: boolean;
   /** Viewport x of the hovered element's center; the zoom opens on the other half. */
   anchorX?: number;
 };

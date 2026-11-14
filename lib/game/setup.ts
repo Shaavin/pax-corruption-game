@@ -5,7 +5,7 @@ import {
   MONUMENTS,
   PARTIES,
 } from "../cards/catalog.ts";
-import { CardKind, DISTRICTS, type PartyIdValue } from "../cards/schema.ts";
+import { CardKind, DISTRICTS, type DistrictId, type PartyIdValue } from "../cards/schema.ts";
 import { initialDecrees } from "./decrees.ts";
 import { snapshotMarket } from "./draw.ts";
 import { setUpExpansion } from "./events.ts";
@@ -121,8 +121,14 @@ export type GameOptions = {
   foreignInfluence?: boolean;
 };
 
+/** Left to right as the overview cards sit in the Tabletop Simulator save, seen from the default seat. */
+export const TABLE_DISTRICT_ORDER: readonly DistrictId[] = ["shavvinne", "horsard", "dragonara", "smarbbit"];
+
 export function createGame(rng: Rng, options: GameOptions): GameState {
-  const districtOrder = rng.shuffle(DISTRICTS);
+  // The order used to be shuffled. Still draw the shuffle so every later shuffle (and so
+  // every seed's deal) stays the same; the board now always matches the physical table.
+  rng.shuffle(DISTRICTS);
+  const districtOrder = [...TABLE_DISTRICT_ORDER];
   const parties = rng.shuffle(PARTIES.map((party) => party.id));
   const dealtParties: Record<PlayerId, PartyIdValue[]> = {
     0: parties.slice(0, 2),

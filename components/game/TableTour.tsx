@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 
-export const TABLE_TOUR_KEY = "pax-table-tour-v8";
+export const TABLE_TOUR_KEY = "pax-table-tour-v9";
 
 /** Which half of the phone layout a step needs on screen. */
 export type TourView = "districts" | "table";
@@ -49,6 +49,18 @@ const STEP_DEFS: StepDef[] = [
     },
     phone: {
       body: "Tap a card to choose it, and the places you can play it light up. Press and hold any card to see it full size; on the table, a tap is enough.",
+    },
+  },
+  {
+    id: "actions",
+    target: "action-cards",
+    view: "districts",
+    desktop: {
+      title: "Special actions",
+      body: "Recruit, Construct, free actions from your alliances and monuments, and Propose policy show up as bordered cards beside your hand when you can take them. A dimmed card can't be used yet: hover it to see why.",
+    },
+    phone: {
+      body: "Recruit, Construct, free actions from your alliances and monuments, and Propose policy show up as bordered cards just above your hand. A dimmed card can't be used yet: tap it to see why.",
     },
   },
   {

@@ -51,6 +51,8 @@ export type TablePlayerView = {
 export type TableModel = {
   districtOrder: DistrictId[];
   policies: Record<DistrictId, PolicyIdValue | null>;
+  /** Who would win each district if the election were tallied now (influence, then Diet of Saints, Divine Inquisitors, Civil Service). */
+  districtLeader: Record<DistrictId, "you" | "opponent" | null>;
   /** A District Governor protects the district's policy from proposals. */
   policyFrozen: Record<DistrictId, boolean>;
   you: TablePlayerView;
@@ -76,9 +78,17 @@ export type TableModel = {
 export function tableModel(state: GameState, viewer: PlayerId): TableModel {
   const opponentId = otherPlayer(viewer);
   const inPlay = state.phase !== "setup";
-  const electorates = projectedElectorates(state);
+  const tally = state.phase === "setup" || state.firstPlayer === null ? null : tallyElection(state);
+  const electorates: [number, number] = tally ? tally.electorates : [0, 0];
+  const districtLeader = Object.fromEntries(
+    DISTRICTS.map((district) => {
+      const winner = tally?.districts[district]?.winner ?? null;
+      return [district, winner === null ? null : winner === viewer ? "you" : "opponent"];
+    }),
+  ) as Record<DistrictId, "you" | "opponent" | null>;
   return {
     districtOrder: state.districtOrder,
+    districtLeader,
     policies: state.policy,
     policyFrozen: Object.fromEntries(DISTRICTS.map((district) => [district, policyFrozen(state, district)])) as Record<
       DistrictId,
@@ -146,12 +156,6 @@ function phaseStep(state: GameState): PhaseStep {
     default:
       return "over";
   }
-}
-
-/** Electorates each player would take if the election were tallied right now. */
-function projectedElectorates(state: GameState): [number, number] {
-  if (state.phase === "setup" || state.firstPlayer === null) return [0, 0];
-  return tallyElection(state).electorates;
 }
 
 function playerView(state: GameState, player: PlayerId, isYou: boolean, electorates: number): TablePlayerView {

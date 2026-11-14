@@ -85,7 +85,7 @@ Card text is in `lib/cards/expansion.ts`; the rulebook summary is in [game-rules
 | Starting hands | First player takes **3 of 4** listed cards. Second player takes **all 4**. Done before the Senate and Market are dealt. |
 | Deck math | 104 non-election − 7 starting − 5 Senate − 5 Market = **87**, matching every mode's printed piles. (Was 92 before the Senate existed.) |
 | Chaotic piles | A `8 + 1`, B `10`, C+D one pile `64 & 3`, E `5`. |
-| Digital seating | District order locked at setup; always left-to-right as displayed. |
+| Digital seating | District order is fixed to the TTS table (Shavvinne, Horsard, Dragonara, Smarbbit, left to right), the same for both players. |
 | Martial Law | Applies **only in Shavvinne**. −1 alliance limit there (default 1 → 0; Model Society 2 → 1). Any action that would discard 2+ Shavvinne cards is illegal, including a Shavvinne conspiracy. |
 | Consultative Office | Personal face-up zone. Move Smarbbit cards **from hand** into it. Usable later **as if in hand**; they don't count toward hand limit. |
 | Currency Ballots | A General Election drawn by this effect does **not** delay the mandatory discard. Finish draw-then-discard, then handle the election. |

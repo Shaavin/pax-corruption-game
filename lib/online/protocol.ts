@@ -22,6 +22,19 @@ export type GameSettings = {
 export type CreateGameRequest = Partial<GameSettings>;
 export type CreateGameResponse = { gameId: string; seat: PlayerId; token: string };
 
+/** GET /api/games/:id — public settings, so an invite can say what's being played before joining. */
+export type GameInfoResponse = { gameId: string; settings: GameSettings; open: boolean };
+
+/** Plain-words summary of a game's settings, e.g. ["Tourney deck", "Legacy & Diplomacy", "Foreign Influence"]. */
+export function describeSettings(settings: GameSettings): string[] {
+  const deck = { standard: "Standard", tourney: "Tourney", chaotic: "Chaotic", epic: "Epic" }[settings.mode] ?? settings.mode;
+  return [
+    `${deck} deck`,
+    settings.expansion ? "Legacy & Diplomacy expansion" : "Base game",
+    ...(settings.expansion && settings.foreignInfluence ? ["Foreign Influence"] : []),
+  ];
+}
+
 /** POST /api/games/:id/join — claims the second seat. */
 export type JoinGameResponse = { gameId: string; seat: PlayerId; token: string };
 

@@ -28,19 +28,29 @@ type LaneProps = {
   opponent: Side;
   /** Electors at stake, shown during an election. */
   electors: number | null;
+  /** Who would win the district now, card effects included. Falls back to raw influence. */
+  leader?: "you" | "opponent" | null;
   /** True for the first lane: anchors the table tour. */
   tourAnchor?: boolean;
   /** Your half is a legal target for the selected card. */
   target?: { label: string; onSelect: () => void } | null;
   /** Opens the district's policy options. */
   onShowPolicies?: () => void;
+  /** Cards in play that can be picked right now (e.g. Century Inc.'s alliance to replace). */
+  pickable?: InPlayPick | null;
+};
+
+export type InPlayPick = {
+  /** instanceId → button label */
+  labels: ReadonlyMap<string, string>;
+  onPick: (instanceId: string) => void;
 };
 
 /**
  * One district, Snap-style: the opponent's cards hang down toward the district
  * plate, yours rise up toward it, and the plate shows who leads.
  */
-export function Lane({ district, policyId, you, opponent, electors, tourAnchor, target, onShowPolicies }: LaneProps) {
+export function Lane({ district, policyId, you, opponent, electors, leader, tourAnchor, target, onShowPolicies, pickable }: LaneProps) {
   const lane = { "--lane": `var(--${district})` } as CSSProperties;
   return (
     <section
@@ -49,7 +59,7 @@ export function Lane({ district, policyId, you, opponent, electors, tourAnchor, 
       style={lane}
     >
       <div className="flex min-h-0 flex-1 flex-col justify-end overflow-hidden px-1.5 pt-1.5">
-        <LaneCards cards={opponent.cards} side="opponent" />
+        <LaneCards cards={opponent.cards} side="opponent" pickable={pickable} />
       </div>
 
       <Plate
@@ -58,6 +68,7 @@ export function Lane({ district, policyId, you, opponent, electors, tourAnchor, 
         you={you}
         opponent={opponent}
         electors={electors}
+        leader={leader}
         onShowPolicies={onShowPolicies}
         tourAnchor={tourAnchor}
       />
@@ -68,7 +79,7 @@ export function Lane({ district, policyId, you, opponent, electors, tourAnchor, 
           target ? "lane-target rounded-b-xl" : "",
         ].join(" ")}
       >
-        <LaneCards cards={you.cards} side="you" tourId={tourAnchor ? "your-tableau" : undefined} />
+        <LaneCards cards={you.cards} side="you" tourId={tourAnchor ? "your-tableau" : undefined} pickable={pickable} />
         {target ? (
           <button
             type="button"
@@ -86,7 +97,17 @@ export function Lane({ district, policyId, you, opponent, electors, tourAnchor, 
   );
 }
 
-function LaneCards({ cards, side, tourId }: { cards: FixtureCard[]; side: "you" | "opponent"; tourId?: string }) {
+function LaneCards({
+  cards,
+  side,
+  tourId,
+  pickable,
+}: {
+  cards: FixtureCard[];
+  side: "you" | "opponent";
+  tourId?: string;
+  pickable?: InPlayPick | null;
+}) {
   if (cards.length === 0) {
     return (
       <div
@@ -132,6 +153,13 @@ function LaneCards({ cards, side, tourId }: { cards: FixtureCard[]; side: "you" 
                     faceUp={entry.faceUp}
                     size="board"
                     cardId={entry.cardId}
+                    {...(pickable?.labels.has(entry.instanceId)
+                      ? {
+                          playable: true,
+                          selectLabel: pickable.labels.get(entry.instanceId),
+                          onSelect: () => pickable.onPick(entry.instanceId),
+                        }
+                      : {})}
                   />
                 </li>
               );
@@ -149,6 +177,7 @@ function Plate({
   you,
   opponent,
   electors,
+  leader: tallied,
   tourAnchor,
   onShowPolicies,
 }: {
@@ -157,18 +186,29 @@ function Plate({
   you: Side;
   opponent: Side;
   electors: number | null;
+  leader?: "you" | "opponent" | null;
   tourAnchor?: boolean;
   onShowPolicies?: () => void;
 }) {
   const policy = policyId ? resolveCard(policyId) : null;
   const lead = you.influence.total - opponent.influence.total;
-  const leader: "you" | "opponent" | null = lead > 0 ? "you" : lead < 0 ? "opponent" : null;
+  const byInfluence: "you" | "opponent" | null = lead > 0 ? "you" : lead < 0 ? "opponent" : null;
+  // Card effects (Diet of Saints, Divine Inquisitors, Civil Service) can decide a district regardless of influence.
+  const leader = tallied === undefined ? byInfluence : tallied;
+  const overridden = tallied !== undefined && tallied !== byInfluence;
   const ring =
     leader === "you" ? "var(--you)" : leader === "opponent" ? "var(--opp)" : "rgb(255 255 255 / 0.1)";
 
   return (
     <div
       data-tour={tourAnchor ? "district" : undefined}
+      title={
+        overridden
+          ? leader === null
+            ? "A card effect stops either player from winning this district right now"
+            : `A card effect wins this district for ${leader === "you" ? "you" : "your opponent"}, whatever the influence`
+          : undefined
+      }
       className="relative z-10 mx-1.5 flex shrink-0 items-center gap-2 rounded-xl bg-[rgb(12_15_20/0.85)] px-2 py-1.5 shadow-[0_6px_18px_rgba(0,0,0,0.45)] @max-[10rem]:mx-0.5 @max-[10rem]:flex-col @max-[10rem]:items-stretch @max-[10rem]:gap-1 @max-[10rem]:rounded-lg @max-[10rem]:px-1 @max-[10rem]:py-1"
       style={{ boxShadow: `0 0 0 1px ${ring}, 0 6px 18px rgba(0,0,0,0.45)` }}
     >
