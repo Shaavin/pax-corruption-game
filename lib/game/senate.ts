@@ -79,24 +79,14 @@ export function policyOptions(state: GameState, district: DistrictId): (PolicyId
   return POLICIES.filter((policy) => policy.district === district).map((policy) => policy.id);
 }
 
-/** Districts a proposal may change: the printed districts of the revealed cards (ruled 2026-11-12). */
-export function revealedDistricts(revealedCardIds: readonly string[]): DistrictId[] {
-  const districts = new Set<DistrictId>();
-  for (const id of revealedCardIds) {
-    const def = getCard(id);
-    if ("district" in def) districts.add(def.district);
-  }
-  return [...districts];
-}
-
-/** Every (district, policy) change a successful proposal with these revealed cards could make. */
-export function policyTargets(
-  state: GameState,
-  revealedCardIds: readonly string[],
-): { district: DistrictId; policyId: PolicyIdValue | null }[] {
-  const allowed = new Set(revealedDistricts(revealedCardIds));
+/**
+ * Every (district, policy) change a successful proposal could make. Any district's policy may
+ * change, whatever the revealed cards' districts (ruled 2026-11-13, replacing the 2026-11-12
+ * "matching district" ruling).
+ */
+export function policyTargets(state: GameState): { district: DistrictId; policyId: PolicyIdValue | null }[] {
   return state.districtOrder
-    .filter((district) => allowed.has(district) && !policyFrozen(state, district))
+    .filter((district) => !policyFrozen(state, district))
     .flatMap((district) =>
       policyOptions(state, district).map((policyId) => ({ district, policyId })),
     );

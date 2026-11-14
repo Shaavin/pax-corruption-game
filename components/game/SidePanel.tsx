@@ -36,6 +36,8 @@ type SidePanelProps = {
   market: CardInstance[];
   electionActive: boolean;
   electionsOut: number;
+  /** Of `electionsOut`, those revealed during the election under way. */
+  electionsOngoing: number;
   monuments: CardInstance[];
   deckCount: number;
   takeableIds?: ReadonlySet<string>;
@@ -76,7 +78,12 @@ export function SidePanel(props: SidePanelProps) {
 export function SharedZones(props: ZoneProps) {
   return (
     <>
-      <ElectionStatus active={props.electionActive} electionsOut={props.electionsOut} marketLeft={props.market.length} />
+      <ElectionStatus
+        active={props.electionActive}
+        electionsOut={props.electionsOut}
+        ongoing={props.electionsOngoing}
+        marketLeft={props.market.length}
+      />
       <SenateSection {...props} />
       <DecreeSection decrees={props.decrees} />
       <MarketSection {...props} />
@@ -122,22 +129,42 @@ function Section({
   );
 }
 
-function ElectionStatus({ active, electionsOut, marketLeft }: { active: boolean; electionsOut: number; marketLeft: number }) {
+/** Four pills: amber for elections already resolved, green for the one under way, grey for those still in the deck. */
+function ElectionStatus({
+  active,
+  electionsOut,
+  ongoing,
+  marketLeft,
+}: {
+  active: boolean;
+  electionsOut: number;
+  ongoing: number;
+  marketLeft: number;
+}) {
+  const resolved = electionsOut - ongoing;
   return (
     <div
       data-tour="elections"
       className={[
         "flex items-center gap-2 rounded-xl px-3 py-2",
-        active ? "bg-[var(--act)]/12 ring-1 ring-[var(--act)]/50" : "glass",
+        active ? "bg-[var(--election)]/10 ring-1 ring-[var(--election)]/50" : "glass",
       ].join(" ")}
     >
-      <div className="flex gap-1" aria-label={`${electionsOut} of 4 General Elections revealed`}>
+      <div
+        className="flex gap-1"
+        role="img"
+        aria-label={`${electionsOut} of 4 General Elections revealed${ongoing > 0 ? `, ${ongoing} in the election under way` : ""}`}
+      >
         {[0, 1, 2, 3].map((index) => (
           <span
             key={index}
             className={[
               "h-2 w-5 rounded-full",
-              index < electionsOut ? "bg-[var(--act)]" : "bg-white/10",
+              index < resolved
+                ? "bg-[var(--act)]"
+                : index < electionsOut
+                  ? "bg-[var(--election)] shadow-[0_0_8px_var(--election)]"
+                  : "bg-white/10",
             ].join(" ")}
           />
         ))}
@@ -145,7 +172,7 @@ function ElectionStatus({ active, electionsOut, marketLeft }: { active: boolean;
       <div className="min-w-0 text-[0.7rem] leading-tight">
         {active ? (
           <>
-            <div className="font-semibold text-[var(--act)]">Election under way</div>
+            <div className="font-semibold text-[var(--election)]">Election under way</div>
             <div className="text-stone-300">
               Scored when the Market empties · {marketLeft} left
             </div>

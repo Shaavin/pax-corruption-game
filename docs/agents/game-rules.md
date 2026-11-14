@@ -144,7 +144,7 @@ Reveal any number of cards from your hand. One revealed card may convince severa
 
 Districts must match: a Horsard civil 6 convinces lower Horsard civil Senators only, never Shavvinne, Smarbbit, or Dragonara ones.
 
-If you reach the threshold: discard **one** of the revealed cards, then change the policy of **one district that matches a revealed card** (ruled 2026-11-12). Allowed changes: neutral → either printed side, or a printed side → neutral. You may **not** go directly from one side to the other.
+If you reach the threshold: discard **one** of the revealed cards, then change the policy of **any one district**, whatever the revealed cards' districts (ruled 2026-11-13; this replaces the 2026-11-12 ruling that the district had to match a revealed card). Allowed changes: neutral → either printed side, or a printed side → neutral. You may **not** go directly from one side to the other.
 
 Rulebook example: Senate is People's Press (2), Local Politicians 5 (1), Civil Advocates 4 (1), Financial Bankers (2), Broken Chains (1) = 7 votes; 4 needed. Revealing Capitol Inc. (Smarbbit alliance) convinces People's Press; revealing TuWang Gang 8 (Shavvinne) convinces both Shavvinne civils. 2 + 1 + 1 = 4.
 

@@ -132,7 +132,7 @@ function fresh(seed: number) {
   assert(!policyFrozen(state, District.Dragonara), "…and the policy is no longer frozen (FAQ)");
   state.players[me].hand = [take(state, "Technocrats", District.Dragonara)];
   assert(
-    policyTargets(state, state.players[me].hand.map((c) => c.cardId)).some((t) => t.district === District.Dragonara),
+    policyTargets(state).some((t) => t.district === District.Dragonara),
     "Dragonara is a proposal target again",
   );
 }

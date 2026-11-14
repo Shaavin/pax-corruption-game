@@ -12,6 +12,7 @@ import { playerLabel } from "./players";
 import { SharedZones, sharedNeedsAttention, SidePanel, TurnDock, type DockBanner, type ExtraAction, type ZoneProps } from "./SidePanel";
 import { useCompact, useCompactLandscape } from "./use-compact";
 import type { TableModel } from "./table-model";
+import { PolicyChooser } from "./PolicyChooser";
 import { markTourSeen, TableTour, tableTourSteps, useTourSeen, type TourView } from "./TableTour";
 import { ZoomPreview } from "./ZoomPreview";
 import type { DistrictId } from "@/lib/cards/schema";
@@ -85,6 +86,8 @@ export function Table({
 }: TableProps) {
   const [peek, setPeek] = useState<PeekCard | null>(null);
   const [aidOpen, setAidOpen] = useState(false);
+  const [policyFocus, setPolicyFocus] = useState<DistrictId | null>(null);
+  const closePolicies = useCallback(() => setPolicyFocus(null), []);
   const closeAid = useCallback(() => setAidOpen(false), []);
   if (veiled && peek !== null) setPeek(null);
   const compact = useCompact();
@@ -127,6 +130,7 @@ export function Table({
     market: model.market,
     electionActive: model.electionActive,
     electionsOut: model.electionsOut,
+    electionsOngoing: model.electionsOngoing,
     monuments: model.availableMonuments,
     deckCount: model.deckCount,
     takeableIds: interaction?.takeableMarketIds,
@@ -167,6 +171,14 @@ export function Table({
           }}
           electors={model.electors ? model.electors[district] : null}
           tourAnchor={index === 0}
+          onShowPolicies={
+            veiled
+              ? undefined
+              : () => {
+                  setPeek(null);
+                  setPolicyFocus(district);
+                }
+          }
           target={
             interaction?.targetDistrict === district
               ? { label: interaction.targetLabel, onSelect: () => interaction.onSelectDistrict(district) }
@@ -197,6 +209,16 @@ export function Table({
       {children}
       {aidOpen && !veiled ? <PlayerAid onClose={closeAid} expansion={expansion} /> : null}
       {tourOpen || veiled || aidOpen ? null : <ZoomPreview card={peek} />}
+      {policyFocus && !veiled ? (
+        <PolicyChooser
+          districtOrder={model.districtOrder}
+          policies={model.policies}
+          frozen={model.policyFrozen}
+          onChoose={null}
+          focus={policyFocus}
+          onClose={closePolicies}
+        />
+      ) : null}
       {tourOpen ? <TableTour steps={tourSteps} step={step} onStep={setTourStep} onClose={closeTour} /> : null}
     </>
   );

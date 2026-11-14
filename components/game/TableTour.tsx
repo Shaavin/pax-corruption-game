@@ -91,7 +91,7 @@ const STEP_DEFS: StepDef[] = [
     view: "table",
     desktop: {
       title: "The Senate",
-      body: "Five Senators: civil and conspiracy cards carry 1 vote, alliances 2. In Politics you may seat a card here (the rightmost Senator goes to your support pile), or reveal cards that convince more than half the votes to change a policy in a revealed card's district.",
+      body: "Five Senators: civil and conspiracy cards carry 1 vote, alliances 2. In Politics you may seat a card here (the rightmost Senator goes to your support pile), or reveal cards that convince more than half the votes to change any district's policy.",
     },
   },
   {

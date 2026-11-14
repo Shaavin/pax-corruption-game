@@ -10,6 +10,7 @@ import { ReportDialog } from "./ReportDialog";
 import { saveGame } from "./saved-game";
 import { SetupOverlay } from "./SetupOverlay";
 import { BuyEventDialog } from "./BuyEventDialog";
+import { PolicyChooser } from "./PolicyChooser";
 import { getEvent, isEventId } from "@/lib/cards/expansion";
 import { Table, type DockBanner, type ExtraAction } from "./Table";
 import { tableModel } from "./table-model";
@@ -35,6 +36,7 @@ import {
   otherPlayer,
   Phase,
   playTargetDistrict,
+  policyFrozen,
   policyTargets,
   printedDistrict,
   recruitBlockReason,
@@ -146,6 +148,7 @@ export function HotseatSession(props: HotseatSessionProps) {
   const [reportOpen, setReportOpen] = useState(false);
   /** Expansion: the event being bought (income). */
   const [buying, setBuying] = useState<string | null>(null);
+  const [choosingPolicy, setChoosingPolicy] = useState(false);
   const closeReport = useCallback(() => setReportOpen(false), []);
 
   // In local games `session` is always set; online games never touch it.
@@ -174,6 +177,7 @@ export function HotseatSession(props: HotseatSessionProps) {
 
   function resetSelection() {
     setBuying(null);
+    setChoosingPolicy(false);
     setSelectedHandIds([]);
     setSpendKind(null);
     setProposeTarget(null);
@@ -423,14 +427,16 @@ export function HotseatSession(props: HotseatSessionProps) {
             : dispatch({ type: "recruit", player: viewer, instanceIds: selectedHandIds }),
       });
     }
-    if (spendKind === "propose" && revealPassing && !proposeTarget) {
-      for (const target of policyTargets(state, revealedCardIds)) {
-        extraActions.push({
-          label: `${DISTRICT_NAME[target.district]} → ${policyName(target.policyId)}`,
-          title: "Change this district's policy, then pick a revealed card to discard",
-          onClick: () => setProposeTarget(target),
-        });
-      }
+    if (spendKind === "propose" && !proposeTarget) {
+      const passing = revealPassing && policyTargets(state).length > 0;
+      extraActions.push({
+        label: passing ? "Choose a policy" : "See policies",
+        tone: passing ? undefined : "neutral",
+        title: passing
+          ? "Pick the district policy to change, then a revealed card to discard"
+          : "Every district's policy and the changes a passing proposal could make",
+        onClick: () => setChoosingPolicy(true),
+      });
     }
     if (spendKind === "century" && via && selectedCard) {
       for (const target of alliancesInPlay(state)) {
@@ -659,6 +665,22 @@ export function HotseatSession(props: HotseatSessionProps) {
           remaining={pendingDecrees.remaining}
           options={inactiveDecrees(state)}
           onChoose={(decreeId) => dispatch({ type: "activateDecree", player: viewer, decreeId })}
+        />
+      ) : null}
+      {choosingPolicy && spendKind === "propose" && !proposeTarget && !veiled && !waitingFirstSeat ? (
+        <PolicyChooser
+          districtOrder={state.districtOrder}
+          policies={state.policy}
+          frozen={Object.fromEntries(state.districtOrder.map((district) => [district, policyFrozen(state, district)])) as Record<DistrictId, boolean>}
+          onChoose={
+            revealPassing
+              ? (target) => {
+                  setChoosingPolicy(false);
+                  setProposeTarget(target);
+                }
+              : null
+          }
+          onClose={() => setChoosingPolicy(false)}
         />
       ) : null}
       {buying && state.market.some((card) => card.instanceId === buying) && !veiled && !waitingFirstSeat ? (

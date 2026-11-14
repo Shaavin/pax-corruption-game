@@ -7,7 +7,7 @@ import type { CardInstance, GameState, PlayerId } from "./types.ts";
 import { assert, report } from "./test-helpers.ts";
 
 /** Instance ids `seat` must not learn: the opponent's face-down hand, the deck, hidden piles. */
-function secretIds(state: GameState, seat: PlayerId): string[] {
+function secretIds(state: GameState, seat: PlayerId, seenInMarket: ReadonlySet<string>): string[] {
   const other: PlayerId = seat === 0 ? 1 : 0;
   const intel = state.pending.find((choice) => choice.kind === "intelNetwork" && choice.player === seat);
   const shown = new Set(intel && intel.kind === "intelNetwork" ? intel.instanceIds : []);
@@ -16,7 +16,10 @@ function secretIds(state: GameState, seat: PlayerId): string[] {
     ...ids(state.players[other].hand.filter((card) => !card.faceUp)),
     ...ids(state.deck.filter((card) => !shown.has(card.instanceId))),
     ...ids(state.monumentDeck),
-    ...(state.expansion ? [...ids(state.expansion.eventDeck), ...ids(state.expansion.box)] : []),
+    // Boxed cards that were face up in the Market are public (the turn's Market snapshot names them).
+    ...(state.expansion
+      ? [...ids(state.expansion.eventDeck), ...ids(state.expansion.box).filter((id) => !seenInMarket.has(id))]
+      : []),
     ...(state.setup ? ids(state.setup.startingOffers[other]) : []),
   ];
 }
@@ -26,22 +29,31 @@ function mentions(json: string, id: string): boolean {
   return json.includes(`"${id}"`);
 }
 
-function play(seed: number, expansion: boolean, steps: number, check: (replay: Replay) => void): void {
+function play(
+  seed: number,
+  expansion: boolean,
+  steps: number,
+  check: (replay: Replay, seenInMarket: ReadonlySet<string>) => void,
+): void {
   const chooser = createSeededRng(seed * 31 + 7);
   let replay = newReplay(seed, { expansion, foreignInfluence: expansion });
-  check(replay);
+  const seenInMarket = new Set<string>();
+  const look = () => replay.state.market.forEach((card) => seenInMarket.add(card.instanceId));
+  look();
+  check(replay, seenInMarket);
   for (let i = 0; i < steps && !replay.state.victory; i++) {
     const options = legalActions(replay.state, currentActor(replay.state));
     const busy = options.filter((a) => a.type !== "endAction" && a.type !== "endPolitics");
     const pool = busy.length > 0 && chooser.nextInt(4) > 0 ? busy : options;
     replay = stepReplay(replay, pool[chooser.nextInt(pool.length)]!);
-    check(replay);
+    look();
+    check(replay, seenInMarket);
   }
 }
 
 let checked = 0;
 for (const [seed, expansion] of [[3, false], [8, false], [13, true], [21, true]] as const) {
-  play(seed, expansion, 260, (replay) => {
+  play(seed, expansion, 260, (replay, seenInMarket) => {
     const { state } = replay;
     const events = replay.steps.flatMap((step) => step.events);
     for (const seat of [0, 1] as const) {
@@ -49,7 +61,7 @@ for (const [seed, expansion] of [[3, false], [8, false], [13, true], [21, true]]
       const viewJson = JSON.stringify(view);
       const eventsJson = JSON.stringify(redactEvents(events, seat));
       assert(view.seed === 0, "The seed is never sent");
-      for (const id of secretIds(state, seat)) {
+      for (const id of secretIds(state, seat, seenInMarket)) {
         // The placeholder's own card id is a General Election id; it reveals nothing.
         if (id === HIDDEN_CARD_ID) continue;
         assert(!mentions(viewJson, id), `Seat ${seat} view leaks ${id} (seed ${seed}, step ${replay.steps.length})`);

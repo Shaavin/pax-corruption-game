@@ -291,7 +291,7 @@ function politicsActions(state: GameState, viewer: PlayerId): Action[] {
   const revealIds = cards.map((card) => card.instanceId);
   const revealCardIds = cards.map((card) => card.cardId);
   if (cards.length > 0 && revealPasses(state, revealCardIds)) {
-    for (const target of policyTargets(state, revealCardIds)) {
+    for (const target of policyTargets(state)) {
       for (const discardId of revealIds) {
         actions.push({
           type: "proposePolicy",

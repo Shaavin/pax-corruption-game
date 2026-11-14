@@ -18,7 +18,7 @@ Do not invent answers. If a task depends on one of these, stop and ask, then mov
 | Event-effect draw (expansion house rule) | The extra card is drawn right after the purchase, even if it takes the buyer over the hand limit. The normal end-of-income draw still needs room. Engine interpretation. |
 | Income with only unaffordable events (expansion) | If the Market holds only events and the player can't pay for any, the income take is skipped (straight to refill and draw). Engine interpretation. |
 | Legacy activation when all are active (expansion) | A legacy event can only activate a victory that is still inactive; if all five are active, the only option is "discard played <power> cards". Engine interpretation. |
-| Proposals and "always convinced" Senators (expansion) | A Propose Policy still needs at least one revealed card (and the policy must relate to a revealed card's district), even if South events alone would convince enough Senators. Engine interpretation. |
+| Proposals and "always convinced" Senators (expansion) | A Propose Policy still needs at least one revealed card (the changed policy may be in any district), even if South events alone would convince enough Senators. Engine interpretation. |
 | North decree flip vs. activation (expansion) | While a North event flips a decree, the election winner chooses among decrees whose **current** side is inactive. Activating one flips its printed side, so when the event leaves the decree shows the other side again. This is an engine interpretation of an edge case; confirm with Joe. |
 
 ## Resolved

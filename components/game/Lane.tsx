@@ -32,13 +32,15 @@ type LaneProps = {
   tourAnchor?: boolean;
   /** Your half is a legal target for the selected card. */
   target?: { label: string; onSelect: () => void } | null;
+  /** Opens the district's policy options. */
+  onShowPolicies?: () => void;
 };
 
 /**
  * One district, Snap-style: the opponent's cards hang down toward the district
  * plate, yours rise up toward it, and the plate shows who leads.
  */
-export function Lane({ district, policyId, you, opponent, electors, tourAnchor, target }: LaneProps) {
+export function Lane({ district, policyId, you, opponent, electors, tourAnchor, target, onShowPolicies }: LaneProps) {
   const lane = { "--lane": `var(--${district})` } as CSSProperties;
   return (
     <section
@@ -56,6 +58,7 @@ export function Lane({ district, policyId, you, opponent, electors, tourAnchor, 
         you={you}
         opponent={opponent}
         electors={electors}
+        onShowPolicies={onShowPolicies}
         tourAnchor={tourAnchor}
       />
 
@@ -147,6 +150,7 @@ function Plate({
   opponent,
   electors,
   tourAnchor,
+  onShowPolicies,
 }: {
   district: DistrictId;
   policyId: PolicyIdValue | null;
@@ -154,6 +158,7 @@ function Plate({
   opponent: Side;
   electors: number | null;
   tourAnchor?: boolean;
+  onShowPolicies?: () => void;
 }) {
   const policy = policyId ? resolveCard(policyId) : null;
   const lead = you.influence.total - opponent.influence.total;
@@ -197,7 +202,7 @@ function Plate({
         <ScoreRow label="Opp" side={opponent} color="var(--opp)" leading={leader === "opponent"} />
         <ScoreRow label="You" side={you} color="var(--you)" leading={leader === "you"} />
       </div>
-      <div className="shrink-0 @max-[10rem]:flex @max-[10rem]:justify-center">
+      <div className="flex shrink-0 flex-col items-center gap-0.5 @max-[10rem]:items-stretch">
         {policy ? (
           <CardView name={policy.name} art={policy.art} size="mini" cardId={policyId ?? undefined} />
         ) : (
@@ -205,6 +210,17 @@ function Plate({
             Neutral
           </div>
         )}
+        {onShowPolicies ? (
+          <button
+            type="button"
+            onClick={onShowPolicies}
+            aria-label={`${DISTRICT_LABEL[district]} policy options`}
+            title="See this district's policies and what a proposal could change"
+            className="cursor-pointer rounded px-1 text-[0.5rem] font-semibold tracking-[0.1em] text-stone-400 uppercase hover:bg-white/8 hover:text-[var(--brass)] @max-[10rem]:text-[0.45rem]"
+          >
+            Policies
+          </button>
+        ) : null}
       </div>
     </div>
   );

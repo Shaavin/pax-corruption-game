@@ -151,7 +151,7 @@ export function freeActions(state: GameState, player: PlayerId): FreeActionActio
         const cards = handLikeCards(state, player, { market: false });
         const cardIds = cards.map((card) => card.cardId);
         if (cards.length > 0 && revealPasses(state, cardIds)) {
-          for (const target of policyTargets(state, cardIds)) {
+          for (const target of policyTargets(state)) {
             actions.push({
               ...base,
               source,

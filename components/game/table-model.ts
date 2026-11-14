@@ -1,4 +1,5 @@
 import { DISTRICTS, type DecreeIdValue, type DistrictId, type PartyIdValue, type PolicyIdValue } from "@/lib/cards/schema";
+import { policyFrozen } from "@/lib/game/abilities";
 import { meetsDecree } from "@/lib/game/decrees";
 import { civilElectorsInDistrict, lordsSymbols, tallyElection } from "@/lib/game/election";
 import { playerDistrictInfluence, type DistrictInfluence } from "@/lib/game/influence";
@@ -50,6 +51,8 @@ export type TablePlayerView = {
 export type TableModel = {
   districtOrder: DistrictId[];
   policies: Record<DistrictId, PolicyIdValue | null>;
+  /** A District Governor protects the district's policy from proposals. */
+  policyFrozen: Record<DistrictId, boolean>;
   you: TablePlayerView;
   opponent: TablePlayerView;
   activePlayer: PlayerId;
@@ -62,6 +65,8 @@ export type TableModel = {
   availableMonuments: CardInstance[];
   deckCount: number;
   electionsOut: number;
+  /** General Elections revealed during the election under way (0 when none is). */
+  electionsOngoing: number;
   electionActive: boolean;
   /** Electors at stake per district (civil cards in play), during an election. */
   electors: Record<DistrictId, number> | null;
@@ -75,6 +80,10 @@ export function tableModel(state: GameState, viewer: PlayerId): TableModel {
   return {
     districtOrder: state.districtOrder,
     policies: state.policy,
+    policyFrozen: Object.fromEntries(DISTRICTS.map((district) => [district, policyFrozen(state, district)])) as Record<
+      DistrictId,
+      boolean
+    >,
     you: playerView(state, viewer, true, electorates[viewer]),
     opponent: playerView(state, opponentId, false, electorates[opponentId]),
     activePlayer: state.activePlayer,
@@ -92,6 +101,7 @@ export function tableModel(state: GameState, viewer: PlayerId): TableModel {
     availableMonuments: state.availableMonuments,
     deckCount: state.deck.length,
     electionsOut: state.electionsOut.length,
+    electionsOngoing: state.election.active ? state.election.generalElections : 0,
     electionActive: state.election.active,
     electors: state.election.active
       ? (Object.fromEntries(

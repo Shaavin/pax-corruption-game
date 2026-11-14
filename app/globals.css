@@ -13,6 +13,8 @@
   --opp: #fb7185;
   /* The single "you can act on this" highlight. */
   --act: #f5c76b;
+  /* The election under way (its General Election pills). */
+  --election: #4ade80;
   --panel: rgb(255 255 255 / 0.035);
   --panel-strong: rgb(255 255 255 / 0.06);
   --line: rgb(255 255 255 / 0.08);
