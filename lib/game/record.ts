@@ -53,6 +53,8 @@ export type ReplayStep = {
   events: GameEvent[];
   /** Whether this step can be taken back with Undo (see `undoBlockReason`). */
   undoable: boolean;
+  /** Why not, when it can't. */
+  undoBlock?: string;
 };
 
 /** Everything besides the seed that decides how a game is set up. */
@@ -107,11 +109,14 @@ function setupOf(record: GameRecord): GameSetupOptions {
 export function stepReplay(replay: Replay, action: Action): Replay {
   const before = replay.state;
   const result = apply(before, action, replay.rng);
-  const undoable = undoBlockReason(before, action, result.events, result.state) === null;
+  const undoBlock = undoBlockReason(before, action, result.events, result.state);
   return {
     ...replay,
     state: result.state,
-    steps: [...replay.steps, { action, events: result.events, undoable }],
+    steps: [
+      ...replay.steps,
+      { action, events: result.events, undoable: undoBlock === null, ...(undoBlock ? { undoBlock } : {}) },
+    ],
   };
 }
 

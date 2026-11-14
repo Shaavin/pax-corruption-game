@@ -4,7 +4,9 @@ import type { ReactNode } from "react";
 import { CardBack, CardView } from "./CardView";
 import { InfoTip } from "./InfoTip";
 import { resolveCard } from "./layout-fixture";
-import type { DecreeView, ExpansionView } from "./table-model";
+import type { DecreeView, ExpansionView, RaceView } from "./table-model";
+import { VictoryRace } from "./VictoryRace";
+import { useNotice } from "./notice";
 import { getEvent, isEventId, VICTORY_CARDS, WORLD_POWER_NAME } from "@/lib/cards/expansion";
 import { getCard } from "@/lib/cards/catalog";
 import { CardKind } from "@/lib/cards/schema";
@@ -35,6 +37,8 @@ type SidePanelProps = {
   decrees: DecreeView[];
   market: CardInstance[];
   electionActive: boolean;
+  /** How close each player is to each victory (null during setup). */
+  race?: RaceView | null;
   electionsOut: number;
   /** Of `electionsOut`, those revealed during the election under way. */
   electionsOngoing: number;
@@ -84,6 +88,20 @@ export function SharedZones(props: ZoneProps) {
         ongoing={props.electionsOngoing}
         marketLeft={props.market.length}
       />
+      {props.race ? (
+        <Section
+          title="Victories"
+          tour="victories"
+          info={
+            <>
+              How close each of you is to every victory. Amber: one step away. Gold: can be declared in that
+              player&apos;s Politics step. Tap a victory&apos;s <b>i</b> for how it&apos;s won.
+            </>
+          }
+        >
+          <VictoryRace race={props.race} />
+        </Section>
+      ) : null}
       <SenateSection {...props} />
       <DecreeSection decrees={props.decrees} />
       <MarketSection {...props} />
@@ -516,7 +534,7 @@ function WorldSection({ expansion }: { expansion: ExpansionView }) {
 
 function SupplySection({ monuments, deckCount, claimableIds, onClaimMonument }: ZoneProps) {
   return (
-    <Section title="Monuments" tour="supply" aside={`deck ${deckCount}`}>
+    <Section title="Monuments" tour="supply" aside={`${deckCount} in the deck`}>
       <div className="flex items-end justify-between gap-1">
         {monuments.map((entry) => {
           const catalog = resolveCard(entry.cardId);
@@ -566,6 +584,7 @@ export function TurnDock({
   banner?: DockBanner | null;
   actions: ExtraAction[];
 }) {
+  const notify = useNotice();
   return (
     <div className="flex flex-col gap-2" data-tour="turn">
       <ol className="flex items-center gap-1" aria-label="Turn steps">
@@ -610,10 +629,11 @@ export function TurnDock({
               key={action.label}
               type="button"
               title={action.title}
-              disabled={action.disabled}
-              onClick={action.onClick}
+              // Still clickable when unavailable: it says why (touch screens have no tooltips).
+              aria-disabled={action.disabled || undefined}
+              onClick={action.disabled ? () => action.title && notify(action.title) : action.onClick}
               className={[
-                "cursor-pointer rounded-lg px-3 py-1.5 text-[0.75rem] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-35",
+                "cursor-pointer rounded-lg px-3 py-1.5 text-[0.75rem] font-semibold transition-colors aria-disabled:cursor-help aria-disabled:opacity-35",
                 action.tone === "ghost"
                   ? "text-stone-300 ring-1 ring-white/15 hover:bg-white/8"
                   : action.tone === "neutral"

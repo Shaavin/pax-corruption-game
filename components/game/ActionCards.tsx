@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
+import { useNotice } from "./notice";
 import { usePeek, type PeekCard } from "./peek";
 
 export type ActionCardKind = "recruit" | "construct" | "propose" | "declare" | "free";
@@ -38,27 +39,11 @@ type ActionCardsProps = {
 
 export function ActionCards({ cards, variant }: ActionCardsProps) {
   // Touch has no hover tooltips: tapping a dimmed card says why it can't be used.
-  const [notice, setNotice] = useState<string | null>(null);
-  useEffect(() => {
-    if (!notice) return;
-    const timer = window.setTimeout(() => setNotice(null), 2600);
-    return () => window.clearTimeout(timer);
-  }, [notice]);
+  const notify = useNotice();
 
   if (cards.length === 0) return null;
   return (
     <div className="relative" data-tour="action-cards">
-      {notice ? (
-        <p
-          role="status"
-          className={[
-            "absolute z-20 rounded-lg bg-[#0d1117] px-2.5 py-1.5 text-xs text-stone-200 shadow-xl ring-1 ring-white/15",
-            variant === "hand" ? "right-0 bottom-[calc(100%+1.1rem)] w-56" : "inset-x-2 bottom-[calc(100%+0.25rem)]",
-          ].join(" ")}
-        >
-          {notice}
-        </p>
-      ) : null}
       <ul
         aria-label="Special actions"
         className={variant === "hand" ? "flex items-end gap-2" : "flex items-end gap-1.5 overflow-x-auto px-2 pt-1.5 pb-1 [scrollbar-width:none]"}
@@ -68,7 +53,7 @@ export function ActionCards({ cards, variant }: ActionCardsProps) {
             <ActionCard
               card={card}
               variant={variant}
-              onBlocked={() => setNotice(`${card.title}: ${card.blockedReason}`)}
+              onBlocked={() => notify(`${card.title}: ${card.blockedReason}`)}
             />
           </li>
         ))}

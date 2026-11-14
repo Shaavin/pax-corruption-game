@@ -52,6 +52,8 @@ import {
   stepReplay,
   toRecord,
   undoReplay,
+  handCardBlockReason,
+  victoryRace,
   VictoryKind,
   type Action,
   type GameEvent,
@@ -676,6 +678,54 @@ export function HotseatSession(props: HotseatSessionProps) {
     }
   }
 
+  // "Why can't I?" for every hand card that can't be chosen right now (tapping it says so).
+  const handBlockedReasons = new Map<string, string>();
+  if (myMove && !veiled && !waitingFirstSeat && !replaying && !inSetup && !state.victory) {
+    for (const card of state.players[viewer].hand) {
+      if (selectableHandIds.has(card.instanceId)) continue;
+      const reason = handReason(card.cardId, card.instanceId);
+      if (reason) handBlockedReasons.set(card.instanceId, reason);
+    }
+  }
+  function handReason(cardId: string, instanceId: string): string | null {
+    const district = printedDistrictOrNull(cardId);
+    const name = district ? DISTRICT_NAME[district] : "";
+    if (spendKind === "recruit" || spendKind === "construct") {
+      const doing = spendKind === "recruit" ? "Recruiting" : "Building a monument";
+      if (selectedHandIds.length >= spendCost) return `You've picked ${spendCost} cards. Confirm, or tap one to put it back.`;
+      if (selectedDistrict && district !== selectedDistrict) {
+        return `Pick cards from one district: you started with ${DISTRICT_NAME[selectedDistrict]}.`;
+      }
+      const have = pool.filter((entry) => printedDistrictOrNull(entry.cardId) === district).length;
+      if (!district) return `${doing} uses cards of one district.`;
+      if (have < spendCost) return `${doing} takes ${spendCost} ${name} cards; you have ${have}.`;
+      return null;
+    }
+    if (spendKind === "foreign") return foreignSource?.district ? `Foreign Inc. seats only ${DISTRICT_NAME[foreignSource.district]} cards.` : null;
+    if (spendKind === "century") return "Century Inc.: pick an alliance from your hand.";
+    if (spendKind === "propose") return proposeTarget ? "Discard one of the cards you revealed." : null;
+    if (spendKind === "eastTake") return "Take a card from the Market.";
+    if (inAction) return handCardBlockReason(state, viewer, instanceId);
+    if (state.phase === Phase.Income) return "At Income you take a card from the Market; your hand isn't used.";
+    return null;
+  }
+
+  // Your own last move this turn can't be taken back: keep Undo visible and say why.
+  const lastStep = remote ? undefined : session.replay.steps.at(-1);
+  const undoBlocked =
+    !remote && !undoAvailable && !spendKind && !veiled && !waitingFirstSeat && !replaying && actor === viewer &&
+    state.phase !== Phase.Setup && lastStep?.action.player === viewer && !lastStep.undoable
+      ? (lastStep.undoBlock ?? "That move can't be undone")
+      : null;
+  if (undoBlocked) {
+    extraActions.push({
+      label: "Undo",
+      tone: "ghost",
+      disabled: true,
+      title: `Can't undo: ${undoBlocked[0]!.toLowerCase()}${undoBlocked.slice(1)}.`,
+      onClick: () => {},
+    });
+  }
   if (undoAvailable && !spendKind) {
     extraActions.push({
       label: "Undo",
@@ -749,6 +799,7 @@ export function HotseatSession(props: HotseatSessionProps) {
           }),
           extraActions,
           actionCards,
+          handBlockedReasons,
           inPlayPick: centuryPick,
         };
 
@@ -876,6 +927,21 @@ function victoryBanner(state: GameState, viewer: PlayerId, declarable: Victory[]
   if (theirs.length > 0) {
     return { tone: "warn", text: `${playerLabel(otherPlayer(viewer), names)} can declare ${labels(theirs)} in their next Politics step.` };
   }
+  // One step away (see the Victories panel for the numbers).
+  const race = victoryRace(state);
+  const oneAway = (player: PlayerId) =>
+    race.rows
+      .filter((row) => row.active && !row.standing[player].met && row.standing[player].target - row.standing[player].value === 1)
+      .map((row) => `${row.kind[0]!.toUpperCase()}${row.kind.slice(1)}`);
+  const threats = oneAway(otherPlayer(viewer));
+  if (threats.length > 0) {
+    return {
+      tone: "warn",
+      text: `${playerLabel(otherPlayer(viewer), names)} is one step from ${threats.join(" and ")} Victory.`,
+    };
+  }
+  const chances = oneAway(viewer);
+  if (chances.length > 0) return { tone: "win", text: `You're one step from ${chances.join(" and ")} Victory.` };
   return null;
 }
 

@@ -1,11 +1,14 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { EXPANSION_TERMS, TERMS } from "./terms";
 
 /** The printed player aid (Actions and Victories sides), side by side. */
 export function PlayerAid({ onClose, expansion = false }: { onClose: () => void; expansion?: boolean }) {
   const base = expansion ? "/cards/expansion/aids" : "/cards/aids";
+  const [tab, setTab] = useState<"aid" | "terms">("aid");
+  const terms = expansion ? [...TERMS, ...EXPANSION_TERMS] : TERMS;
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
@@ -23,9 +26,41 @@ export function PlayerAid({ onClose, expansion = false }: { onClose: () => void;
         role="dialog"
         aria-modal="true"
         aria-label="Player aid"
-        className="flex max-h-full flex-col items-center gap-3"
+        className="flex max-h-full w-full max-w-5xl flex-col items-center gap-3"
         onClick={(event) => event.stopPropagation()}
       >
+        <div role="tablist" aria-label="Player aid" className="flex rounded-full bg-white/[0.08] p-1 ring-1 ring-white/10">
+          {(
+            [
+              ["aid", "Player aid"],
+              ["terms", "Terms"],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={tab === id}
+              onClick={() => setTab(id)}
+              className={[
+                "cursor-pointer rounded-full px-4 py-1.5 text-xs font-semibold",
+                tab === id ? "bg-stone-100 text-stone-950" : "text-stone-300 hover:text-stone-100",
+              ].join(" ")}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        {tab === "terms" ? (
+          <dl className="glass-strong grid max-h-[min(78dvh,40rem)] w-full max-w-3xl gap-x-6 gap-y-3 overflow-y-auto rounded-2xl p-5 text-sm sm:grid-cols-2">
+            {terms.map((entry) => (
+              <div key={entry.term}>
+                <dt className="font-semibold text-stone-100">{entry.term}</dt>
+                <dd className="mt-0.5 leading-snug text-stone-300">{entry.meaning}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : (
         <div className="flex min-h-0 flex-wrap items-start justify-center gap-4">
           {[
             { src: `${base}/actions.png`, alt: "Player aid: actions" },
@@ -42,6 +77,7 @@ export function PlayerAid({ onClose, expansion = false }: { onClose: () => void;
             />
           ))}
         </div>
+        )}
         <button
           type="button"
           onClick={onClose}

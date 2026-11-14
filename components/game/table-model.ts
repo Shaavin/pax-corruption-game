@@ -1,10 +1,11 @@
 import { DISTRICTS, type DecreeIdValue, type DistrictId, type PartyIdValue, type PolicyIdValue } from "@/lib/cards/schema";
 import { policyFrozen } from "@/lib/game/abilities";
+import { victoryRace, type VictoryStanding } from "@/lib/game/progress";
 import { meetsDecree } from "@/lib/game/decrees";
 import { civilElectorsInDistrict, lordsSymbols, tallyElection } from "@/lib/game/election";
 import { playerDistrictInfluence, type DistrictInfluence } from "@/lib/game/influence";
 import { senateTotalVotes, senateVotesNeeded } from "@/lib/game/senate";
-import type { CardInstance, GameState, PlayerId, PlayerState } from "@/lib/game/types";
+import type { CardInstance, GameState, PlayerId, PlayerState, VictoryKindId } from "@/lib/game/types";
 import { otherPlayer } from "@/lib/game/zones";
 import { eventCost, marketRows } from "@/lib/game/draw";
 import { isEventId, VICTORY_CARDS, WORLD_POWERS, type ExpansionVictoryId, type WorldPowerId } from "@/lib/cards/expansion";
@@ -48,7 +49,19 @@ export type TablePlayerView = {
   lords: number;
 };
 
+/** The victory race from one seat's point of view. */
+export type RaceView = {
+  rows: { kind: VictoryKindId; active: boolean; you: VictoryStanding; opponent: VictoryStanding }[];
+  civil: {
+    electionsLeft: number;
+    projected: "you" | "opponent" | null;
+    basilica: { who: "you" | "opponent"; wins: number; target: number } | null;
+  };
+};
+
 export type TableModel = {
+  /** How close each player is to each victory (null during setup). */
+  race: RaceView | null;
   districtOrder: DistrictId[];
   policies: Record<DistrictId, PolicyIdValue | null>;
   /** Who would win each district if the election were tallied now (influence, then Diet of Saints, Divine Inquisitors, Civil Service). */
@@ -86,7 +99,26 @@ export function tableModel(state: GameState, viewer: PlayerId): TableModel {
       return [district, winner === null ? null : winner === viewer ? "you" : "opponent"];
     }),
   ) as Record<DistrictId, "you" | "opponent" | null>;
+  const side = (player: PlayerId): "you" | "opponent" => (player === viewer ? "you" : "opponent");
+  let race: RaceView | null = null;
+  if (tally) {
+    const raw = victoryRace(state);
+    race = {
+      rows: raw.rows.map((row) => ({
+        kind: row.kind,
+        active: row.active,
+        you: row.standing[viewer],
+        opponent: row.standing[opponentId],
+      })),
+      civil: {
+        electionsLeft: raw.civil.electionsLeft,
+        projected: raw.civil.projected === null ? null : side(raw.civil.projected),
+        basilica: raw.civil.basilica && { ...raw.civil.basilica, who: side(raw.civil.basilica.player) },
+      },
+    };
+  }
   return {
+    race,
     districtOrder: state.districtOrder,
     districtLeader,
     policies: state.policy,

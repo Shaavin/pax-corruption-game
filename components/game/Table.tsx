@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { playCardMotion } from "./card-motion";
+import { NoticeProvider } from "./notice";
 import { Hand } from "./Hand";
 import { HistoryRail } from "./HistoryRail";
 import { Lane, type InPlayPick } from "./Lane";
@@ -50,6 +51,8 @@ export type TableInteraction = {
   extraActions: ExtraAction[];
   /** Special actions shown as cards beside the hand. */
   actionCards?: ActionCardSpec[];
+  /** Why each unavailable hand card can't be chosen (tapping it says so). */
+  handBlockedReasons?: ReadonlyMap<string, string>;
   /** Cards in play to click (Century Inc.: the alliance to replace). */
   inPlayPick?: InPlayPick | null;
 };
@@ -75,7 +78,16 @@ type TableProps = {
   children?: ReactNode;
 };
 
-export function Table({
+/** The game table, with a note area for "why can't I?" messages. */
+export function Table(props: TableProps) {
+  return (
+    <NoticeProvider>
+      <TableView {...props} />
+    </NoticeProvider>
+  );
+}
+
+function TableView({
   model,
   seed,
   mode = "standard",
@@ -142,6 +154,7 @@ export function Table({
     electionActive: model.electionActive,
     electionsOut: model.electionsOut,
     electionsOngoing: model.electionsOngoing,
+    race: model.race,
     monuments: model.availableMonuments,
     deckCount: model.deckCount,
     takeableIds: interaction?.takeableMarketIds,
@@ -227,6 +240,7 @@ export function Table({
           selectableIds={interaction?.selectableHandIds}
           selectedIds={interaction?.selectedHandIds}
           onSelect={interaction?.onSelectHand}
+          blockedReasons={interaction?.handBlockedReasons}
         />
       </div>
     </div>

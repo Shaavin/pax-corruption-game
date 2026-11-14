@@ -4,6 +4,7 @@ import Image from "next/image";
 import type { CSSProperties } from "react";
 import { CardBack, CardView } from "./CardView";
 import { InfoTip } from "./InfoTip";
+import { useNotice } from "./notice";
 import { resolveCard, type FixtureCard } from "./layout-fixture";
 import { CardKind, type DistrictId, type PolicyIdValue } from "@/lib/cards/schema";
 import type { DistrictInfluence } from "@/lib/game/influence";
@@ -236,7 +237,9 @@ function Plate({
               className="ml-auto shrink-0 rounded-full bg-[var(--act)]/15 px-1.5 text-[0.55rem] font-semibold text-[var(--act)] @max-[10rem]:px-1 @max-[10rem]:text-[0.5rem]"
               title="Electors this district awards in the current election"
             >
-              {electors} el.
+              {electors}
+              <span className="@max-[10rem]:hidden"> {electors === 1 ? "elector" : "electors"}</span>
+              <span className="hidden @max-[10rem]:inline"> el.</span>
             </span>
           ) : null}
         </div>
@@ -280,20 +283,25 @@ function ScoreRow({
   leading: boolean;
   tour?: string;
 }) {
+  const notify = useNotice();
+  const who = label === "You" ? "Your" : "Their";
+  const influenceText = `${who} influence here: ${side.influence.total} (${side.influence.civil} from civil cards + ${side.influence.support} from the support pile${side.influence.bank ? ` + ${side.influence.bank} banked` : ""}${side.influence.bonus ? ` + ${side.influence.bonus} from abilities` : ""}). More influence wins the district at an election.`;
+  const supportText = `${who} support pile here: ${side.support} card${side.support === 1 ? "" : "s"} (popularity). Lead by 9 in one district for Popularity Victory.`;
   return (
     <div className="flex items-center gap-1.5 leading-none" data-tour={tour}>
       <span className="w-6 text-[0.55rem] font-semibold tracking-[0.1em] uppercase @max-[10rem]:w-auto @max-[10rem]:text-[0.45rem] @max-[10rem]:tracking-normal" style={{ color }}>
         {label}
       </span>
       <span
-        className={["text-base font-semibold tabular-nums @max-[10rem]:text-sm", leading ? "" : "text-stone-300"].join(" ")}
+        className={["cursor-help text-base font-semibold tabular-nums @max-[10rem]:text-sm", leading ? "" : "text-stone-300"].join(" ")}
         style={leading ? { color } : undefined}
-        title={`Influence ${side.influence.total}: ${side.influence.civil} civil + ${side.influence.support} support${side.influence.bank ? ` + ${side.influence.bank} banked` : ""}${side.influence.bonus ? ` + ${side.influence.bonus} from abilities` : ""}`}
+        title={influenceText}
+        onClick={() => notify(influenceText)}
       >
         {side.influence.total}
       </span>
       <span className="text-[0.5rem] tracking-[0.1em] text-stone-500 uppercase @max-[10rem]:hidden">inf</span>
-      <span className="ml-auto flex items-center gap-1" title={`${side.support} card${side.support === 1 ? "" : "s"} in the support pile (popularity)`}>
+      <span className="ml-auto flex cursor-help items-center gap-1" title={supportText} onClick={() => notify(supportText)}>
         <span className="contents @max-[10rem]:hidden">
           <PileIcon count={side.support} />
         </span>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useNotice } from "./notice";
 import type { ReactNode } from "react";
 import { CardBack, CardView } from "./CardView";
 import { resolveCard, type FixtureCard } from "./layout-fixture";
@@ -85,14 +86,22 @@ export function PlayerBar({
         className={["flex shrink-0 items-center", compact ? "gap-2" : "gap-3"].join(" ")}
         data-tour={seat === "you" ? "partisans" : undefined}
       >
-        {handCount !== undefined ? <Stat label="Hand" value={handCount} title="Cards in their hand" /> : null}
-        <Stat label="Partisans" value={partisans} />
-        <Stat label="Wins" value={electionWins} />
-        <Stat label="Lords" value={lords} title="Council of Lords: alliance handshake symbols in play" />
+        {handCount !== undefined ? <Stat label="Hand" value={handCount} title="Hand: cards in their hand." /> : null}
         <Stat
-          label="Leading"
+          label="Partisans"
+          value={partisans}
+          title="Partisans: how many times this player has recruited. A lead of 3 wins Military Victory."
+        />
+        <Stat label="Wins" value={electionWins} title="Wins: elections won so far." />
+        <Stat
+          label="Lords"
+          value={lords}
+          title="Lords: alliance handshake symbols in play. More than the other player wins the Council of Lords, the 5th electorate."
+        />
+        <Stat
+          label={compact ? "Elect." : "Electorates"}
           value={`${electorates}/5`}
-          title="Electorates you'd win if the election were scored now"
+          title="Electorates: how many of the 5 (4 districts + Council of Lords) this player would win if the election were scored now."
           color={electorates >= 3 ? color : undefined}
         />
       </dl>
@@ -145,8 +154,14 @@ function Stat({
   title?: string;
   color?: string;
 }) {
+  const notify = useNotice();
+  // Tapping a number explains it (touch screens have no hover tooltips).
   return (
-    <div className="text-center leading-none" title={title}>
+    <div
+      className={["text-center leading-none", title ? "cursor-help" : ""].join(" ")}
+      title={title}
+      onClick={title ? () => notify(title) : undefined}
+    >
       <dt className="label !text-[0.5rem]">{label}</dt>
       <dd className="mt-1 text-base font-semibold tabular-nums text-stone-100" style={color ? { color } : undefined}>
         {value}

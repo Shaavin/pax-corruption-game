@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useRef } from "react";
+import { useNotice } from "./notice";
 import { usePeek, type PeekCard } from "./peek";
 
 export const CardBack = {
@@ -61,6 +62,8 @@ type CardViewProps = {
   cardId?: string;
   /** Ms before the inspect zoom appears. Choice cards default to a short delay. */
   peekDelay?: number;
+  /** Why this card can't be chosen right now: a click or tap says so. */
+  blockedReason?: string;
   /** Card motion: the instance id, so moves between zones animate (see card-motion.ts). */
   motionKey?: string;
   /** Extra fields for the blow-up (e.g. which decree side is in effect). */
@@ -87,9 +90,11 @@ export function CardView({
   peekDelay,
   peekExtra,
   motionKey,
+  blockedReason,
   square = false,
 }: CardViewProps) {
   const { setPeek } = usePeek();
+  const notify = useNotice();
   const peekTimer = useRef<number | null>(null);
   /** Touch: the last press was a finger (tap = inspect), and whether it was held long enough to peek. */
   const touchPress = useRef(false);
@@ -226,6 +231,13 @@ export function CardView({
         if (longPressed.current) {
           // The long press already opened the preview; don't also choose the card.
           longPressed.current = false;
+          return;
+        }
+        if (!onSelect && blockedReason) {
+          // Say why it can't be chosen (long-press or hover still shows the card).
+          touchPress.current = false;
+          hidePeek();
+          notify(blockedReason);
           return;
         }
         if (touchPress.current && !onSelect && canPeek) {

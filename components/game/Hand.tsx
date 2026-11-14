@@ -15,6 +15,8 @@ type HandProps = {
   selectableIds?: ReadonlySet<string>;
   selectedIds?: ReadonlySet<string>;
   onSelect?: (instanceId: string) => void;
+  /** Why a card can't be chosen right now (shown when it's tapped). */
+  blockedReasons?: ReadonlyMap<string, string>;
 };
 
 /** Degrees between neighbouring cards in the fan, capped so big hands stay readable. */
@@ -27,7 +29,7 @@ function overlapFor(count: number): number {
   return Math.min(0.58, Math.max(0.12, 0.07 * count));
 }
 
-export function Hand({ cards, variant, tourId, tags, playableIds, selectableIds, selectedIds, onSelect }: HandProps) {
+export function Hand({ cards, variant, tourId, tags, playableIds, selectableIds, selectedIds, onSelect, blockedReasons }: HandProps) {
   const [hover, setHover] = useState<number | null>(null);
 
   if (variant === "opponent") {
@@ -109,6 +111,7 @@ export function Hand({ cards, variant, tourId, tags, playableIds, selectableIds,
               peekDelay={600}
               selectLabel={selectable ? (selected ? `Deselect ${catalog.name}` : `Choose ${catalog.name}`) : undefined}
               onSelect={selectable && onSelect ? () => onSelect(entry.instanceId) : undefined}
+              blockedReason={selectable ? undefined : blockedReasons?.get(entry.instanceId)}
             />
             {tags?.[entry.instanceId] ? (
               <span className="pointer-events-none absolute top-1 left-1/2 z-10 -translate-x-1/2 rounded-full bg-[var(--you)] px-2 py-0.5 text-[0.55rem] font-bold tracking-wide text-stone-950 uppercase shadow">
