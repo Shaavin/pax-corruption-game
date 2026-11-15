@@ -76,7 +76,7 @@ export function influenceIsSupport(state: GameState, district: DistrictId): bool
   return effectsOf(state, "influenceIsSupport").some((entry) => entry.effect.district === district);
 }
 
-/** South "<district> cards in Senate are always convinced" (conspiracies too). */
+/** South "<district> cards in Senate are always convinced" (civil and alliance Senators; never conspiracies). */
 export function senateAlwaysConvinced(state: GameState, district: DistrictId): boolean {
   return effectsOf(state, "senateConvinced").some((entry) => entry.effect.district === district);
 }

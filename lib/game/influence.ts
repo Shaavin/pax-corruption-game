@@ -64,7 +64,11 @@ export function playerDistrictInfluence(
   const perDiscard = district === District.Dragonara && policyActive(state, PolicyId.DragonaraB) ? 2 : 1;
   const support = supportCount(state, player, district) * perDiscard;
   // South (expansion): "Influence in <district> is now reduced to player's support."
-  if (influenceIsSupport(state, district)) return { civil: 0, support, bank: 0, bonus: 0, total: support };
+  // Strictly the support count: Populist Forum's doubling drops out too (Joe, 2026-11-15).
+  if (influenceIsSupport(state, district)) {
+    const plain = supportCount(state, player, district);
+    return { civil: 0, support: plain, bank: 0, bonus: 0, total: plain };
+  }
   const bank = district === District.Horsard ? seat.planetNextBank.length : 0;
   return { civil, support, bank, bonus, total: civil + support + bank + bonus };
 }

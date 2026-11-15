@@ -127,13 +127,28 @@ const civilOf = (district: DistrictId, value?: number) => (id: string) => {
   inEffect(state, "Migrant Voters"); // South: Horsard influence reduced to support
   assert(playerDistrictInfluence(state, 0, District.Horsard).total === 2, "South: influence equals support");
 
-  // South: Senate convinced, conspiracies included.
+  // South drops Populist Forum's doubling too: strictly the support count (Joe, 2026-11-15).
   state.expansion!.commonArea = [];
-  const district = getCard(state.senate[0]!.cardId) as { district: DistrictId };
+  state.policy[District.Dragonara] = PolicyId.DragonaraB; // Populist Forum
+  state.players[0].support[District.Dragonara].push(card(state, civilOf(District.Dragonara)), card(state, civilOf(District.Dragonara)));
+  const doubled = playerDistrictInfluence(state, 0, District.Dragonara).support;
+  assert(doubled === 2 * supportCount(state, 0, District.Dragonara), "Populist Forum doubles support influence");
+  inEffect(state, "Digital Electors"); // South: Dragonara influence reduced to support
+  assert(
+    playerDistrictInfluence(state, 0, District.Dragonara).total === supportCount(state, 0, District.Dragonara),
+    "South: Populist Forum's doubling drops out",
+  );
+  state.policy[District.Dragonara] = null;
+
+  // South: that district's civil and alliance Senators are convinced; conspiracies never (2026-11-15).
+  state.expansion!.commonArea = [];
+  const byName = (name: string) => card(state, (id) => getCard(id).name === name);
+  state.senate = [byName("Tinkers"), byName("Broken Chains"), ...state.senate.slice(2)];
   assert(!convincedSenators(state, []).includes(0), "Nothing convinced without a reveal");
-  const south = EVENTS.find((e) => !e.legacy && e.effect.type === "senateConvinced" && e.effect.district === district.district)!;
-  inEffect(state, south.name);
-  assert(convincedSenators(state, []).includes(0), "South: that district's Senators are always convinced");
+  inEffect(state, "Thunder Bail-out"); // South: Dragonara Senators always convinced
+  const convinced = convincedSenators(state, []);
+  assert(convinced.includes(0), "South: a Dragonara civil Senator is always convinced");
+  assert(!convinced.includes(1), "South: a Dragonara conspiracy Senator still isn't");
 
   // North: decree flips while in effect, activation flips the printed side.
   state.expansion!.commonArea = [];
@@ -254,6 +269,38 @@ const civilOf = (district: DistrictId, value?: number) => (id: string) => {
   assert(discarded.expansion!.box.some((c) => c.cardId === event("Private Islands").id), "…into the box, not a support pile");
 }
 
+// Only events left at income (Ian, 2026-11-15): an affordable one must be bought; if none is,
+// the player loses the Market take but still draws from the deck.
+{
+  const setUp = (seed: number, handSize: number) => {
+    const { state } = start(seed);
+    const me = state.activePlayer;
+    const ev = inst(event("Magic Realms"));
+    state.expansion!.eventDeck = state.expansion!.eventDeck.filter((c) => c.cardId !== ev.cardId);
+    const mains = state.market.filter((c) => !isEventCard(c)).slice(0, 2);
+    state.market = [ev, ...mains];
+    snapshotMarket(state); // costs 2 for the whole turn
+    state.market = [ev]; // both main cards left the Market during the turn (East take, State Enterprise)
+    state.players[me].hand = state.players[me].hand.slice(0, handSize);
+    state.phase = Phase.Politics;
+    return { state, me, ev };
+  };
+  {
+    const { state, me, ev } = setUp(18, 3);
+    const out = apply(state, { type: "endPolitics", player: me }, rng).state;
+    assert(out.phase === Phase.Income, "Only events, one affordable: income stops for the purchase");
+    const options = legalActions(out, me).filter((a) => a.type !== "setAside");
+    assert(options.length > 0 && options.every((a) => a.type === "buyEvent" && a.instanceId === ev.instanceId), "…and buying it is the only way on");
+  }
+  {
+    const { state, me } = setUp(19, 1);
+    const handBefore = state.players[me].hand.length;
+    const out = apply(state, { type: "endPolitics", player: me }, rng).state;
+    assert(out.activePlayer !== me, "Only events, none affordable: no Market take, the turn moves on");
+    assert(out.players[me].hand.length === handBefore + 1, "…but the player still draws from the deck");
+  }
+}
+
 // Buying needs room in hand.
 {
   const { state } = start(10);
@@ -312,6 +359,29 @@ const civilOf = (district: DistrictId, value?: number) => (id: string) => {
   const emptyLegal = legalActions(empty, me);
   assert(!emptyLegal.some((a) => a.type === "endAction"), "Main action reachable via East: no stuck draw");
   assert(emptyLegal.some((a) => a.type === "freeAction" && a.ability === "eastTake"), "…the East take is offered");
+}
+
+// --- "Last 2 spots" on a full Market (Joe, 2026-11-15) ----------------------------------------
+{
+  // Even with 5 cards, the income refill checks the last 2 spots, collapses, and refills to 5.
+  const { state } = start(16);
+  const stale = inst(event("Railway Bonds"));
+  state.expansion!.eventDeck = state.expansion!.eventDeck.filter((c) => c.cardId !== stale.cardId);
+  const mains = state.market.filter((c) => !isEventCard(c)).slice(0, 4);
+  state.market = [...mains, stale];
+  snapshotMarket(state); // the event starts the turn in spot 5
+  replenishMarket(state, []);
+  const after: CardInstance[] = [...state.market];
+  assert(state.expansion!.box.some((c) => c.cardId === stale.cardId), "Full Market: the spot-5 event still leaves");
+  assert(mains.every((card, index) => after[index] === card), "…the rest collapse in order");
+  assert(after.length === 5, `…and the Market refills to exactly 5, got ${after.length}`);
+
+  // Nothing to remove and already 5: no sixth card, not even an event.
+  const full = start(17).state;
+  full.market = full.market.filter((c) => !isEventCard(c)).slice(0, 5);
+  snapshotMarket(full);
+  replenishMarket(full, []);
+  assert(full.market.length === 5 && !full.market.some(isEventCard), "Never past 5 cards");
 }
 
 // --- Market after an election (Ian, 2026-11-15) ---------------------------------------------

@@ -169,9 +169,9 @@ function fillRow(state: GameState, row: CardInstance[], size: number, events: Ga
 
 /**
  * Expansion income step 2.
- * Outside an election, if fewer than 5 cards: (1) events in the 2 right-most spots
- * leave the game, collapse; (2) under 2 events, reveal one into the next spot;
- * (3) fill from the main deck back to 5.
+ * Outside an election, whatever the Market holds: (1) events that sat in the 2 right-most
+ * spots at the start of the turn leave the game, collapse; (2) under 2 events and room
+ * left, reveal one into the next spot; (3) fill from the main deck, never past 5.
  * During an election: per row, events in its last 2 spots leave; a row without an
  * event gets one only if it would not land in the row's last 2 spots. No main refill.
  */
@@ -195,11 +195,11 @@ function replenishExpansionMarket(state: GameState, events: GameEvent[]): void {
     return;
   }
 
-  if (state.market.length >= ROW_SPOTS) return;
+  // Every income, however full the Market is (Joe, 2026-11-15): check, collapse, refill to 5.
   const gone = lastTwoSpotEvents(state.market, expansion.turnMarket);
   boxEvents(state, gone, events);
   const row = state.market.filter((card) => !gone.includes(card));
-  if (row.filter(isEventCard).length < 2) {
+  if (row.filter(isEventCard).length < 2 && row.length < ROW_SPOTS) {
     const event = revealEvent(state, events);
     if (event) row.push(event);
   }

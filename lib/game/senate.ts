@@ -56,9 +56,14 @@ export function convincedSenators(state: GameState, revealedCardIds: readonly st
   );
 }
 
-/** South "<district> cards in Senate are always convinced" (expansion), conspiracies included. */
+/**
+ * South "<district> cards in Senate are always convinced" (expansion): civil and alliance
+ * Senators only. Conspiracy Senators are never convinced, South or not (Ian, 2026-11-15;
+ * reverses the 2026-11-13 "conspiracies included" ruling).
+ */
 function autoConvinced(state: GameState, cardId: string): boolean {
   const def = getCard(cardId);
+  if (def.kind === CardKind.Conspiracy) return false;
   return "district" in def && senateAlwaysConvinced(state, def.district);
 }
 
