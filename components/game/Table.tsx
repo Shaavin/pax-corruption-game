@@ -656,7 +656,7 @@ function CompactTable({
       {view === "districts" ? (
         lanes
       ) : (
-        <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-2 [scrollbar-width:thin]" style={panelStyle}>
+        <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-2 [--zone-pad:0.5rem] [scrollbar-width:thin]" style={panelStyle}>
           <SharedZones {...zoneProps} />
         </div>
       )}

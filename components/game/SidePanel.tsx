@@ -70,7 +70,7 @@ export function SidePanel(props: SidePanelProps) {
       aria-label="Shared table"
       className="relative z-10 flex h-full w-[19.5rem] shrink-0 flex-col border-l border-[var(--line)] bg-black/25"
     >
-      <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-2.5 [scrollbar-width:thin]">
+      <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto p-2.5 [--zone-pad:0.625rem] [scrollbar-width:thin]">
         <SharedZones {...props} />
       </div>
       <div className="shrink-0 border-t border-[var(--line)] p-2.5">{props.dock}</div>
@@ -164,45 +164,50 @@ function ElectionStatus({
 }) {
   const resolved = electionsOut - ongoing;
   return (
-    <div
-      data-tour="elections"
-      className={[
-        "flex items-center gap-2 rounded-xl px-3 py-2",
-        active ? "bg-[var(--election)]/10 ring-1 ring-[var(--election)]/50" : "glass",
-      ].join(" ")}
-    >
+    // A solid band pinned to the very top of the scrolling panel. It reaches into the panel's
+    // padding (`--zone-pad`, set by the scroll container) because a sticky element otherwise
+    // stops at the padding edge and lets content show through the gap above it.
+    <div className="sticky top-[calc(var(--zone-pad,0px)*-1)] z-20 -mx-[var(--zone-pad,0px)] -mt-[var(--zone-pad,0px)] shrink-0 border-b border-white/10 bg-[#07090c] px-[var(--zone-pad,0px)] pt-[var(--zone-pad,0px)] pb-2 shadow-[0_10px_18px_-8px_rgb(0_0_0/0.9)]">
       <div
-        className="flex gap-1"
-        role="img"
-        aria-label={`${electionsOut} of 4 General Elections revealed${ongoing > 0 ? `, ${ongoing} in the election under way` : ""}`}
+        data-tour="elections"
+        className={[
+          "flex items-center gap-2 rounded-xl px-3 py-2",
+          active ? "bg-[var(--election)]/10 ring-1 ring-[var(--election)]/50" : "bg-white/[0.06] ring-1 ring-white/10",
+        ].join(" ")}
       >
-        {[0, 1, 2, 3].map((index) => (
-          <span
-            key={index}
-            className={[
-              "h-2 w-5 rounded-full",
-              index < resolved
-                ? "bg-[var(--act)]"
-                : index < electionsOut
-                  ? "bg-[var(--election)] shadow-[0_0_8px_var(--election)]"
-                  : "bg-white/10",
-            ].join(" ")}
-          />
-        ))}
-      </div>
-      <div className="min-w-0 text-[0.7rem] leading-tight">
-        {active ? (
-          <>
-            <div className="font-semibold text-[var(--election)]">Election under way</div>
+        <div
+          className="flex gap-1"
+          role="img"
+          aria-label={`${electionsOut} of 4 General Elections revealed${ongoing > 0 ? `, ${ongoing} in the election under way` : ""}`}
+        >
+          {[0, 1, 2, 3].map((index) => (
+            <span
+              key={index}
+              className={[
+                "h-2 w-5 rounded-full",
+                index < resolved
+                  ? "bg-[var(--act)]"
+                  : index < electionsOut
+                    ? "bg-[var(--election)] shadow-[0_0_8px_var(--election)]"
+                    : "bg-white/10",
+              ].join(" ")}
+            />
+          ))}
+        </div>
+        <div className="min-w-0 text-[0.7rem] leading-tight">
+          {active ? (
+            <>
+              <div className="font-semibold text-[var(--election)]">Election under way</div>
+              <div className="text-stone-300">
+                Scored when the Market empties · {marketLeft} left
+              </div>
+            </>
+          ) : (
             <div className="text-stone-300">
-              Scored when the Market empties · {marketLeft} left
+              General Elections <span className="font-semibold text-stone-100">{electionsOut}/4</span>
             </div>
-          </>
-        ) : (
-          <div className="text-stone-300">
-            General Elections <span className="font-semibold text-stone-100">{electionsOut}/4</span>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
