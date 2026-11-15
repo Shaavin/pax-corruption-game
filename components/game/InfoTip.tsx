@@ -108,9 +108,9 @@ export function InfoTip({ label, children }: InfoTipProps) {
           "relative inline-flex h-3 w-3 shrink-0 items-center justify-center rounded-full text-[0.5rem] leading-none font-semibold",
           // A 30px tap area around the small icon.
           "after:absolute after:-inset-[9px] after:content-['']",
-          "text-[var(--brass)] ring-1 ring-[var(--brass)]/65",
-          "hover:bg-[var(--brass)]/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--brass)]",
-          pinned ? "bg-[var(--brass)]/20" : "",
+          "text-stamp-blue ring-1 ring-stamp-blue/65",
+          "hover:bg-stamp-blue/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-stamp-blue",
+          pinned ? "bg-stamp-blue/20" : "",
         ].join(" ")}
       >
         i

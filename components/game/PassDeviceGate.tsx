@@ -37,7 +37,7 @@ export function PassDeviceGate({
       />
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/50 via-[#0a0c10]/85 to-[#0a0c10]" />
       <div className="relative max-w-md text-center text-stone-100">
-        <p className="text-[0.7rem] font-semibold tracking-[0.2em] text-[var(--brass)] uppercase">
+        <p className="text-[0.7rem] font-semibold tracking-[0.2em] text-stamp-blue uppercase">
           Hotseat
         </p>
         <h2 id="pass-device-title" className="mt-3 text-3xl font-semibold tracking-tight">
@@ -46,7 +46,7 @@ export function PassDeviceGate({
         <p className="mt-3 text-sm leading-relaxed text-stone-300">{hint}</p>
         <button
           type="button"
-          className="mt-8 cursor-pointer rounded-xl bg-[var(--act)] px-6 py-3 text-sm font-semibold tracking-wide text-stone-950 hover:brightness-110"
+          className="mt-8 cursor-pointer rounded-xl bg-pax-red px-6 py-3 text-sm font-semibold tracking-wide text-white hover:bg-pax-red-deep"
           onClick={onConfirm}
         >
           I am {name}

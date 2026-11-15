@@ -20,7 +20,7 @@ export function DecreeChoice({ winner, chooserIsYou, remaining, options, onChoos
   return (
     <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center bg-black/70 px-4">
       <div className="pointer-events-auto max-w-3xl rounded-2xl glass-strong px-5 py-6 text-center shadow-2xl ring-1 ring-white/10">
-        <p className="text-[0.65rem] font-semibold tracking-[0.18em] text-[var(--brass)] uppercase">
+        <p className="text-[0.65rem] font-semibold tracking-[0.18em] text-stamp-blue uppercase">
           Election won
         </p>
         <h2 className="mt-2 text-2xl font-semibold text-stone-100">

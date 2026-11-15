@@ -62,7 +62,9 @@ function ImportScreen({ onLoad }: { onLoad: (loaded: Loaded) => void }) {
     <div className="min-h-dvh bg-[#16120e] px-4 py-10 text-stone-100">
       <main className="mx-auto flex max-w-2xl flex-col gap-6">
         <header>
-          <p className="text-[0.65rem] font-semibold tracking-[0.18em] text-[var(--brass)] uppercase">Pax Corruption</p>
+          <p className="text-[0.65rem] font-semibold tracking-[0.18em] uppercase">
+            <span className="text-ember">Pax</span> <span className="text-stamp-blue">Corruption</span>
+          </p>
           <h1 className="mt-1 text-3xl font-semibold">Troubleshooting</h1>
           <p className="mt-2 text-sm text-stone-400">
             Load a bug report or game record to re-simulate it move by move, with both players&apos; hidden cards
@@ -76,14 +78,14 @@ function ImportScreen({ onLoad }: { onLoad: (loaded: Loaded) => void }) {
             onChange={(event) => setText(event.target.value)}
             rows={5}
             placeholder="PAX1:… or { &quot;kind&quot;: &quot;pax-bug-report&quot;, … }"
-            className="w-full resize-y rounded-lg bg-black/40 p-2.5 font-mono text-xs text-stone-100 ring-1 ring-white/15 outline-none placeholder:text-stone-500 focus:ring-[var(--brass)]/60"
+            className="w-full resize-y rounded-lg bg-black/40 p-2.5 font-mono text-xs text-stone-100 ring-1 ring-white/15 outline-none placeholder:text-stone-500 focus:ring-stamp-blue/60"
           />
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <button
               type="button"
               disabled={!text.trim()}
               onClick={() => load(text, "pasted")}
-              className="cursor-pointer rounded-lg bg-[var(--act)] px-4 py-2 text-sm font-semibold text-stone-950 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+              className="cursor-pointer rounded-lg bg-pax-red px-4 py-2 text-sm font-semibold text-white hover:bg-pax-red-deep disabled:cursor-not-allowed disabled:opacity-40"
             >
               Load
             </button>
@@ -149,7 +151,7 @@ export function SeedForm() {
         inputMode="numeric"
         pattern="[0-9]{1,10}"
         placeholder="Seed, e.g. 7"
-        className="w-40 rounded-lg bg-black/40 px-3 py-2 text-sm text-stone-100 tabular-nums ring-1 ring-white/15 outline-none placeholder:text-stone-500 focus:ring-[var(--brass)]/60"
+        className="w-40 rounded-lg bg-black/40 px-3 py-2 text-sm text-stone-100 tabular-nums ring-1 ring-white/15 outline-none placeholder:text-stone-500 focus:ring-stamp-blue/60"
       />
       <label className="sr-only" htmlFor="seed-mode">
         Mode
@@ -158,7 +160,7 @@ export function SeedForm() {
         id="seed-mode"
         name="mode"
         defaultValue="standard"
-        className="rounded-lg bg-black/40 px-2 py-2 text-sm text-stone-100 ring-1 ring-white/15 outline-none focus:ring-[var(--brass)]/60"
+        className="rounded-lg bg-black/40 px-2 py-2 text-sm text-stone-100 ring-1 ring-white/15 outline-none focus:ring-stamp-blue/60"
       >
         {GAME_MODES.map((mode) => (
           <option key={mode.id} value={mode.id}>
@@ -167,7 +169,7 @@ export function SeedForm() {
         ))}
       </select>
       <label className="flex items-center gap-1.5 text-xs text-stone-300">
-        <input type="checkbox" name="expansion" value="1" className="accent-[var(--brass)]" />
+        <input type="checkbox" name="expansion" value="1" className="accent-[var(--stamp-blue)]" />
         L&amp;D
       </label>
       <button
@@ -274,7 +276,7 @@ function ReplayViewer({ loaded, onClose }: { loaded: Loaded; onClose: () => void
           <div className="shrink-0 space-y-3 border-b border-white/10 p-3">
             <div className="flex items-start gap-2">
               <div className="min-w-0 flex-1">
-                <p className="text-[0.6rem] font-semibold tracking-[0.18em] text-[var(--brass)] uppercase">Troubleshooting</p>
+                <p className="text-[0.6rem] font-semibold tracking-[0.18em] text-stamp-blue uppercase">Troubleshooting</p>
                 <p className="text-sm font-semibold tabular-nums">
                   {GAME_MODES.find((mode) => mode.id === (record.mode ?? "standard"))?.name} · Seed {record.seed} ·{" "}
                   {record.actions.length} moves
@@ -320,7 +322,7 @@ function ReplayViewer({ loaded, onClose }: { loaded: Loaded; onClose: () => void
                 </p>
                 <p className="mt-1 whitespace-pre-wrap text-stone-300">{report.description || "(no description)"}</p>
                 {reportIndex !== null && reportIndex !== index ? (
-                  <button type="button" className="mt-1 text-[var(--brass)] underline" onClick={() => go(reportIndex)}>
+                  <button type="button" className="mt-1 text-stamp-blue underline" onClick={() => go(reportIndex)}>
                     Jump to the reported step
                   </button>
                 ) : null}
@@ -337,7 +339,7 @@ function ReplayViewer({ loaded, onClose }: { loaded: Loaded; onClose: () => void
                 value={index}
                 onChange={(event) => go(Number(event.target.value))}
                 aria-label="Step"
-                className="min-w-0 flex-1 accent-[var(--brass)]"
+                className="min-w-0 flex-1 accent-[var(--stamp-blue)]"
               />
               <SmallButton onClick={() => go(index + 1)} title="Forward (→)">▶</SmallButton>
               <SmallButton onClick={() => go(last)} title="Last (End)">⏭</SmallButton>
@@ -356,7 +358,7 @@ function ReplayViewer({ loaded, onClose }: { loaded: Loaded; onClose: () => void
                     onClick={() => setViewAs(seat)}
                     className={[
                       "cursor-pointer rounded px-1.5 py-0.5 font-semibold",
-                      viewAs === seat ? "bg-[var(--brass)] text-stone-950" : "bg-white/10 text-stone-200 hover:bg-white/16",
+                      viewAs === seat ? "bg-stamp-blue text-stone-950" : "bg-white/10 text-stone-200 hover:bg-white/16",
                     ].join(" ")}
                   >
                     P{seat + 1}
@@ -417,7 +419,7 @@ function ReplayViewer({ loaded, onClose }: { loaded: Loaded; onClose: () => void
         <button
           type="button"
           onClick={() => setPanelOpen(true)}
-          className="absolute top-2 left-2 z-[80] cursor-pointer rounded-full bg-[var(--brass)] px-3 py-1 text-xs font-semibold text-stone-950 shadow-lg"
+          className="absolute top-2 left-2 z-[80] cursor-pointer rounded-full bg-pax-red px-3 py-1 text-xs font-semibold text-white shadow-lg"
         >
           Troubleshooting · step {index}/{last}
         </button>
@@ -518,14 +520,14 @@ function MoveRow({
       aria-current={current ? "step" : undefined}
       className={[
         "flex w-full cursor-pointer gap-2 rounded-md px-2 py-1 text-left",
-        current ? "bg-[var(--brass)]/20 ring-1 ring-[var(--brass)]/60" : "hover:bg-white/6",
+        current ? "bg-stamp-blue/20 ring-1 ring-stamp-blue/60" : "hover:bg-white/6",
         tone === "error" ? "text-red-200" : "text-stone-300",
       ].join(" ")}
     >
       <span className="w-7 shrink-0 text-right text-stone-500 tabular-nums">{number}</span>
       <span className="min-w-0 flex-1">
         <span className="break-words">{text}</span>
-        {flag ? <span className="block text-[0.68rem] text-[var(--brass)]">{flag}</span> : null}
+        {flag ? <span className="block text-[0.68rem] text-stamp-blue">{flag}</span> : null}
       </span>
     </button>
   );

@@ -332,8 +332,8 @@ export function TableTour({ steps, step, onStep, onClose }: TableTourProps) {
       {spot ? (
         <div
           aria-hidden
-          className={`pointer-events-none absolute rounded-xl ring-2 ring-[var(--brass)] ${moving}`}
-          style={{ ...spot, boxShadow: "0 0 0 9999px rgba(0,0,0,0.62), 0 0 24px rgba(198,165,108,0.35)" }}
+          className={`pointer-events-none absolute rounded-xl ring-2 ring-stamp-blue ${moving}`}
+          style={{ ...spot, boxShadow: "0 0 0 9999px rgba(0,0,0,0.62), 0 0 24px rgba(142,196,220,0.35)" }}
         />
       ) : (
         <div aria-hidden className="absolute inset-0 bg-black/62" />
@@ -357,7 +357,7 @@ export function TableTour({ steps, step, onStep, onClose }: TableTourProps) {
                   onClick={() => onStep(index)}
                   className={[
                     "block h-1.5 cursor-pointer rounded-full transition-all",
-                    index === step ? "w-4 bg-[var(--brass)]" : "w-1.5 bg-white/20 hover:bg-white/40",
+                    index === step ? "w-4 bg-stamp-blue" : "w-1.5 bg-white/20 hover:bg-white/40",
                   ].join(" ")}
                 />
               </li>
@@ -401,7 +401,7 @@ export function TableTour({ steps, step, onStep, onClose }: TableTourProps) {
             <button
               ref={nextRef}
               type="button"
-              className="cursor-pointer rounded-xl bg-[var(--act)] px-4 py-1.5 text-sm font-semibold text-stone-950 hover:brightness-110"
+              className="cursor-pointer rounded-xl bg-pax-red px-4 py-1.5 text-sm font-semibold text-white hover:bg-pax-red-deep"
               onClick={() => (last ? onClose() : onStep(step + 1))}
             >
               {last ? "Start playing" : step === 0 ? "Show me" : "Next"}

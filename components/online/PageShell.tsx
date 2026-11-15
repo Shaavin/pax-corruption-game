@@ -22,7 +22,9 @@ export function PageShell({ children, width = "max-w-md" }: { children: ReactNod
               <span key={color} className="w-2.5" style={{ background: color }} />
             ))}
           </span>
-          Pax Corruption
+          <span>
+            <span className="text-ember">Pax</span> <span className="text-stamp-blue">Corruption</span>
+          </span>
         </Link>
       </header>
       <main className={`mx-auto flex w-full ${width} flex-1 flex-col justify-center gap-6 px-5 py-10`}>{children}</main>

@@ -113,7 +113,7 @@ export function CardView({
     WIDTH[size],
     interactive
       ? [
-          "cursor-pointer focus-visible:z-20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brass)]",
+          "cursor-pointer focus-visible:z-20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-stamp-blue",
           liftOnHover
             ? "transition-[transform,box-shadow] duration-150 ease-out hover:-translate-y-1 hover:z-20 hover:shadow-[0_10px_24px_rgba(0,0,0,0.6)]"
             : "",

@@ -61,7 +61,7 @@ export function SettingsDialog({ onClose, hotseat }: { onClose: () => void; hots
                 />
                 <span
                   aria-hidden
-                  className="relative h-6 w-10 rounded-full bg-white/15 transition peer-checked:bg-[var(--brass)] peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-[var(--brass)] after:absolute after:top-0.5 after:left-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow after:transition peer-checked:after:translate-x-4"
+                  className="relative h-6 w-10 rounded-full bg-white/15 transition peer-checked:bg-stamp-blue peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-stamp-blue after:absolute after:top-0.5 after:left-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow after:transition peer-checked:after:translate-x-4"
                 />
                 <span className="sr-only">Replay the other player&apos;s moves</span>
               </label>

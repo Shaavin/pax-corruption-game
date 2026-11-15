@@ -83,7 +83,7 @@ function MyGame({ gameId }: { gameId: string }) {
         </p>
       </div>
       {info === "gone" ? null : (
-        <Link href={`/online/${gameId}`} className="rounded-full bg-[var(--brass,#c6a56c)] px-3 py-1 text-xs font-semibold text-stone-950">
+        <Link href={`/online/${gameId}`} className="rounded-full bg-pax-red px-3 py-1 text-xs font-semibold text-white hover:bg-pax-red-deep">
           Open
         </Link>
       )}

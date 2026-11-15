@@ -260,7 +260,7 @@ function Plate({
             onClick={onShowPolicies}
             aria-label={`${DISTRICT_LABEL[district]} policy options`}
             title="See this district's policies and what a proposal could change"
-            className="relative cursor-pointer rounded px-0.5 text-[0.5rem] font-semibold tracking-[0.08em] text-stone-300 uppercase after:absolute after:-inset-x-1 after:-inset-y-2 after:content-[''] hover:bg-white/8 hover:text-[var(--brass)] @max-[15rem]:text-[0.45rem]"
+            className="relative cursor-pointer rounded px-0.5 text-[0.5rem] font-semibold tracking-[0.08em] text-stone-300 uppercase after:absolute after:-inset-x-1 after:-inset-y-2 after:content-[''] hover:bg-white/8 hover:text-stamp-blue @max-[15rem]:text-[0.45rem]"
           >
             Policies
           </button>

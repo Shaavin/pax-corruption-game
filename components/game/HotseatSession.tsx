@@ -911,7 +911,7 @@ export function HotseatSession(props: HotseatSessionProps) {
       {reportOpen && !remote ? <ReportDialog replay={session.replay} names={names} viewer={seated} onClose={closeReport} /> : null}
       {replaying ? (
         <div className="pointer-events-none fixed inset-x-0 top-14 z-[56] flex justify-center px-4">
-          <div className="pointer-events-auto flex items-center gap-3 rounded-full glass-strong px-4 py-2 text-sm shadow-xl ring-1 ring-[var(--brass)]/50">
+          <div className="pointer-events-auto flex items-center gap-3 rounded-full glass-strong px-4 py-2 text-sm shadow-xl ring-1 ring-stamp-blue/50">
             <span className="text-stone-200">
               Replaying {playerLabel(otherPlayer(viewer), names)}&apos;s moves · {Math.min(playback.index + 1, playback.actions.length)}/
               {playback.actions.length}
@@ -919,7 +919,7 @@ export function HotseatSession(props: HotseatSessionProps) {
             <button
               type="button"
               onClick={() => setPlayback(null)}
-              className="cursor-pointer rounded-full bg-[var(--brass)] px-3 py-1 text-xs font-semibold text-stone-950 hover:brightness-110"
+              className="cursor-pointer rounded-full bg-pax-red px-3 py-1 text-xs font-semibold text-white hover:bg-pax-red-deep"
             >
               Skip
             </button>

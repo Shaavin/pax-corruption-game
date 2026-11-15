@@ -174,13 +174,13 @@ function Connected({ gameId, token }: { gameId: string; token: string }) {
           </button>
         ) : null}
         {!game.joined[other] ? (
-          <div className="pointer-events-auto flex items-center gap-2 rounded-full glass-strong px-4 py-2 text-xs shadow-xl ring-1 ring-[var(--brass)]/50">
+          <div className="pointer-events-auto flex items-center gap-2 rounded-full glass-strong px-4 py-2 text-xs shadow-xl ring-1 ring-stamp-blue/50">
             <span className="text-stone-200">Invite your opponent:</span>
             <code className="max-w-[16rem] truncate text-stone-400">{invite}</code>
             <button
               type="button"
               onClick={async () => setCopied(await copyText(invite))}
-              className="cursor-pointer rounded-full bg-[var(--brass)] px-3 py-1 font-semibold text-stone-950"
+              className="cursor-pointer rounded-full bg-pax-red px-3 py-1 font-semibold text-white hover:bg-pax-red-deep"
             >
               {copied ? "Copied" : "Copy link"}
             </button>
@@ -210,7 +210,7 @@ function SettingsChips({ settings }: { settings: GameSettings }) {
   return (
     <span className="flex flex-wrap items-center justify-center gap-1.5">
       {describeSettings(settings).map((label) => (
-        <span key={label} className="rounded-full bg-[var(--brass,#c6a56c)]/15 px-2 py-0.5 font-semibold text-[var(--brass,#c6a56c)]">
+        <span key={label} className="rounded-full bg-stamp-blue/15 px-2 py-0.5 font-semibold text-stamp-blue">
           {label}
         </span>
       ))}
@@ -272,7 +272,7 @@ function JoinScreen({ gameId, onJoined }: { gameId: string; onJoined: (token: st
         maxLength={MAX_NAME_LENGTH}
         autoComplete="off"
         spellCheck={false}
-        className="w-64 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3.5 py-2.5 text-center text-sm text-stone-100 placeholder:text-stone-500 focus:border-[var(--brass)]/70 focus:outline-none"
+        className="w-64 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3.5 py-2.5 text-center text-sm text-stone-100 placeholder:text-stone-500 focus:border-stamp-blue/70 focus:outline-none"
       />
       <button
         type="button"
@@ -294,7 +294,7 @@ function JoinScreen({ gameId, onJoined }: { gameId: string; onJoined: (token: st
             setBusy(false);
           }
         }}
-        className="w-64 cursor-pointer rounded-2xl bg-[var(--brass)] px-6 py-3 text-sm font-semibold text-stone-950 shadow-[0_10px_30px_-10px_rgba(198,165,108,0.7)] hover:bg-[#d6b97f] disabled:opacity-60"
+        className="w-64 cursor-pointer rounded-2xl bg-pax-red px-6 py-3 text-sm font-semibold text-white shadow-[0_10px_30px_-10px_rgba(168,29,17,0.8)] hover:bg-pax-red-deep disabled:opacity-60"
       >
         {busy ? "Joining…" : "Join game"}
       </button>

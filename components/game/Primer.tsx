@@ -90,7 +90,7 @@ const PAGES: { title: string; body: ReactNode }[] = [
 function Item({ name, children }: { name: string; children: ReactNode }) {
   return (
     <li className="flex gap-2">
-      <span aria-hidden className="mt-[0.45em] h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--brass)]" />
+      <span aria-hidden className="mt-[0.45em] h-1.5 w-1.5 shrink-0 rounded-full bg-stamp-blue" />
       <span>
         <b className="text-stone-100">{name}:</b> {children}
       </span>
@@ -159,7 +159,7 @@ export function Primer({ page, onPage, onClose, firstRun }: PrimerProps) {
     <div className="fixed inset-0 z-[82] flex items-center justify-center bg-black/70 px-4" role="dialog" aria-modal="true" aria-labelledby="primer-title">
       <div className="rise-in glass-strong w-full max-w-md rounded-2xl p-5 text-stone-200 shadow-2xl ring-1 ring-white/10 sm:p-6">
         <div className="flex items-center justify-between gap-3">
-          <p className="label !text-[var(--brass)]">How to play · {page + 1} of {PAGES.length}</p>
+          <p className="label !text-stamp-blue">How to play · {page + 1} of {PAGES.length}</p>
           <button
             type="button"
             aria-label="Close"
@@ -178,7 +178,7 @@ export function Primer({ page, onPage, onClose, firstRun }: PrimerProps) {
             {PAGES.map((entry, index) => (
               <span
                 key={entry.title}
-                className={["h-1.5 rounded-full transition-all", index === page ? "w-4 bg-[var(--brass)]" : "w-1.5 bg-white/20"].join(" ")}
+                className={["h-1.5 rounded-full transition-all", index === page ? "w-4 bg-stamp-blue" : "w-1.5 bg-white/20"].join(" ")}
               />
             ))}
           </div>
@@ -200,7 +200,7 @@ export function Primer({ page, onPage, onClose, firstRun }: PrimerProps) {
               type="button"
               autoFocus
               onClick={() => (last ? onClose() : onPage(page + 1))}
-              className="cursor-pointer rounded-xl bg-[var(--act)] px-4 py-1.5 text-sm font-semibold text-stone-950 hover:brightness-110"
+              className="cursor-pointer rounded-xl bg-pax-red px-4 py-1.5 text-sm font-semibold text-white hover:bg-pax-red-deep"
             >
               {last ? (firstRun ? "Show me the table" : "Done") : "Next"}
             </button>

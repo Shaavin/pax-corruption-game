@@ -100,7 +100,7 @@ export function PolicyChooser({ districtOrder, policies, frozen, open, onChoose,
                 ref={district === focus ? focusRef : undefined}
                 className={[
                   "rounded-xl border bg-white/[0.03] p-2.5",
-                  district === focus ? "border-[var(--brass)]/60" : "border-white/[0.08]",
+                  district === focus ? "border-stamp-blue/60" : "border-white/[0.08]",
                 ].join(" ")}
               >
                 <h3 className="flex items-center gap-2 text-sm font-semibold text-stone-100">

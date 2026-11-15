@@ -54,7 +54,7 @@ export function ResumeGame() {
         <div className="mt-6 flex justify-center gap-3">
           <a
             href="/play"
-            className="rounded-full bg-[var(--brass,#c6a56c)] px-5 py-2.5 text-sm font-semibold text-stone-950 hover:brightness-110"
+            className="rounded-full bg-pax-red px-5 py-2.5 text-sm font-semibold text-white hover:bg-pax-red-deep"
           >
             New game
           </a>

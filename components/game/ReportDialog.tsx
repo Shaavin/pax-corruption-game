@@ -62,7 +62,7 @@ export function ReportDialog({ replay, names, viewer, onClose }: ReportDialogPro
         className="w-full max-w-lg rounded-2xl glass-strong p-5 text-stone-100 shadow-2xl ring-1 ring-white/10"
         onClick={(event) => event.stopPropagation()}
       >
-        <p className="text-[0.65rem] font-semibold tracking-[0.18em] text-[var(--brass)] uppercase">Troubleshooting</p>
+        <p className="text-[0.65rem] font-semibold tracking-[0.18em] text-stamp-blue uppercase">Troubleshooting</p>
         <h2 id="report-title" className="mt-1 text-xl font-semibold">
           Report a problem
         </h2>
@@ -79,7 +79,7 @@ export function ReportDialog({ replay, names, viewer, onClose }: ReportDialogPro
           onChange={(event) => setDescription(event.target.value)}
           rows={4}
           placeholder="e.g. I had 5 Horsard cards but couldn't build Planet Next."
-          className="mt-1 w-full resize-y rounded-lg bg-black/40 p-2.5 text-sm text-stone-100 ring-1 ring-white/15 outline-none placeholder:text-stone-500 focus:ring-[var(--brass)]/60"
+          className="mt-1 w-full resize-y rounded-lg bg-black/40 p-2.5 text-sm text-stone-100 ring-1 ring-white/15 outline-none placeholder:text-stone-500 focus:ring-stamp-blue/60"
         />
         <p className="mt-2 text-[0.7rem] text-stone-500 tabular-nums">
           Seed {record.seed} · {record.actions.length} moves · engine {record.engineVersion}
@@ -108,7 +108,7 @@ export function ReportDialog({ replay, names, viewer, onClose }: ReportDialogPro
           <button
             type="button"
             onClick={download}
-            className="cursor-pointer rounded-lg bg-[var(--act)] px-3 py-2 text-sm font-semibold text-stone-950 hover:brightness-110"
+            className="cursor-pointer rounded-lg bg-pax-red px-3 py-2 text-sm font-semibold text-white hover:bg-pax-red-deep"
           >
             Download report
           </button>

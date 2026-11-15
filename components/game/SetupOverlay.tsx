@@ -157,7 +157,7 @@ function StartingHandChoice({
       </div>
       <button
         type="button"
-        className="mt-6 cursor-pointer rounded-xl bg-[var(--act)] px-6 py-2.5 text-sm font-semibold text-stone-950 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+        className="mt-6 cursor-pointer rounded-xl bg-pax-red px-6 py-2.5 text-sm font-semibold text-white hover:bg-pax-red-deep disabled:cursor-not-allowed disabled:opacity-40"
         disabled={leaveId === null}
         onClick={confirm}
       >
@@ -181,7 +181,7 @@ function ChoiceFrame({
   return (
     <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center bg-black/70 px-4">
       <div className="pointer-events-auto max-h-[min(92dvh,52rem)] w-full max-w-3xl overflow-y-auto rounded-2xl glass-strong px-5 py-6 text-center shadow-2xl ring-1 ring-white/10">
-        <p className="text-[0.65rem] font-semibold tracking-[0.18em] text-[var(--brass)] uppercase">
+        <p className="text-[0.65rem] font-semibold tracking-[0.18em] text-stamp-blue uppercase">
           {kicker}
         </p>
         <h2 className="mt-2 text-2xl font-semibold text-stone-100">{title}</h2>
