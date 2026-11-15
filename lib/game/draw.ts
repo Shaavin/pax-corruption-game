@@ -244,17 +244,17 @@ function withEventLast(state: GameState, row: CardInstance[], events: GameEvent[
 }
 
 /**
- * After an election resolves: "Replenish Market after, putting an Event card at the
- * last slot." Leftover events leave the game, the Market returns to one row of 4
- * main cards, and a new event takes the 5th spot. (Provisional reading; see open-questions.md.)
+ * After an election resolves (Ian, 2026-11-15): nothing at all stays in the Market. Leftover
+ * events leave the game, the rows merge back into one empty row, and the caller then
+ * refills it like any income refill (`replenishMarket`).
  */
 export function resetMarketAfterElection(state: GameState, events: GameEvent[]): void {
   if (!state.expansion) return;
   boxEvents(state, state.market.filter(isEventCard), events);
-  const row = state.market.filter((card) => !isEventCard(card));
-  setRows(state, [row]);
-  withEventLast(state, row, events);
-  setRows(state, [row]);
+  setRows(state, [state.market.filter((card) => !isEventCard(card))]);
+  // No spot from the election rows counts toward the "last 2 spots" check.
+  state.expansion.turnMarket = [];
+  state.expansion.turnRows = null;
 }
 
 /** Draw one card from the deck into a player's hand (General Elections handled). */

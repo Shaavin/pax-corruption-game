@@ -3,7 +3,7 @@ import { getCard } from "../cards/catalog.ts";
 import { EVENTS, getEvent, WORLD_POWERS, type EventCard } from "../cards/expansion.ts";
 import { CardKind, DecreeId, District, MonumentId, PolicyId, type DistrictId } from "../cards/schema.ts";
 import { simulate } from "./diagnostics.ts";
-import { eventCost, marketRows, snapshotMarket } from "./draw.ts";
+import { eventCost, marketRows, replenishMarket, resetMarketAfterElection, snapshotMarket } from "./draw.ts";
 import { apply, currentActor, legalActions } from "./engine.ts";
 import { handLimit } from "./abilities.ts";
 import { buyEventActions, returnUnrevealedCards } from "./events.ts";
@@ -14,7 +14,7 @@ import { newReplay, replayRecord, stepReplay, toRecord, type Replay } from "./re
 import { convincedSenators } from "./senate.ts";
 import { activeDecrees, inactiveDecrees } from "./decrees.ts";
 import { createSeededRng } from "./rng.ts";
-import { Phase, VictoryKind, type CardInstance, type GameState, type PlayerId } from "./types.ts";
+import { Phase, VictoryKind, type CardInstance, type GameEvent, type GameState, type PlayerId } from "./types.ts";
 import { declarableVictories, militaryLead, privateSymbols, sharedSymbols } from "./victory.ts";
 import { isEventCard, supportCount } from "./world.ts";
 import { assert, expectIllegal, report } from "./test-helpers.ts";
@@ -175,6 +175,18 @@ const civilOf = (district: DistrictId, value?: number) => (id: string) => {
   assert(eventCost(state, ev!.instanceId) === live, "Cost = non-event cards to its right");
 }
 
+// A later event in the row never adds to an earlier event's cost.
+{
+  const { state } = start(14);
+  const first = inst(event("Railway Bonds"));
+  const second = inst(event("Private Islands"));
+  const mains = state.market.filter((c) => !isEventCard(c)).slice(0, 3);
+  state.market = [mains[0]!, first, mains[1]!, second, mains[2]!];
+  snapshotMarket(state);
+  assert(eventCost(state, first.instanceId) === 2, `Earlier event: 2 main cards to its right, the later event not counted (got ${eventCost(state, first.instanceId)})`);
+  assert(eventCost(state, second.instanceId) === 1, "Later event: 1 main card to its right");
+}
+
 // Buy for effect: relation, payment to support piles, draw a card.
 {
   const { state } = start(7);
@@ -300,6 +312,26 @@ const civilOf = (district: DistrictId, value?: number) => (id: string) => {
   const emptyLegal = legalActions(empty, me);
   assert(!emptyLegal.some((a) => a.type === "endAction"), "Main action reachable via East: no stuck draw");
   assert(emptyLegal.some((a) => a.type === "freeAction" && a.ability === "eastTake"), "…the East take is offered");
+}
+
+// --- Market after an election (Ian, 2026-11-15) ---------------------------------------------
+{
+  // Leftover events leave the game; nothing stays; then the normal refill.
+  const { state } = start(13);
+  const leftovers = [inst(event("Railway Bonds")), inst(event("Private Islands"))];
+  state.expansion!.eventDeck = state.expansion!.eventDeck.filter((c) => !leftovers.some((l) => l.cardId === c.cardId));
+  state.market = [...leftovers];
+  state.expansion!.rowBreak = 1;
+  state.election.active = false;
+  const events: GameEvent[] = [];
+  resetMarketAfterElection(state, events);
+  assert(state.market.length === 0 && state.expansion!.rowBreak === null, "After an election: the Market is wiped, one row");
+  assert(leftovers.every((l) => state.expansion!.box.some((c) => c.cardId === l.cardId)), "…leftover events leave the game");
+  replenishMarket(state, events);
+  const refilled: CardInstance[] = [...state.market];
+  assert(refilled.length === 5, "…then refills to 5 like any income");
+  assert(refilled.filter(isEventCard).length === 1 && isEventCard(refilled[0]!), "…one new event, in the next (first) spot");
+  assert(eventCost(state, refilled[0]!.instanceId) === 4, "…so it costs 4, not 0 (the event is first, not last)");
 }
 
 // --- Election rows ------------------------------------------------------------------------------
