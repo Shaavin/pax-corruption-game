@@ -62,7 +62,24 @@ const civilOf = (district: DistrictId, value?: number) => (id: string) => {
   assert(state.market.length === 5 && !state.market.some(isEventCard), "Market starts with 5 non-event cards");
   const fi = start(1, true).state.expansion!;
   assert(fi.commonArea.length === 3 && fi.commonArea.every((p) => p.owner === null), "Foreign Influence: 3 events in play, no owner");
-  assert(fi.eventDeck.length === 25, "Foreign Influence: 25 left in the event deck");
+  assert(fi.eventDeck.length === 28, "Foreign Influence: the event deck is still 20 regular + 8 legacy");
+  // The 3 come from the 12 removed events (Ian, 2026-11-15); the other 9 stay in the box.
+  for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
+    const setup = start(seed, true).state.expansion!;
+    const plain = start(seed, false).state.expansion!;
+    const startedIds = setup.commonArea.map((p) => p.card.cardId);
+    assert(setup.box.length === 9, `Foreign Influence: 9 removed events stay in the box (seed ${seed})`);
+    assert(startedIds.every((id) => !getEvent(id).legacy), "Foreign Influence: never a legacy event");
+    const removedIds = new Set([...startedIds, ...setup.box.map((c) => c.cardId)]);
+    for (const power of WORLD_POWERS) {
+      assert([...removedIds].filter((id) => getEvent(id).power === power).length === 3, `3 ${power} events removed (seed ${seed})`);
+    }
+    assert(!setup.eventDeck.some((c) => startedIds.includes(c.cardId)), "Foreign Influence: starting events aren't in the deck");
+    assert(
+      plain.eventDeck.map((c) => c.cardId).join() === setup.eventDeck.map((c) => c.cardId).join(),
+      "Foreign Influence doesn't change the event deck",
+    );
+  }
   // Base games are untouched.
   assert(newReplay(1).state.expansion === null, "Base game has no expansion state");
 }
@@ -276,6 +293,13 @@ const civilOf = (district: DistrictId, value?: number) => (id: string) => {
   const took = apply(take, free!, rng).state;
   assert(took.players[me].hand.some((c) => c.instanceId === target.instanceId), "…into hand");
   assert(!freeActions(took, me).some((a) => a.ability === "eastTake"), "Once per turn");
+
+  // Main-action ruling (2026-11-14): an empty hand isn't stuck while East can take a playable card.
+  const empty = structuredClone(take);
+  empty.players[me].hand = [];
+  const emptyLegal = legalActions(empty, me);
+  assert(!emptyLegal.some((a) => a.type === "endAction"), "Main action reachable via East: no stuck draw");
+  assert(emptyLegal.some((a) => a.type === "freeAction" && a.ability === "eastTake"), "…the East take is offered");
 }
 
 // --- Election rows ------------------------------------------------------------------------------

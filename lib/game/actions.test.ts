@@ -241,16 +241,28 @@ function toPolitics(state: GameState): GameState {
   );
 
   {
-    // Any district's policy may change, not only the revealed cards' districts (ruled 2026-11-13).
-    const elsewhere = apply(start, {
-      type: "proposePolicy",
-      player: actor,
-      revealIds: [robot.instanceId, enterprise.instanceId],
-      discardId: enterprise.instanceId,
-      district: District.Horsard,
-      policyId: PolicyId.HorsardA,
-    }, rng).state;
-    assert(elsewhere.policy[District.Horsard] === PolicyId.HorsardA, "A Dragonara reveal can change Horsard's policy");
+    // The changed policy must be in the district of a revealed card that convinces a Senator
+    // (Ian, 2026-11-14; replaces the 2026-11-13 "any district" ruling).
+    const veterans = pull(start, "Veterans", District.Horsard); // civil 3: doesn't beat Masons Guild 3
+    const magistrates = pull(start, "Magistrates", District.Horsard); // civil 9: convinces Masons Guild
+    const wider = structuredClone(start);
+    wider.players[actor].hand.push(veterans, magistrates);
+    const toHorsard = (revealIds: string[]) =>
+      apply(wider, {
+        type: "proposePolicy",
+        player: actor,
+        revealIds,
+        discardId: enterprise.instanceId,
+        district: District.Horsard,
+        policyId: PolicyId.HorsardA,
+      }, rng).state;
+    expectIllegal(() => toHorsard([robot.instanceId, enterprise.instanceId]), "No Horsard card revealed: Horsard's policy is off limits");
+    expectIllegal(
+      () => toHorsard([robot.instanceId, enterprise.instanceId, veterans.instanceId]),
+      "A revealed Horsard card that convinces no one doesn't open Horsard",
+    );
+    const elsewhere = toHorsard([robot.instanceId, enterprise.instanceId, magistrates.instanceId]);
+    assert(elsewhere.policy[District.Horsard] === PolicyId.HorsardA, "A convincing Horsard card opens Horsard's policy");
   }
 
   const passed = propose(start, [robot.instanceId, enterprise.instanceId], enterprise.instanceId, PolicyId.DragonaraA);

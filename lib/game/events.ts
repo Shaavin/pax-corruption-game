@@ -46,25 +46,26 @@ function eventInstance(cardId: string): CardInstance {
  * Expansion setup step 7 (after the base setup has used the RNG, so base games
  * deal exactly as before): set the 8 legacy events aside, remove 3 random
  * regular events per World Power, shuffle the rest with the legacy events.
- * Foreign Influence variant: 3 random regular events start in play, owned by no one.
+ * Foreign Influence variant (Ian, 2026-11-15): afterwards, 3 random events from the 12
+ * removed ones start in play, owned by no one; the other 9 stay in the box.
  */
 export function setUpExpansion(state: GameState, rng: Rng, foreignInfluence: boolean): GameEvent[] {
-  const box: CardInstance[] = [];
-  const kept: CardInstance[] = [];
+  const removed: CardInstance[] = [];
+  const pool: CardInstance[] = [];
   for (const power of WORLD_POWERS) {
     const regular = rng.shuffle(EVENTS.filter((event) => event.power === power && !event.legacy));
-    box.push(...regular.slice(0, EVENTS_REMOVED_PER_POWER).map((event) => eventInstance(event.id)));
-    kept.push(...regular.slice(EVENTS_REMOVED_PER_POWER).map((event) => eventInstance(event.id)));
-  }
-  const commonArea: ExpansionState["commonArea"] = [];
-  let pool = kept;
-  if (foreignInfluence) {
-    pool = rng.shuffle(kept);
-    commonArea.push(...pool.slice(0, 3).map((card) => ({ card, owner: null })));
-    pool = pool.slice(3);
+    removed.push(...regular.slice(0, EVENTS_REMOVED_PER_POWER).map((event) => eventInstance(event.id)));
+    pool.push(...regular.slice(EVENTS_REMOVED_PER_POWER).map((event) => eventInstance(event.id)));
   }
   const legacy = EVENTS.filter((event) => event.legacy).map((event) => eventInstance(event.id));
   const eventDeck = rng.shuffle([...pool, ...legacy]);
+  const commonArea: ExpansionState["commonArea"] = [];
+  let box = removed;
+  if (foreignInfluence) {
+    const shuffled = rng.shuffle(removed);
+    commonArea.push(...shuffled.slice(0, 3).map((card) => ({ card, owner: null })));
+    box = shuffled.slice(3);
+  }
   const zeros = () => Object.fromEntries(WORLD_POWERS.map((power) => [power, 0])) as Record<WorldPowerId, number>;
 
   state.expansion = {

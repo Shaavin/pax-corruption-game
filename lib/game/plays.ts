@@ -24,6 +24,7 @@ import {
   convincedVotes,
   influenceSenate,
   policyOptions,
+  proposalDistricts,
   revealPasses,
   senateTotalVotes,
 } from "./senate.ts";
@@ -201,7 +202,7 @@ export function seatSenator(state: GameState, player: PlayerId, instanceId: stri
   influenceSenate(state, player, card, events);
 }
 
-/** Propose Policy: reveal cards that convince a majority, discard one, change any district's policy. */
+/** Propose Policy: reveal cards that convince a majority, discard one, change a convincing card's district's policy. */
 export function proposePolicy(
   state: GameState,
   player: PlayerId,
@@ -228,6 +229,9 @@ export function proposePolicy(
     throw new IllegalActionError("Those cards do not convince more than half of the Senate");
   }
   if (!state.districtOrder.includes(district)) throw new IllegalActionError("Unknown district");
+  if (!proposalDistricts(state, revealedCardIds).has(district)) {
+    throw new IllegalActionError("Change a policy in the district of a revealed card that convinces a Senator");
+  }
   if (policyFrozen(state, district)) {
     throw new IllegalActionError("A District Governor protects that district's policy from proposals");
   }

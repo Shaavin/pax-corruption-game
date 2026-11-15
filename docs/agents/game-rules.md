@@ -112,6 +112,8 @@ Players alternate. Each turn: **Action → Politics → Income**.
 
 Exactly **one** main action (mandatory) and any number of free actions, in any order. Each alliance or monument grants its free action **once per turn**. You may not take a free action that leaves you unable to do a main action (FAQ).
 
+**Main-action ruling (Ian, 2026-11-14).** If you can reach a main action this turn, directly or by way of free actions (e.g. an East event taking a card from the Market), you must take one. Before your main action, a free action that would leave no main action reachable is not allowed (Kybernetik Inc. counts: it ends the action step in place of the main action). If no main action can be reached at all, you are **stuck**: draw a card (even past the hand limit) instead of the main action, take **no** free actions that turn, then play Politics and Income as usual. Setting cards aside (Planet Next bank, Consultative Office, East reveal) is not a free action and is unaffected.
+
 Main actions:
 
 1. **Play a civil card** to your tableau in its printed district. It gives influence equal to its number in that district's electorate.
@@ -144,7 +146,7 @@ Reveal any number of cards from your hand. One revealed card may convince severa
 
 Districts must match: a Horsard civil 6 convinces lower Horsard civil Senators only, never Shavvinne, Smarbbit, or Dragonara ones.
 
-If you reach the threshold: discard **one** of the revealed cards, then change the policy of **any one district**, whatever the revealed cards' districts (ruled 2026-11-13; this replaces the 2026-11-12 ruling that the district had to match a revealed card). Allowed changes: neutral → either printed side, or a printed side → neutral. You may **not** go directly from one side to the other.
+If you reach the threshold: discard **one** of the revealed cards, then change the policy of **one district**: the district of a revealed card that **itself convinces at least one Senator** (ruled 2026-11-14; replaces the 2026-11-13 "any district" ruling). A revealed card that convinces no one doesn't open its district. Allowed changes: neutral → either printed side, or a printed side → neutral. You may **not** go directly from one side to the other.
 
 Rulebook example: Senate is People's Press (2), Local Politicians 5 (1), Civil Advocates 4 (1), Financial Bankers (2), Broken Chains (1) = 7 votes; 4 needed. Revealing Capitol Inc. (Smarbbit alliance) convinces People's Press; revealing TuWang Gang 8 (Shavvinne) convinces both Shavvinne civils. 2 + 1 + 1 = 4.
 
@@ -313,7 +315,7 @@ Rulebook: `C:\Repos\pax-corruption-marketing\public\rulebook\legacy-and-diplomac
 - **Game board** with tracks for support, alliance, influence, diplomacy, partisans, and symbols.
 - **Seven victories.** Adds Cultural (2+ more monuments) and Diplomatic (higher relation with 3 of 4 powers). Military, Popularity, Ideological, Cultural, and Diplomatic start **inactive** and are activated by legacy events. Civil and Political work as in the base game.
 - Market and election-phase replenish rules change so 1–2 event cards are always in the Market. Event cards keep discarding and replenishing during an election phase by their own rules, including disappearing from the last two spots of their row.
-- Foreign Influence variant: start with 3 random events already in play.
+- Foreign Influence variant: after the normal event setup (3 random regular events removed per power; the other 20 shuffled with the 8 legacy events into the event deck), take **3 random events from the 12 removed** and put them in play as the starting events. The other 9 stay out of the game (Ian, 2026-11-15).
 
 Event effects by power (each district has one of each of its power's two effects):
 

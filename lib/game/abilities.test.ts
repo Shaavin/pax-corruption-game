@@ -130,9 +130,11 @@ function fresh(seed: number) {
   place(state, them, "District Governor", District.Dragonara);
   assert(alliancesInPlay(state).every((a) => isSilenced(state, a)), "Opposing Governors silence each other");
   assert(!policyFrozen(state, District.Dragonara), "…and the policy is no longer frozen (FAQ)");
-  state.players[me].hand = [take(state, "Technocrats", District.Dragonara)];
+  const technocrats = take(state, "Technocrats", District.Dragonara);
+  state.players[me].hand = [technocrats];
+  state.senate[0] = take(state, "Tinkers", District.Dragonara); // a Senator the 9 convinces
   assert(
-    policyTargets(state).some((t) => t.district === District.Dragonara),
+    policyTargets(state, [technocrats.cardId]).some((t) => t.district === District.Dragonara),
     "Dragonara is a proposal target again",
   );
 }

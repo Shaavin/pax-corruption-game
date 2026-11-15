@@ -27,7 +27,7 @@ import {
   ARCHITECTURE_COST,
   CONSTRUCT_COST,
   eastTakeTargets,
-  freeActions,
+  playableFreeActions,
   freeActionSources,
   handLikeCards,
   setAsideActions,
@@ -44,6 +44,7 @@ import {
   playTargetDistrict,
   policyFrozen,
   policyTargets,
+  proposalDistricts,
   printedDistrict,
   recruitBlockReason,
   constructBlockReason,
@@ -338,7 +339,7 @@ export function HotseatSession(props: HotseatSessionProps) {
     return ids;
   }, [legal]);
 
-  const freeOptions = useMemo(() => (inAction ? freeActions(state, viewer) : []), [state, viewer, inAction]);
+  const freeOptions = useMemo(() => (inAction ? playableFreeActions(state, viewer) : []), [state, viewer, inAction]);
   const freeSources = useMemo(
     () =>
       freeActionSources(state, viewer).filter((source) =>
@@ -631,7 +632,7 @@ export function HotseatSession(props: HotseatSessionProps) {
       });
     }
     if (spendKind === "propose" && !proposeTarget) {
-      const passing = revealPassing && policyTargets(state).length > 0;
+      const passing = revealPassing && policyTargets(state, revealedCardIds).length > 0;
       extraActions.push({
         label: passing ? "Choose a policy" : "See policies",
         tone: passing ? undefined : "neutral",
@@ -651,7 +652,7 @@ export function HotseatSession(props: HotseatSessionProps) {
     }
     if (canEndAction) {
       extraActions.push({
-        label: state.turn.mainActionDone ? "End action step" : "No main action — continue",
+        label: state.turn.mainActionDone ? "End action step" : "No main action — draw a card",
         tone: "neutral",
         onClick: () => dispatch({ type: "endAction", player: viewer }),
       });
@@ -852,6 +853,7 @@ export function HotseatSession(props: HotseatSessionProps) {
           districtOrder={state.districtOrder}
           policies={state.policy}
           frozen={Object.fromEntries(state.districtOrder.map((district) => [district, policyFrozen(state, district)])) as Record<DistrictId, boolean>}
+          open={revealPassing ? proposalDistricts(state, revealedCardIds) : undefined}
           onChoose={
             revealPassing
               ? (target) => {

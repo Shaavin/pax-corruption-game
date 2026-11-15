@@ -6,7 +6,6 @@ Do not invent answers. If a task depends on one of these, stop and ask, then mov
 
 | Topic | Current answer (provisional, 2026-11-13) |
 | --- | --- |
-| Foreign Influence setup (expansion) | The 3 starting events are drawn from the 20 regular events left **after** removing 3 per power (legacy events are never among them). Engine interpretation; confirm with Joe. |
 | Market after an election (expansion) | "Replenish Market after, putting an Event card at the last slot": leftover events leave the game, the Market refills to 4 main cards, and a new event takes the 5th spot. Engine interpretation; confirm with Joe. |
 | Events entering mid-turn (expansion) | An event that enters the Market during a turn (election rows formed mid-turn, the income refill) is never removed by the "last 2 spots" check in that same turn; spots are read from the start-of-turn snapshot. Engine interpretation. |
 | Party symbol district (expansion, West "disable icons") | A party's ideological symbol belongs to the district whose color it is printed in, which always matches its guaranteed monument's district (Trinity's green crown = Shavvinne). Decrees (printed purple) are never disabled. Inferred from the card art; confirm with Joe. |
@@ -17,7 +16,7 @@ Do not invent answers. If a task depends on one of these, stop and ask, then mov
 | Event-effect draw (expansion house rule) | The extra card is drawn right after the purchase, even if it takes the buyer over the hand limit. The normal end-of-income draw still needs room. Engine interpretation. |
 | Income with only unaffordable events (expansion) | If the Market holds only events and the player can't pay for any, the income take is skipped (straight to refill and draw). Engine interpretation. |
 | Legacy activation when all are active (expansion) | A legacy event can only activate a victory that is still inactive; if all five are active, the only option is "discard played <power> cards". Engine interpretation. |
-| Proposals and "always convinced" Senators (expansion) | A Propose Policy still needs at least one revealed card (the changed policy may be in any district), even if South events alone would convince enough Senators. Engine interpretation. |
+| Proposals and "always convinced" Senators (expansion) | A Propose Policy still needs at least one revealed card, even if South events alone would convince enough Senators, and the changed policy must be in the district of a revealed card that itself convinces a Senator (2026-11-14 ruling). A card matching only "always convinced" Senators still counts as convincing them. Engine interpretation. |
 | North decree flip vs. activation (expansion) | While a North event flips a decree, the election winner chooses among decrees whose **current** side is inactive. Activating one flips its printed side, so when the event leaves the decree shows the other side again. This is an engine interpretation of an edge case; confirm with Joe. |
 
 ## Resolved
@@ -56,7 +55,7 @@ Do not invent answers. If a task depends on one of these, stop and ask, then mov
 | Consultative Office | Like Planet Next: set cards aside only during your own turn. |
 | Diet of Saints vs. Divine Inquisitors (provisional) | If both claim Shavvinne for different players (possible only after Century Inc. moves Diet of Saints), the claims cancel and nobody wins Shavvinne. |
 | Propose Policy reveals | Revealed cards go back to your hand (except the one you discard); cards you didn't reveal never leave it. |
-| Propose Policy target | The changed policy must be in a district of one of the **revealed** cards. Example: revealing a Smarbbit alliance and a Shavvinne civil lets you change Smarbbit's or Shavvinne's policy, not Horsard's. (Interpretation of "must relate to the revealed cards"; implemented.) |
+| Propose Policy target | The changed policy must be in a district of one of the **revealed** cards. Example: revealing a Smarbbit alliance and a Shavvinne civil lets you change Smarbbit's or Shavvinne's policy, not Horsard's. (Interpretation of "must relate to the revealed cards"; implemented.) **Superseded 2026-11-14:** the card must also convince a Senator. |
 | Buying an event for its effect (expansion; not yet in the rulebook) | When you purchase an event and play it **for its event effect** (not as a civil card), **draw a card**. This makes playing an event for its effect effectively 1 card cheaper than playing it as a civil card. |
 
 ### 2026-11-13 (Ian): Legacy & Diplomacy
@@ -77,11 +76,14 @@ Card text is in `lib/cards/expansion.ts`; the rulebook summary is in [game-rules
 | Legacy "Activate a Victory Condition" | The **buyer** chooses any one inactive victory (Military, Popularity, Ideological, Cultural, Diplomatic) and flips it active. |
 | Events played as civil cards | **Fully civil cards** of the event's district, with the printed value: influence, electors, Civil Service, Diet of Saints, Currency Ballots, Urban Aristocrats swaps, conspiracies, and so on. The only difference: when discarded, they leave the game (see "Discarding events" above). |
 
-### 2026-11-14 (Joe, via Ian)
+### 2026-11-14 (Ian)
 
 | Topic | Decision |
 | --- | --- |
-| East "Revealed <district> cards do not occupy hand limit" (expansion) | Works **like Planet Next**: during your own turn (action, politics, or income) the event's buyer may move cards of that district from hand to a face-up area. They are usable as if in hand and don't count toward the hand limit. If the event leaves play (discarded, legacy, …), those cards go **straight back to the hand**, even if that puts the player **over the hand limit**. That is allowed: there is no discard down to the limit. The player simply can't take a Market card or draw at income until the hand is back under the limit. |
+| Propose Policy target | The changed policy must be in the district of a revealed card that **helps convince** the Senate: it convinces at least one Senator by itself. Revealing a card that convinces no one (e.g. a Horsard 3 against a Horsard 3 Senator) does not open its district. Replaces the 2026-11-13 "any district" ruling. Applies to Capitol Inc.'s free proposal too. |
+| Foreign Influence setup (expansion) | Setup as usual: set the 8 legacy events aside, remove 3 random regular events per power (12), shuffle the remaining 20 with the legacy events into the event deck (28). Then take **3 random events from the 12 removed** as the starting events; the other 9 stay in the box. (Ian, 2026-11-15; corrects the earlier "drawn from the 20 left after removing" interpretation.) |
+| Main action required | If a player can reach a main action during their turn (directly, or after free actions such as an East Market take), they **must** take one. Free actions that leave no main action reachable are not allowed before the main action; the engine never offers them, which is the same as "undo the free action". If no main action can be reached at all, the player **draws a card** (even at or over the hand limit) instead, takes **no free actions** that turn, and still plays **Politics and Income** as usual. Setting cards aside (Planet Next, Consultative Office, East reveal) is a special ability, not a free action, and is unaffected. Kybernetik Inc. counts as reaching a main action: by its 2026-11-11 ruling it ends the action step in place of the main action. |
+| East "Revealed <district> cards do not occupy hand limit" (expansion) | Confirmed with Joe. Works **like Planet Next**: during your own turn (action, politics, or income) the event's buyer may move cards of that district from hand to a face-up area. They are usable as if in hand and don't count toward the hand limit. If the event leaves play (discarded, legacy, …), those cards go **straight back to the hand**, even if that puts the player **over the hand limit**. That is allowed: there is no discard down to the limit. The player simply can't take a Market card or draw at income until the hand is back under the limit. |
 
 ### Earlier rulings still valid under the current rules
 

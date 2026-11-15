@@ -1,5 +1,7 @@
-import { findDeckCards } from "../cards/catalog.ts";
-import { District, MonumentId, PolicyId, type DistrictId } from "../cards/schema.ts";
+import { findDeckCards, getCard } from "../cards/catalog.ts";
+import { CardKind, District, MonumentId, PolicyId, type DistrictId } from "../cards/schema.ts";
+import { handLimit } from "./abilities.ts";
+import { printedDistrict } from "./main.ts";
 import { resolveElection } from "./election.ts";
 import { apply, legalActions } from "./engine.ts";
 import { freeActions } from "./free-actions.ts";
@@ -41,6 +43,11 @@ function fresh(seed: number) {
 
 function run(state: GameState, action: Action, rng: Rng): { state: GameState; events: GameEvent[] } {
   return apply(state, action, rng);
+}
+
+/** A civil card kept in hand so a free action never leaves the main action unreachable. */
+function spare(state: GameState): CardInstance {
+  return take(state, "Veterans", District.Horsard);
 }
 
 function freeOf(state: GameState, player: PlayerId, ability: string) {
@@ -119,7 +126,7 @@ function freeOf(state: GameState, player: PlayerId, ability: string) {
   const source = place(state, me, "Century Inc.", District.Horsard);
   const target = place(state, them, "Financial Bankers", District.Horsard);
   const incoming = take(state, "Order of Knights", District.Shavvinne);
-  state.players[me].hand = [incoming];
+  state.players[me].hand = [incoming, spare(state)];
   const next = run(state, {
     type: "freeAction",
     player: me,
@@ -141,7 +148,8 @@ function freeOf(state: GameState, player: PlayerId, ability: string) {
   // Build Dragon Gate with four Dragonara cards.
   state.availableMonuments = [monument(MonumentId.DragonGate)];
   const four = ["Tinkers", "Engineers", "Gardeners", "Fire Breathers"].map((name) => take(state, name, District.Dragonara));
-  state.players[me].hand = [...four];
+  const keep = spare(state);
+  state.players[me].hand = [...four, keep];
   let next = run(state, {
     type: "freeAction",
     player: me,
@@ -154,7 +162,7 @@ function freeOf(state: GameState, player: PlayerId, ability: string) {
   assert(!next.turn.mainActionDone, "…as a free action");
 
   const three = ["Time Travelers", "Runes Tavern", "Dune Clans"].map((name) => take(next, name, District.Dragonara));
-  next.players[me].hand = [...three];
+  next.players[me].hand = [...three, keep];
   next = run(next, { type: "freeAction", player: me, source: rebel.instanceId, ability: "rebelInc", instanceIds: three.map((c) => c.instanceId) }, rng).state;
   assert(next.players[me].partisans === 1, "Rebel Inc. recruits as a free action");
 }
@@ -184,6 +192,7 @@ function freeOf(state: GameState, player: PlayerId, ability: string) {
 {
   const { state, rng, me } = fresh(508);
   state.players[me].monuments.push(monument(MonumentId.IntelNetwork));
+  state.players[me].hand = [spare(state)];
   let next = run(state, { type: "freeAction", player: me, source: MonumentId.IntelNetwork, ability: "intelNetwork" }, rng).state;
   const choice = next.pending[0];
   assert(choice?.kind === "intelNetwork" && choice.instanceIds.length === 5, "Intel Network shows the top 5");
@@ -281,4 +290,62 @@ function freeOf(state: GameState, player: PlayerId, ability: string) {
   assert(state.players[them].support[District.Shavvinne].some((card) => card.instanceId === theirs.instanceId), "Theirs go to their own pile");
 }
 
-report("Free actions and choices ok: Currency Ballots, Urban Aristocrats, Kybernetik, Foreign Inc., Century Inc., Architecture Inc., Rebel Inc., Capitol Inc., Intel Network, People's Press, Space Agency, Planet Next, Consultative Office, State Enterprise, Diet of Saints.");
+// --- Main-action ruling (Ian, 2026-11-14) --------------------------------------
+{
+  // A free action that would leave no main action is illegal before the main action.
+  const { state, rng, me } = fresh(520);
+  const rebel = place(state, me, "Rebel Inc.", District.Shavvinne);
+  state.players[me].support[District.Dragonara] = [take(state, "Gardeners", District.Dragonara)];
+  const three = ["Tinkers", "Engineers", "Fire Breathers"].map((name) => take(state, name, District.Dragonara));
+  state.players[me].hand = [...three];
+  const rebelUse = { type: "freeAction" as const, player: me, source: rebel.instanceId, ability: "rebelInc" as const, instanceIds: three.map((c) => c.instanceId) };
+  assert(!legalActions(state, me).some((a) => a.type === "freeAction"), "Main action: a dead-end free action is not offered");
+  expectIllegal(() => run(state, rebelUse, rng), "Main action: Rebel Inc. spending the whole hand first");
+  assert(!legalActions(state, me).some((a) => a.type === "endAction"), "Main action: no stuck draw while one is available");
+
+  // Same free action with a spare card: legal, and it may also follow the main action.
+  const keep = spare(state);
+  state.players[me].hand = [...three, keep];
+  assert(legalActions(state, me).some((a) => a.type === "freeAction" && a.ability === "rebelInc"), "Main action: legal with a card to spare");
+  // After the main action, emptying the hand is fine.
+  const after = run(state, { type: "playCivil", player: me, instanceId: keep.instanceId }, rng).state;
+  assert(after.phase === "action" && after.turn.mainActionDone, "Main action taken, still in the action step");
+  const spent = run(after, rebelUse, rng).state;
+  assert(spent.players[me].partisans === 1 && spent.players[me].hand.length === 0, "…then Rebel Inc. may spend the whole hand");
+}
+{
+  // Stuck: no main action reachable at all. Draw a card, no free actions, Politics as usual.
+  const { state, rng, me } = fresh(521);
+  place(state, me, "Rebel Inc.", District.Shavvinne);
+  state.players[me].monuments.push(monument(MonumentId.IntelNetwork));
+  state.players[me].hand = [];
+  const legal = legalActions(state, me);
+  assert(!legal.some((a) => a.type === "freeAction"), "Stuck: no free actions at all (Intel Network included)");
+  assert(legal.some((a) => a.type === "endAction"), "Stuck: the stuck draw is offered");
+  const deckBefore = state.deck.length;
+  const next = run(state, { type: "endAction", player: me }, rng).state;
+  assert(next.players[me].hand.length === 1 && next.deck.length < deckBefore, "Stuck: draws a card");
+  assert(next.phase === "politics" && next.activePlayer === me, "Stuck: Politics follows as usual");
+}
+{
+  // Stuck draw ignores the hand limit: a full hand of alliances that can't be played.
+  const { state, rng, me } = fresh(522);
+  const alliances = state.deck.filter((card) => getCard(card.cardId).kind === CardKind.Alliance);
+  // No "… Inc." alliances: their free actions could open a main action.
+  const plain = alliances.filter((card) => !getCard(card.cardId).name.endsWith(" Inc."));
+  for (const district of state.districtOrder) {
+    const card = plain.find((entry) => printedDistrict(entry.cardId) === district && !state.players[me].hand.includes(entry))!;
+    state.deck = state.deck.filter((entry) => entry !== card);
+    plain.splice(plain.indexOf(card), 1);
+    state.players[me].tableau[district].push({ ...card, faceUp: true, occupiedDistrict: district });
+  }
+  state.availableMonuments = [];
+  const hand = plain.slice(0, handLimit(state, me));
+  state.deck = state.deck.filter((entry) => !hand.includes(entry));
+  state.players[me].hand = hand.map((card) => ({ ...card, faceUp: true }));
+  assert(legalActions(state, me).some((a) => a.type === "endAction"), "Full hand, nothing playable: stuck");
+  const next = run(state, { type: "endAction", player: me }, rng).state;
+  assert(next.players[me].hand.length === handLimit(state, me) + 1, "Stuck draw goes past the hand limit");
+}
+
+report("Free actions and choices ok: Currency Ballots, Urban Aristocrats, Kybernetik, Foreign Inc., Century Inc., Architecture Inc., Rebel Inc., Capitol Inc., Intel Network, People's Press, Space Agency, Planet Next, Consultative Office, State Enterprise, Diet of Saints, main-action ruling (no dead ends, stuck draw).");

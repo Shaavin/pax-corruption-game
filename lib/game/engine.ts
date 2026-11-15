@@ -7,6 +7,7 @@ import { gameIsOver } from "./discard.ts";
 import { activateDecree } from "./election.ts";
 import { IllegalActionError, asIllegal } from "./errors.ts";
 import { applyFreeAction, applySetAside, freeActions, hasFreeAction, setAsideActions } from "./free-actions.ts";
+import { drawToHand } from "./draw.ts";
 import { afterMainAction, completeIncome, proceed, setFreeActionCheck, takeMarketCard, underHandLimit } from "./income.ts";
 import { applyBuyEvent, buyEventActions } from "./events.ts";
 import { isEventCard } from "./world.ts";
@@ -21,7 +22,7 @@ import {
   printedDistrict,
 } from "./main.ts";
 import { construct, playBlockReason, playConspiracy, playToLane, proposePolicy, recruit, seatSenator } from "./plays.ts";
-import type { Rng } from "./rng.ts";
+import { createSeededRng, type Rng } from "./rng.ts";
 import { policyTargets, revealPasses } from "./senate.ts";
 import { dealStartingOffer, finishSetup, revealParties, takeStartingHand } from "./setup.ts";
 import {
@@ -31,6 +32,7 @@ import {
   type ApplyResult,
   type ChoosePartyAction,
   type ChooseStartingHandAction,
+  type FreeActionAction,
   type GameEvent,
   type GameState,
   type PlayerId,
@@ -92,13 +94,20 @@ export function apply(state: GameState, action: Action, rng: Rng): ApplyResult {
       break;
     case "endAction":
       requirePhase(next, Phase.Action);
-      if (!next.turn.mainActionDone && mainActions(next, action.player).length > 0) {
-        throw new IllegalActionError("A main action is still available");
+      if (!next.turn.mainActionDone) {
+        if (mainActionReachable(next, action.player)) {
+          throw new IllegalActionError("A main action is still available");
+        }
+        // Stuck turn: draw a card (even past the hand limit) instead of the main action.
+        drawToHand(next, action.player, events);
+        next.turn.mainActionDone = true;
       }
-      next.turn.mainActionDone = true;
       proceed(next, "politics", events);
       break;
     case "freeAction":
+      if (next.phase === Phase.Action && !next.turn.mainActionDone && !freeActionKeepsMain(next, action)) {
+        throw new IllegalActionError("That free action would leave you no main action");
+      }
       applyFreeAction(next, action, rng, events);
       break;
     case "setAside":
@@ -207,11 +216,12 @@ export function legalActions(state: GameState, viewer: PlayerId): Action[] {
   if (state.activePlayer !== viewer) return [];
 
   if (state.phase === Phase.Action) {
-    const actions: Action[] = [];
-    if (!state.turn.mainActionDone) actions.push(...mainActions(state, viewer));
-    actions.push(...freeActions(state, viewer));
-    actions.push(...setAsideActions(state, viewer));
-    if (state.turn.mainActionDone || mainActions(state, viewer).length === 0) {
+    const mainDone = state.turn.mainActionDone;
+    const mains = mainDone ? [] : mainActions(state, viewer);
+    const frees = playableFreeActions(state, viewer);
+    const actions: Action[] = [...mains, ...frees, ...setAsideActions(state, viewer)];
+    // Before the main action, endAction is the stuck-turn draw: no main action reachable at all.
+    if (mainDone || (mains.length === 0 && frees.length === 0)) {
       actions.push({ type: "endAction" as const, player: viewer });
     }
     return actions;
@@ -236,6 +246,50 @@ export function legalActions(state: GameState, viewer: PlayerId): Action[] {
 
 export const isLegalAction = (state: GameState, action: Action, viewer: PlayerId): boolean =>
   legalActions(state, viewer).some((legal) => actionsEqual(legal, action));
+
+// --- Main-action ruling (Ian, 2026-11-14) ------------------------------------
+// A player who can reach a main action this turn, directly or through free actions,
+// must take one. Before the main action, a free action is legal only if a main action
+// is still reachable afterwards (the "undo it" case never arises). A player who can't
+// reach one at all is stuck: they draw a card and move on, with no free actions.
+
+/** Fixed RNG for probes; they run on a copy with every hidden pile emptied. */
+const PROBE_RNG = createSeededRng(0);
+
+/** Can `player` still reach a main action this action step (directly or via free actions)? */
+export function mainActionReachable(state: GameState, player: PlayerId): boolean {
+  if (state.turn.mainActionDone) return true;
+  if (mainActions(state, player).length > 0) return true;
+  return freeActions(state, player).some((action) => freeActionKeepsMain(state, action));
+}
+
+/**
+ * Would a main action still be reachable after `action`? Kybernetik Inc. ends the
+ * action step in place of the main action, so it always qualifies. The probe hides
+ * the deck, monument deck, and event deck: legality never depends on unseen cards.
+ */
+function freeActionKeepsMain(state: GameState, action: FreeActionAction): boolean {
+  const probe = cloneState(state);
+  probe.deck = [];
+  probe.monumentDeck = [];
+  if (probe.expansion) probe.expansion.eventDeck = [];
+  try {
+    applyFreeAction(probe, action, PROBE_RNG, []);
+  } catch (error) {
+    if (error instanceof IllegalActionError) return true; // apply reports the real reason
+    throw error;
+  }
+  if (probe.phase !== Phase.Action || probe.turn.mainActionDone) return true;
+  probe.pending = [];
+  return mainActionReachable(probe, action.player);
+}
+
+/** Free actions `player` may take now: after the main action, all; before it, those that keep one reachable. */
+export function playableFreeActions(state: GameState, player: PlayerId): FreeActionAction[] {
+  const frees = freeActions(state, player);
+  if (state.phase !== Phase.Action || state.turn.mainActionDone) return frees;
+  return frees.filter((action) => freeActionKeepsMain(state, action));
+}
 
 export function mainActions(state: GameState, viewer: PlayerId): Action[] {
   const actions: Action[] = [];
@@ -291,7 +345,7 @@ function politicsActions(state: GameState, viewer: PlayerId): Action[] {
   const revealIds = cards.map((card) => card.instanceId);
   const revealCardIds = cards.map((card) => card.cardId);
   if (cards.length > 0 && revealPasses(state, revealCardIds)) {
-    for (const target of policyTargets(state)) {
+    for (const target of policyTargets(state, revealCardIds)) {
       for (const discardId of revealIds) {
         actions.push({
           type: "proposePolicy",

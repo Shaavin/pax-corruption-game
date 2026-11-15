@@ -21,6 +21,11 @@ type PolicyChooserProps = {
   frozen: Record<DistrictId, boolean>;
   /** Null to look only (from the board, or before the reveal passes). */
   onChoose: ((choice: PolicyChoice) => void) | null;
+  /**
+   * Districts this proposal may change: those of revealed cards that convince a Senator.
+   * Omit to show every district (looking only).
+   */
+  open?: ReadonlySet<DistrictId>;
   /** Scrolls to and outlines this district (opened from its plate). */
   focus?: DistrictId | null;
   onClose: () => void;
@@ -33,7 +38,7 @@ function allowedChanges(district: DistrictId, current: PolicyIdValue | null): (P
 }
 
 /** Every district's policy beside the ones it could change to. Cards zoom on hover or long-press. */
-export function PolicyChooser({ districtOrder, policies, frozen, onChoose, focus = null, onClose }: PolicyChooserProps) {
+export function PolicyChooser({ districtOrder, policies, frozen, open, onChoose, focus = null, onClose }: PolicyChooserProps) {
   const focusRef = useRef<HTMLLIElement>(null);
 
   useEffect(() => {
@@ -65,7 +70,8 @@ export function PolicyChooser({ districtOrder, policies, frozen, onChoose, focus
               {onChoose ? "Choose a policy to change" : "District policies"}
             </h2>
             <p className="mt-0.5 text-xs text-stone-400">
-              A proposal moves one policy from Neutral to a side, or from a side back to Neutral.
+              A proposal moves one policy from Neutral to a side, or from a side back to Neutral, in the district of
+              a revealed card that convinces a Senator.
             </p>
           </div>
           <button
@@ -82,7 +88,8 @@ export function PolicyChooser({ districtOrder, policies, frozen, onChoose, focus
           {districtOrder.map((district) => {
             const current = policies[district];
             const locked = frozen[district];
-            const allowed = new Set(locked ? [] : allowedChanges(district, current));
+            const closed = !locked && open !== undefined && !open.has(district);
+            const allowed = new Set(locked || closed ? [] : allowedChanges(district, current));
             const options: (PolicyIdValue | null)[] = [
               ...POLICIES.filter((policy) => policy.district === district).map((policy) => policy.id),
               null,
@@ -101,6 +108,8 @@ export function PolicyChooser({ districtOrder, policies, frozen, onChoose, focus
                   {DISTRICT_NAME[district]}
                   {locked ? (
                     <span className="ml-auto text-[0.65rem] font-normal text-stone-400">Protected by District Governor</span>
+                  ) : closed ? (
+                    <span className="ml-auto text-[0.65rem] font-normal text-stone-400">No convincing card revealed</span>
                   ) : null}
                 </h3>
                 <div className="mt-2 flex items-start justify-center gap-2">
@@ -132,7 +141,7 @@ export function PolicyChooser({ districtOrder, policies, frozen, onChoose, focus
                           </button>
                         ) : (
                           <span className="py-0.5 text-[0.6rem] tracking-wide text-stone-500 uppercase">
-                            {canChoose ? "Can change to" : locked ? "Locked" : "Neutral first"}
+                            {canChoose ? "Can change to" : locked || closed ? "Locked" : "Neutral first"}
                           </span>
                         )}
                       </div>

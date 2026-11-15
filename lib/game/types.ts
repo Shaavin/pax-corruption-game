@@ -266,7 +266,10 @@ export type ConstructAction = {
   monumentInstanceId: string;
 };
 
-/** Legal during the action step only when no main action is available. */
+/**
+ * Ends the action step. Before the main action it is the stuck-turn draw: legal only when
+ * no main action is reachable, even through free actions; draws a card past the hand limit.
+ */
 export type EndActionAction = {
   type: "endAction";
   player: PlayerId;

@@ -80,13 +80,28 @@ export function policyOptions(state: GameState, district: DistrictId): (PolicyId
 }
 
 /**
- * Every (district, policy) change a successful proposal could make. Any district's policy may
- * change, whatever the revealed cards' districts (ruled 2026-11-13, replacing the 2026-11-12
- * "matching district" ruling).
+ * Districts whose policy a proposal with these revealed cards may change: the district of a
+ * revealed card that itself convinces at least one Senator (Ian, 2026-11-14; replaces the
+ * 2026-11-13 "any district" ruling). Cards that convince no one don't open their district.
  */
-export function policyTargets(state: GameState): { district: DistrictId; policyId: PolicyIdValue | null }[] {
+export function proposalDistricts(state: GameState, revealedCardIds: readonly string[]): Set<DistrictId> {
+  const districts = new Set<DistrictId>();
+  for (const id of revealedCardIds) {
+    const def = getCard(id);
+    if (!("district" in def) || districts.has(def.district)) continue;
+    if (state.senate.some((senator) => senatorConvinced(senator.cardId, [id]))) districts.add(def.district);
+  }
+  return districts;
+}
+
+/** Every (district, policy) change a successful proposal with these revealed cards could make. */
+export function policyTargets(
+  state: GameState,
+  revealedCardIds: readonly string[],
+): { district: DistrictId; policyId: PolicyIdValue | null }[] {
+  const open = proposalDistricts(state, revealedCardIds);
   return state.districtOrder
-    .filter((district) => !policyFrozen(state, district))
+    .filter((district) => open.has(district) && !policyFrozen(state, district))
     .flatMap((district) =>
       policyOptions(state, district).map((policyId) => ({ district, policyId })),
     );

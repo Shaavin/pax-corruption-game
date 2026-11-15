@@ -11,7 +11,7 @@ import { declarableVictories } from "./victory.ts";
 let checked = 0;
 let close = 0;
 let explained = 0;
-for (const [seed, expansion] of [[5, false], [9, false], [17, true], [23, true], [31, false]] as const) {
+for (const [seed, expansion] of [[5, false], [9, false], [17, true], [23, true], [31, false], [41, true]] as const) {
   const chooser = createSeededRng(seed * 13 + 1);
   let replay = newReplay(seed, { expansion, foreignInfluence: expansion });
   for (let i = 0; i < 400 && !replay.state.victory; i++) {
