@@ -3,7 +3,7 @@ import { getCard } from "../cards/catalog.ts";
 import { EVENTS, getEvent, WORLD_POWERS, type EventCard } from "../cards/expansion.ts";
 import { CardKind, DecreeId, District, MonumentId, PolicyId, type DistrictId } from "../cards/schema.ts";
 import { simulate } from "./diagnostics.ts";
-import { eventCost, marketRows, replenishMarket, resetMarketAfterElection, snapshotMarket } from "./draw.ts";
+import { eventCost, marketRows, openElectionIfNeeded, replenishMarket, resetMarketAfterElection, snapshotMarket } from "./draw.ts";
 import { apply, currentActor, legalActions } from "./engine.ts";
 import { handLimit } from "./abilities.ts";
 import { buyEventActions, returnUnrevealedCards } from "./events.ts";
@@ -335,6 +335,27 @@ const civilOf = (district: DistrictId, value?: number) => (id: string) => {
 }
 
 // --- Election rows ------------------------------------------------------------------------------
+{
+  // Two events when an election opens (Ian, 2026-11-15): events in spots 2 and 3. The later one
+  // (spot 2, further left) drops to spot 2 of row 2; nothing else moves; open spots fill in place.
+  const { state } = start(15);
+  const later = inst(event("Railway Bonds"));
+  const earlier = inst(event("Private Islands"));
+  const used = new Set([later.cardId, earlier.cardId]);
+  state.expansion!.eventDeck = state.expansion!.eventDeck.filter((c) => !used.has(c.cardId));
+  const [m0, m3, m4] = state.market.filter((c) => !isEventCard(c));
+  state.market = [m0!, later, earlier, m3!, m4!];
+  state.expansion!.rowBreak = null;
+  state.election.active = true;
+  state.election.needsOpening = true;
+  openElectionIfNeeded(state, []);
+  const [row1, row2] = marketRows(state);
+  assert(row1!.length === 5 && row2!.length === 5, "Two full rows of 5");
+  assert(row1![0] === m0 && row1![2] === earlier && row1![3] === m3 && row1![4] === m4, "Row 1: nothing moved, the earlier event stays in spot 3");
+  assert(!isEventCard(row1![1]!), "Row 1: the gap in spot 2 filled from the main deck");
+  assert(row2![1] === later, "Row 2: the later event dropped into spot 2");
+  assert(row2!.filter(isEventCard).length === 1, "Row 2: every other spot is a main card");
+}
 {
   let replay = start(12);
   let opened = false;
