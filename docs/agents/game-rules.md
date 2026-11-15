@@ -138,7 +138,7 @@ Discard the **rightmost** Senate card (to **your** support pile), shift the othe
 
 Each Senator has votes: civil **1**, conspiracy **1**, alliance **2**. To pass a policy you must convince **more than half** of the Senate's total votes.
 
-Reveal any number of cards from your hand. One revealed card may convince several Senators.
+Reveal cards from your hand. One revealed card may convince several Senators. Every revealed card must convince at least one Senator, and no Senator may be convinced by two revealed cards: to convince two civil Senators of one district, reveal a single higher card, not a higher and a lower one (Ian, 2026-11-15). If South events alone already convince a majority, you may propose without revealing or discarding anything.
 
 - A **civil** Senator is convinced by a revealed civil card of the **same district** with a **higher value**.
 - An **alliance** Senator is convinced by another revealed alliance of the **same district**.
@@ -146,7 +146,7 @@ Reveal any number of cards from your hand. One revealed card may convince severa
 
 Districts must match: a Horsard civil 6 convinces lower Horsard civil Senators only, never Shavvinne, Smarbbit, or Dragonara ones.
 
-If you reach the threshold: discard **one** of the revealed cards, then change the policy of **one district**: the district of a revealed card that **itself convinces at least one Senator** (ruled 2026-11-14; replaces the 2026-11-13 "any district" ruling). A revealed card that convinces no one doesn't open its district. Allowed changes: neutral → either printed side, or a printed side → neutral. You may **not** go directly from one side to the other.
+If you reach the threshold: discard **one** of the revealed cards, then change the policy of **one district** where you **convinced a Senator** (by a revealed card or a South event; Joe, 2026-11-15, refining the 2026-11-14 ruling that replaced "any district"). Allowed changes: neutral → either printed side, or a printed side → neutral. You may **not** go directly from one side to the other.
 
 Rulebook example: Senate is People's Press (2), Local Politicians 5 (1), Civil Advocates 4 (1), Financial Bankers (2), Broken Chains (1) = 7 votes; 4 needed. Revealing Capitol Inc. (Smarbbit alliance) convinces People's Press; revealing TuWang Gang 8 (Shavvinne) convinces both Shavvinne civils. 2 + 1 + 1 = 4.
 

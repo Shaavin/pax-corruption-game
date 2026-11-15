@@ -45,6 +45,7 @@ import {
   policyFrozen,
   policyTargets,
   proposalDistricts,
+  revealProblem,
   printedDistrict,
   recruitBlockReason,
   constructBlockReason,
@@ -368,10 +369,12 @@ export function HotseatSession(props: HotseatSessionProps) {
     .map((id) => revealPool.find((card) => card.instanceId === id)?.cardId)
     .filter((id): id is string => Boolean(id));
   const proposing = spendKind === "propose";
-  const revealPassing = proposing && revealedCardIds.length > 0 && revealPasses(state, revealedCardIds);
+  const revealIssue = proposing && revealedCardIds.length > 0 ? revealProblem(state, revealedCardIds) : null;
+  // Nothing revealed can pass too, when South events alone convince a majority.
+  const revealPassing = proposing && !revealIssue && revealPasses(state, revealedCardIds);
   const convinced = proposing ? new Set(convincedSenators(state, revealedCardIds)) : undefined;
   const revealVotes = proposing ? convincedVotes(state, revealedCardIds) : null;
-  const wholeHandPasses = revealPool.length > 0 && revealPasses(state, revealPool.map((card) => card.cardId));
+  const wholeHandPasses = revealPasses(state, revealPool.map((card) => card.cardId));
 
   const foreignSource = spendKind === "foreign" ? freeSources.find((source) => source.source === via) : undefined;
 
@@ -803,6 +806,7 @@ export function HotseatSession(props: HotseatSessionProps) {
             canEndAction,
             seatArmed,
             revealPassing,
+            revealIssue,
             proposeTarget,
             declarable: declarable.length,
           }),
@@ -858,6 +862,14 @@ export function HotseatSession(props: HotseatSessionProps) {
             revealPassing
               ? (target) => {
                   setChoosingPolicy(false);
+                  if (selectedHandIds.length === 0) {
+                    // Nothing revealed, so nothing to discard: propose right away.
+                    const proposal = { revealIds: [], discardId: null, ...target };
+                    if (via) dispatch({ type: "freeAction", player: viewer, source: via, ability: "capitolInc", ...proposal });
+                    else dispatch({ type: "proposePolicy", player: viewer, ...proposal });
+                    resetSelection();
+                    return;
+                  }
                   setProposeTarget(target);
                 }
               : null
@@ -1053,6 +1065,7 @@ function turnPrompt(
     canEndAction: boolean;
     seatArmed: boolean;
     revealPassing: boolean;
+    revealIssue: string | null;
     proposeTarget: PolicyTarget | null;
     declarable: number;
   },
@@ -1069,6 +1082,7 @@ function turnPrompt(
     if (opts.proposeTarget) {
       return `Propose · click one revealed card to discard (sets ${DISTRICT_NAME[opts.proposeTarget.district]} to ${policyName(opts.proposeTarget.policyId)})`;
     }
+    if (opts.revealIssue) return `Propose · ${opts.revealIssue}. Each revealed card must convince its own Senators`;
     if (opts.revealPassing) return "Propose · majority convinced. Choose the policy change";
     return opts.selectedCount === 0
       ? "Propose · select cards to reveal: a higher civil of a Senator's district, or an alliance of its district"

@@ -26,6 +26,7 @@ import {
   policyOptions,
   proposalDistricts,
   revealPasses,
+  revealProblem,
   senateTotalVotes,
 } from "./senate.ts";
 import type { CardInstance, GameEvent, GameState, PlayerId } from "./types.ts";
@@ -202,18 +203,21 @@ export function seatSenator(state: GameState, player: PlayerId, instanceId: stri
   influenceSenate(state, player, card, events);
 }
 
-/** Propose Policy: reveal cards that convince a majority, discard one, change a convincing card's district's policy. */
+/** Propose Policy: reveal cards that convince a majority, discard one, change a policy where a Senator was convinced. */
 export function proposePolicy(
   state: GameState,
   player: PlayerId,
   revealIds: readonly string[],
-  discardId: string,
+  discardId: string | null,
   district: DistrictId,
   policyId: PolicyIdValue | null,
   events: GameEvent[],
 ): void {
-  if (revealIds.length === 0 || new Set(revealIds).size !== revealIds.length) {
-    throw new IllegalActionError("Reveal one or more distinct cards");
+  if (new Set(revealIds).size !== revealIds.length) throw new IllegalActionError("Reveal distinct cards");
+  // Edge case (Ian, 2026-11-15): when South events alone convince a majority, the player may
+  // propose without revealing or discarding anything.
+  if (revealIds.length === 0 && !revealPasses(state, [])) {
+    throw new IllegalActionError("Reveal one or more cards");
   }
   const available = handLikeCards(state, player, { market: false });
   const revealed = revealIds.map((id) => {
@@ -221,16 +225,20 @@ export function proposePolicy(
     if (!card) throw new IllegalActionError("Revealed cards must come from your hand");
     return card;
   });
-  if (!revealIds.includes(discardId)) {
-    throw new IllegalActionError("The discarded card must be one of the revealed cards");
+  if (revealIds.length === 0 ? discardId !== null : discardId === null || !revealIds.includes(discardId)) {
+    throw new IllegalActionError(
+      revealIds.length === 0 ? "With nothing revealed there is nothing to discard" : "The discarded card must be one of the revealed cards",
+    );
   }
   const revealedCardIds = revealed.map((card) => card.cardId);
+  const problem = revealProblem(state, revealedCardIds);
+  if (problem) throw new IllegalActionError(problem);
   if (!revealPasses(state, revealedCardIds)) {
     throw new IllegalActionError("Those cards do not convince more than half of the Senate");
   }
   if (!state.districtOrder.includes(district)) throw new IllegalActionError("Unknown district");
   if (!proposalDistricts(state, revealedCardIds).has(district)) {
-    throw new IllegalActionError("Change a policy in the district of a revealed card that convinces a Senator");
+    throw new IllegalActionError("Change a policy in a district where you convinced a Senator");
   }
   if (policyFrozen(state, district)) {
     throw new IllegalActionError("A District Governor protects that district's policy from proposals");
@@ -245,8 +253,10 @@ export function proposePolicy(
     votes: convincedVotes(state, revealedCardIds),
     totalVotes: senateTotalVotes(state),
   });
-  const discarded = takeHandLike(state, player, discardId, { market: false });
-  discardOwn(state, player, [discarded], events);
+  if (discardId !== null) {
+    const discarded = takeHandLike(state, player, discardId, { market: false });
+    discardOwn(state, player, [discarded], events);
+  }
   state.policy[district] = policyId;
   events.push({ type: "policyChanged", district, policyId, player });
 }

@@ -22,7 +22,7 @@ type PolicyChooserProps = {
   /** Null to look only (from the board, or before the reveal passes). */
   onChoose: ((choice: PolicyChoice) => void) | null;
   /**
-   * Districts this proposal may change: those of revealed cards that convince a Senator.
+   * Districts this proposal may change: those of the Senators it convinces.
    * Omit to show every district (looking only).
    */
   open?: ReadonlySet<DistrictId>;
@@ -70,8 +70,8 @@ export function PolicyChooser({ districtOrder, policies, frozen, open, onChoose,
               {onChoose ? "Choose a policy to change" : "District policies"}
             </h2>
             <p className="mt-0.5 text-xs text-stone-400">
-              A proposal moves one policy from Neutral to a side, or from a side back to Neutral, in the district of
-              a revealed card that convinces a Senator.
+              A proposal moves one policy from Neutral to a side, or from a side back to Neutral, in a district
+              where you convinced a Senator.
             </p>
           </div>
           <button
@@ -109,7 +109,7 @@ export function PolicyChooser({ districtOrder, policies, frozen, open, onChoose,
                   {locked ? (
                     <span className="ml-auto text-[0.65rem] font-normal text-stone-400">Protected by District Governor</span>
                   ) : closed ? (
-                    <span className="ml-auto text-[0.65rem] font-normal text-stone-400">No convincing card revealed</span>
+                    <span className="ml-auto text-[0.65rem] font-normal text-stone-400">No Senator convinced here</span>
                   ) : null}
                 </h3>
                 <div className="mt-2 flex items-start justify-center gap-2">

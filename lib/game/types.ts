@@ -287,7 +287,8 @@ export type ProposePolicyAction = {
   type: "proposePolicy";
   player: PlayerId;
   revealIds: string[];
-  discardId: string;
+  /** One of the revealed cards; `null` only when nothing is revealed (South convinces enough alone). */
+  discardId: string | null;
   district: DistrictId;
   /** `null` is neutral. */
   policyId: PolicyIdValue | null;
@@ -331,7 +332,7 @@ export type FreeActionAction = {
   | {
       ability: "capitolInc";
       revealIds: string[];
-      discardId: string;
+      discardId: string | null;
       district: DistrictId;
       policyId: PolicyIdValue | null;
     }

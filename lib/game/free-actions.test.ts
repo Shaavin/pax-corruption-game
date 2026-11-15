@@ -179,7 +179,8 @@ function freeOf(state: GameState, player: PlayerId, ability: string) {
     player: me,
     source: capitol.instanceId,
     ability: "capitolInc",
-    revealIds: reveal.map((c) => c.instanceId),
+    // One 9 convinces all five Smarbbit Senators; revealing both 9s would double up (2026-11-15).
+    revealIds: [reveal[0]!.instanceId],
     discardId: reveal[0]!.instanceId,
     district: District.Smarbbit,
     policyId: PolicyId.SmarbbitA,

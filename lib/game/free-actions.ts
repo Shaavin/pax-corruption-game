@@ -13,7 +13,7 @@ import { proceed } from "./income.ts";
 import { canRecruitIn, combinations, handCardsInDistrict, handLikeCards, printedDistrict, takeHandLike } from "./main.ts";
 import { construct, laneEntryTriggers, proposePolicy, recruit, seatSenator } from "./plays.ts";
 import type { Rng } from "./rng.ts";
-import { policyTargets, revealPasses } from "./senate.ts";
+import { bestReveal, policyTargets, revealPasses } from "./senate.ts";
 import {
   Phase,
   type FreeActionAction,
@@ -148,16 +148,18 @@ export function freeActions(state: GameState, player: PlayerId): FreeActionActio
         }
         break;
       case "capitolInc": {
-        const cards = handLikeCards(state, player, { market: false });
+        // The strongest allowed reveal, or nothing at all when South alone convinces a majority.
+        const best = bestReveal(state, handLikeCards(state, player, { market: false }));
+        const cards = revealPasses(state, []) ? [] : best;
         const cardIds = cards.map((card) => card.cardId);
-        if (cards.length > 0 && revealPasses(state, cardIds)) {
+        if (revealPasses(state, cardIds)) {
           for (const target of policyTargets(state, cardIds)) {
             actions.push({
               ...base,
               source,
               ability: "capitolInc",
               revealIds: cards.map((card) => card.instanceId),
-              discardId: cards[0]!.instanceId,
+              discardId: cards[0]?.instanceId ?? null,
               district: target.district,
               policyId: target.policyId,
             });

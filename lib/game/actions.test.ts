@@ -24,6 +24,7 @@ import {
   type PlayerId,
 } from "./index.ts";
 import { playerDistrictInfluence } from "./influence.ts";
+import { revealProblem } from "./senate.ts";
 import {
   assert,
   expectIllegal,
@@ -239,6 +240,22 @@ function toPolitics(state: GameState): GameState {
     () => propose(start, [robot.instanceId, enterprise.instanceId], fire.instanceId, PolicyId.DragonaraA),
     "Discard must be a revealed card",
   );
+
+  {
+    // Reveals (Ian, 2026-11-15): no card that convinces no one, and no two cards on the same Senator.
+    const gardeners = pull(start, "Gardeners", d); // civil 5: beats Dune Clans 4 only
+    const both = structuredClone(start);
+    both.players[actor].hand.push(gardeners);
+    expectIllegal(
+      () => apply(both, { type: "proposePolicy", player: actor, revealIds: [robot.instanceId, gardeners.instanceId, enterprise.instanceId], discardId: enterprise.instanceId, district: d, policyId: PolicyId.DragonaraA }, rng),
+      "Robot Factories and Gardeners both convince Dune Clans: not allowed",
+    );
+    expectIllegal(
+      () => propose(start, [robot.instanceId, enterprise.instanceId, fire.instanceId], enterprise.instanceId, PolicyId.DragonaraA),
+      "Fire Breathers convinces no Senator: it can't be revealed",
+    );
+    assert(revealProblem(start, [robot.cardId, enterprise.cardId]) === null, "One higher civil plus the alliance is fine");
+  }
 
   {
     // The changed policy must be in the district of a revealed card that convinces a Senator

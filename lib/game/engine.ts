@@ -23,7 +23,7 @@ import {
 } from "./main.ts";
 import { construct, playBlockReason, playConspiracy, playToLane, proposePolicy, recruit, seatSenator } from "./plays.ts";
 import { createSeededRng, type Rng } from "./rng.ts";
-import { policyTargets, revealPasses } from "./senate.ts";
+import { bestReveal, policyTargets, revealPasses } from "./senate.ts";
 import { dealStartingOffer, finishSetup, revealParties, takeStartingHand } from "./setup.ts";
 import {
   Phase,
@@ -342,9 +342,11 @@ function politicsActions(state: GameState, viewer: PlayerId): Action[] {
   for (const card of cards) {
     actions.push({ type: "influenceSenate", player: viewer, instanceId: card.instanceId });
   }
-  const revealIds = cards.map((card) => card.instanceId);
-  const revealCardIds = cards.map((card) => card.cardId);
-  if (cards.length > 0 && revealPasses(state, revealCardIds)) {
+  // One representative proposal: the strongest allowed reveal (no duds, no double-ups).
+  const reveal = bestReveal(state, cards);
+  const revealIds = reveal.map((card) => card.instanceId);
+  const revealCardIds = reveal.map((card) => card.cardId);
+  if (reveal.length > 0 && revealPasses(state, revealCardIds)) {
     for (const target of policyTargets(state, revealCardIds)) {
       for (const discardId of revealIds) {
         actions.push({
@@ -356,6 +358,12 @@ function politicsActions(state: GameState, viewer: PlayerId): Action[] {
           policyId: target.policyId,
         });
       }
+    }
+  }
+  // South alone convinces a majority: propose with nothing revealed or discarded.
+  if (revealPasses(state, [])) {
+    for (const target of policyTargets(state, [])) {
+      actions.push({ type: "proposePolicy", player: viewer, revealIds: [], discardId: null, ...target });
     }
   }
   for (const victory of declarableVictories(state, viewer)) {

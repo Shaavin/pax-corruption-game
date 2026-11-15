@@ -11,7 +11,7 @@ import { freeActions } from "./free-actions.ts";
 import { playerDistrictInfluence } from "./influence.ts";
 import { canRecruitIn } from "./main.ts";
 import { newReplay, replayRecord, stepReplay, toRecord, type Replay } from "./record.ts";
-import { convincedSenators } from "./senate.ts";
+import { convincedSenators, proposalDistricts } from "./senate.ts";
 import { activeDecrees, inactiveDecrees } from "./decrees.ts";
 import { createSeededRng } from "./rng.ts";
 import { Phase, VictoryKind, type CardInstance, type GameEvent, type GameState, type PlayerId } from "./types.ts";
@@ -149,6 +149,10 @@ const civilOf = (district: DistrictId, value?: number) => (id: string) => {
   const convinced = convincedSenators(state, []);
   assert(convinced.includes(0), "South: a Dragonara civil Senator is always convinced");
   assert(!convinced.includes(1), "South: a Dragonara conspiracy Senator still isn't");
+  // Proposal districts follow the convinced Senators (Joe, 2026-11-15): South opens Dragonara
+  // even when no Dragonara card is revealed.
+  const unrelated = card(state, civilOf(District.Horsard));
+  assert(proposalDistricts(state, [unrelated.cardId]).has(District.Dragonara), "South-convinced Senator opens its district");
 
   // North: decree flips while in effect, activation flips the printed side.
   state.expansion!.commonArea = [];
@@ -299,6 +303,28 @@ const civilOf = (district: DistrictId, value?: number) => (id: string) => {
     assert(out.activePlayer !== me, "Only events, none affordable: no Market take, the turn moves on");
     assert(out.players[me].hand.length === handBefore + 1, "…but the player still draws from the deck");
   }
+}
+
+// South alone convinces a majority (Ian, 2026-11-15): propose with nothing revealed or discarded.
+{
+  const { state } = start(20);
+  const me = state.activePlayer;
+  const byName = (name: string) => card(state, (id) => getCard(id).name === name);
+  state.senate = ["Tinkers", "Dune Clans", "Gardeners", "Runes Tavern", "Fire Breathers"].map(byName);
+  state.policy[District.Dragonara] = null;
+  state.phase = Phase.Politics;
+  const handBefore = state.players[me].hand.length;
+  const noReveal = { type: "proposePolicy" as const, player: me, revealIds: [], discardId: null, district: District.Dragonara, policyId: PolicyId.DragonaraA };
+  expectIllegal(() => apply(state, noReveal, rng), "Without South, a proposal needs revealed cards");
+  inEffect(state, "Thunder Bail-out"); // South: Dragonara Senators always convinced
+  assert(legalActions(state, me).some((a) => a.type === "proposePolicy" && a.revealIds.length === 0 && a.discardId === null), "South majority: a no-reveal proposal is offered");
+  const out = apply(state, noReveal, rng).state;
+  assert(out.policy[District.Dragonara] === PolicyId.DragonaraA, "…and changes the policy");
+  assert(out.players[me].hand.length === handBefore, "…with no card discarded");
+  expectIllegal(
+    () => apply(state, { ...noReveal, discardId: state.players[me].hand[0]!.instanceId }, rng),
+    "Nothing revealed, so nothing to discard",
+  );
 }
 
 // Buying needs room in hand.

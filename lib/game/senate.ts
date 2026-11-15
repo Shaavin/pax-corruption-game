@@ -49,6 +49,50 @@ export function senatorConvinced(senatorCardId: string, revealedCardIds: readonl
   return false;
 }
 
+/** Senate indexes one revealed card convinces by itself (South's always-convinced aside). */
+export function senatorsConvincedBy(state: GameState, cardId: string): number[] {
+  return state.senate.flatMap((senator, index) => (senatorConvinced(senator.cardId, [cardId]) ? [index] : []));
+}
+
+/**
+ * Why a set of revealed cards isn't allowed, or null (Ian, 2026-11-15): every revealed card
+ * must convince at least one Senator, and no Senator may be convinced by two revealed cards
+ * (convince two civil Senators of a district with one higher card, not a higher and a lower).
+ */
+export function revealProblem(state: GameState, revealedCardIds: readonly string[]): string | null {
+  const claimedBy = new Map<number, string>();
+  for (const id of revealedCardIds) {
+    const mine = senatorsConvincedBy(state, id);
+    if (mine.length === 0) return `${getCard(id).name} convinces no Senator`;
+    for (const index of mine) {
+      const other = claimedBy.get(index);
+      if (other) return `${getCard(other).name} and ${getCard(id).name} convince the same Senator`;
+      claimedBy.set(index, id);
+    }
+  }
+  return null;
+}
+
+/**
+ * The strongest allowed reveal from `cards`: per district, the highest civil that convinces
+ * someone (it covers every lower one) and one alliance that does. Convinces the most votes.
+ */
+export function bestReveal<T extends { cardId: string }>(state: GameState, cards: readonly T[]): T[] {
+  const best = new Map<string, T>();
+  for (const card of cards) {
+    const def = getCard(card.cardId);
+    if (def.kind !== CardKind.Civil && def.kind !== CardKind.Alliance) continue;
+    if (senatorsConvincedBy(state, card.cardId).length === 0) continue;
+    const key = `${def.district}:${def.kind}`;
+    const current = best.get(key);
+    const currentDef = current ? getCard(current.cardId) : null;
+    if (!current || (def.kind === CardKind.Civil && currentDef?.kind === CardKind.Civil && def.influence > currentDef.influence)) {
+      best.set(key, card);
+    }
+  }
+  return [...best.values()];
+}
+
 /** Senate indexes (left → right) the revealed cards would convince. */
 export function convincedSenators(state: GameState, revealedCardIds: readonly string[]): number[] {
   return state.senate.flatMap((card, index) =>
@@ -85,16 +129,16 @@ export function policyOptions(state: GameState, district: DistrictId): (PolicyId
 }
 
 /**
- * Districts whose policy a proposal with these revealed cards may change: the district of a
- * revealed card that itself convinces at least one Senator (Ian, 2026-11-14; replaces the
- * 2026-11-13 "any district" ruling). Cards that convince no one don't open their district.
+ * Districts whose policy a proposal may change: the districts of the Senators it convinces,
+ * whether a revealed card convinced them or a South event did (Joe, 2026-11-15; refines the
+ * 2026-11-14 "district of a convincing revealed card" ruling). Conspiracy Senators are never
+ * convinced, so they never open a district.
  */
 export function proposalDistricts(state: GameState, revealedCardIds: readonly string[]): Set<DistrictId> {
   const districts = new Set<DistrictId>();
-  for (const id of revealedCardIds) {
-    const def = getCard(id);
-    if (!("district" in def) || districts.has(def.district)) continue;
-    if (state.senate.some((senator) => senatorConvinced(senator.cardId, [id]))) districts.add(def.district);
+  for (const index of convincedSenators(state, revealedCardIds)) {
+    const def = getCard(state.senate[index]!.cardId);
+    if ("district" in def) districts.add(def.district);
   }
   return districts;
 }
