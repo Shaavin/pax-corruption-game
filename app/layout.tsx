@@ -21,6 +21,8 @@ export const metadata: Metadata = {
   },
   description: SITE_DESCRIPTION,
   applicationName: SITE_NAME,
+  // Joe Zhao designed the game; Ian Penrod designed and built this site.
+  authors: [{ name: "Joe Zhao" }, { name: "Ian Penrod" }],
   keywords: [
     "Pax Corruption",
     "political card game",

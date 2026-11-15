@@ -26,6 +26,8 @@ const JSON_LD = {
   numberOfPlayers: { "@type": "QuantitativeValue", minValue: 2, maxValue: 2 },
   offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
   creator: { "@type": "Person", name: "Joe Zhao" },
+  // The digital table itself: site design and development.
+  contributor: { "@type": "Person", name: "Ian Penrod" },
   sameAs: [MARKETING_URL],
 };
 
@@ -191,7 +193,7 @@ export default function Home() {
           </div>
         </details>
         <p className="mt-6 text-xs text-stone-600">
-          Pax Corruption is designed by Joe Zhao. This is its digital table;{" "}
+          Pax Corruption is designed by Joe Zhao. This is its digital table, built by Ian Penrod;{" "}
           <a href={MARKETING_SITE} className="underline-offset-4 hover:text-stone-400 hover:underline">
             the physical game lives here
           </a>
