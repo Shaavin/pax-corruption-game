@@ -295,7 +295,7 @@ function TableView({
       ) : null}
       {tourOpen ? <TableTour steps={tourSteps} step={step} onStep={setTourStep} onClose={closeTour} /> : null}
       {primerOpen ? (
-        <Primer page={primerPage} onPage={setPrimerPage} onClose={closePrimer} firstRun={primerFirstRun} />
+        <Primer page={primerPage} onPage={setPrimerPage} onClose={closePrimer} firstRun={primerFirstRun} expansion={expansion} />
       ) : null}
     </>
   );

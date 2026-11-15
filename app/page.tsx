@@ -109,7 +109,7 @@ export default function Home() {
             <span className="text-stamp-blue">Corruption</span>
           </h1>
           <p className="mt-6 max-w-md text-base leading-relaxed text-stone-300 sm:text-lg">
-            Two rival parties fight over a city of four districts. Play civil cards, forge alliances, sway the Senate,
+            Two rival parties fight over a country of four districts. Play civil cards, forge alliances, sway the Senate,
             and steer the elections toward one of five victories. Free to play in your browser.
           </p>
 

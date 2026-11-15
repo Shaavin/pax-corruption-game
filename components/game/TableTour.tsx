@@ -24,6 +24,8 @@ type StepDef = {
   desktop: StepText;
   /** Phone wording, where touch or the layout differs. */
   phone?: Partial<StepText>;
+  /** Legacy & Diplomacy wording, where victories or the Market work differently. */
+  expansion?: Partial<StepText>;
   expansionOnly?: boolean;
 };
 
@@ -33,10 +35,10 @@ const STEP_DEFS: StepDef[] = [
     target: null,
     desktop: {
       title: "Welcome to the table",
-      body: "Two parties compete for a city of four districts. This quick tour shows where everything is. Use the arrow keys to step through and Esc to skip. Reopen it any time from Table guide at the top.",
+      body: "Two parties compete for a country of four districts. This quick tour shows where everything is. Use the arrow keys to step through and Esc to skip. Reopen it any time from Table guide at the top.",
     },
     phone: {
-      body: "Two parties compete for a city of four districts. This quick tour shows where everything is. Reopen it any time from the ⋯ menu.",
+      body: "Two parties compete for a country of four districts. This quick tour shows where everything is. Reopen it any time from the ⋯ menu.",
     },
   },
   {
@@ -71,6 +73,9 @@ const STEP_DEFS: StepDef[] = [
       title: "Reading a district",
       body: "Your cards go below the plate and your opponent's above it. Influence (Inf) is your civil cards' numbers plus 1 per card in your support pile; popularity (Pop) counts the support pile. The border shows who leads: teal for you, red for them. Lead Pop by 9 for Popularity Victory.",
     },
+    expansion: {
+      body: "Your cards go below the plate and your opponent's above it. Influence (Inf) is your civil cards' numbers plus 1 per card in your support pile; popularity (Pop) counts the support pile. The border shows who leads: teal for you, red for them. Lead Pop by 9 for Popularity Victory, once a legacy event activates it.",
+    },
   },
   {
     id: "numbers",
@@ -78,6 +83,9 @@ const STEP_DEFS: StepDef[] = [
     desktop: {
       title: "Your numbers",
       body: "Partisans: lead by 3 for Military Victory. Wins: elections won. Lords: alliance handshakes in play, and whoever has more wins the Council of Lords. Leading: how many of the 5 electorates you'd win if an election were scored now.",
+    },
+    expansion: {
+      body: "Partisans: lead by 3 for Military Victory, once a legacy event activates it. Wins: elections won. Lords: alliance handshakes in play, and whoever has more wins the Council of Lords. Leading: how many of the 5 electorates you'd win if an election were scored now.",
     },
   },
   {
@@ -95,6 +103,9 @@ const STEP_DEFS: StepDef[] = [
     desktop: {
       title: "General Elections",
       body: "Four General Elections are shuffled into the deck. When one turns up, the Market fills to 8 cards and stops refilling; the election is scored once it's empty. The winner activates decrees, and whoever wins the last election takes Civil Victory.",
+    },
+    expansion: {
+      body: "Four General Elections are shuffled into the deck. When one turns up, the Market splits into two rows (8 main cards plus events) and stops refilling with main cards; the election is scored once no main cards are left. The winner activates decrees, and whoever wins the last election takes Civil Victory.",
     },
   },
   {
@@ -123,6 +134,9 @@ const STEP_DEFS: StepDef[] = [
       title: "The Market",
       body: "At Income you take one Market card. The Market refills, then you draw a card if you're still under your hand limit.",
     },
+    expansion: {
+      body: "At Income you take one Market card or buy an event (◆ shows its cost: one card from your hand per main card to its right). The Market refills, then you draw a card if you're still under your hand limit.",
+    },
   },
   {
     id: "world",
@@ -131,7 +145,7 @@ const STEP_DEFS: StepDef[] = [
     expansionOnly: true,
     desktop: {
       title: "The World",
-      body: "Legacy & Diplomacy: events in play, your relations with the four World Powers, and which victories are active. At Income you may buy an event from the Market instead of taking a card.",
+      body: "Legacy & Diplomacy: events in play, your relations with the four World Powers, and which victories are active. Each event you buy gives +1 relation with its power; a higher relation with 3 of the 4 is Diplomatic Victory, and legacy events activate the inactive victories.",
     },
   },
   {
@@ -141,6 +155,9 @@ const STEP_DEFS: StepDef[] = [
     desktop: {
       title: "Monuments",
       body: "Construct a monument by discarding 5 cards of its district from your hand. Its ability is yours for the rest of the game. The deck count shows how many cards are left to draw.",
+    },
+    expansion: {
+      body: "Construct a monument by discarding 5 cards of its district from your hand. Its ability is yours for the rest of the game. Build 2 more than your opponent for Cultural Victory, once a legacy event activates it. The deck count shows how many cards are left to draw.",
     },
   },
   {
@@ -163,8 +180,8 @@ export function tableTourSteps({ compact, expansion }: { compact: boolean; expan
     id: def.id,
     target: def.target,
     view: def.view,
-    title: (compact && def.phone?.title) || def.desktop.title,
-    body: (compact && def.phone?.body) || def.desktop.body,
+    title: (compact && def.phone?.title) || (expansion && def.expansion?.title) || def.desktop.title,
+    body: (compact && def.phone?.body) || (expansion && def.expansion?.body) || def.desktop.body,
   }));
 }
 
