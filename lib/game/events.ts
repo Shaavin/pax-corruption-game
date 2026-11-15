@@ -240,7 +240,8 @@ function removePowerEvents(state: GameState, power: WorldPowerId, events: GameEv
 
 /**
  * East "Revealed <district> cards do not occupy hand limit": once no event lets a
- * player keep a district face-up, those cards go back to their hand (provisional).
+ * player keep a district face-up, those cards go back to their hand, even past the
+ * hand limit (confirmed with Joe, 2026-11-14). Income takes and draws wait until under it.
  */
 export function returnUnrevealedCards(state: GameState): void {
   if (!state.expansion) return;

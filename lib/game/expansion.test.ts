@@ -5,7 +5,8 @@ import { CardKind, DecreeId, District, MonumentId, PolicyId, type DistrictId } f
 import { simulate } from "./diagnostics.ts";
 import { eventCost, marketRows, snapshotMarket } from "./draw.ts";
 import { apply, currentActor, legalActions } from "./engine.ts";
-import { buyEventActions } from "./events.ts";
+import { handLimit } from "./abilities.ts";
+import { buyEventActions, returnUnrevealedCards } from "./events.ts";
 import { freeActions } from "./free-actions.ts";
 import { playerDistrictInfluence } from "./influence.ts";
 import { canRecruitIn } from "./main.ts";
@@ -250,6 +251,19 @@ const civilOf = (district: DistrictId, value?: number) => (id: string) => {
   assert(legalActions(out, me).some((a) => a.type === "playCivil" && a.instanceId === horsardCard.instanceId), "Revealed cards are usable as if in hand");
   // Not the opponent's: East is exclusive.
   assert(!legalActions(out, me === 0 ? 1 : 0).some((a) => a.type === "setAside" && a.zone === "eastReveal"), "East is exclusive to its buyer");
+
+  // Confirmed with Joe (2026-11-14): if the East event leaves play, revealed cards go straight
+  // back to the hand, even past the hand limit. No discard; income draws wait until under it.
+  const over = structuredClone(out);
+  while (over.players[me].hand.length < handLimit(over, me)) over.players[me].hand.push(over.deck.shift()!);
+  over.expansion!.commonArea = [];
+  returnUnrevealedCards(over);
+  assert(over.expansion!.revealed[me].length === 0, "East gone: revealed zone empties");
+  assert(over.players[me].hand.some((c) => c.instanceId === horsardCard.instanceId), "…back into hand");
+  assert(over.players[me].hand.length === handLimit(over, me) + 1, "…past the hand limit, with no discard");
+  over.phase = Phase.Income;
+  const marketCard = over.market.find((c) => !isEventCard(c))!;
+  expectIllegal(() => apply(over, { type: "takeMarket", player: me, instanceId: marketCard.instanceId }, rng), "Income take while over the limit");
 
   const take = structuredClone(state);
   take.expansion!.commonArea = [];

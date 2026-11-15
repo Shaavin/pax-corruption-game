@@ -6,7 +6,6 @@ Do not invent answers. If a task depends on one of these, stop and ask, then mov
 
 | Topic | Current answer (provisional, 2026-11-13) |
 | --- | --- |
-| East "Revealed <district> cards do not occupy hand limit" (expansion) | Implemented **like Planet Next**: during your own turn (action, politics, or income) the event's buyer may move cards of that district from hand to a face-up area. They are usable as if in hand and don't count toward the hand limit. If the event leaves play, those cards go back to the hand. Ian marked this as an **open option**: confirm with Joe before relying on it. |
 | Foreign Influence setup (expansion) | The 3 starting events are drawn from the 20 regular events left **after** removing 3 per power (legacy events are never among them). Engine interpretation; confirm with Joe. |
 | Market after an election (expansion) | "Replenish Market after, putting an Event card at the last slot": leftover events leave the game, the Market refills to 4 main cards, and a new event takes the 5th spot. Engine interpretation; confirm with Joe. |
 | Events entering mid-turn (expansion) | An event that enters the Market during a turn (election rows formed mid-turn, the income refill) is never removed by the "last 2 spots" check in that same turn; spots are read from the start-of-turn snapshot. Engine interpretation. |
@@ -77,6 +76,12 @@ Card text is in `lib/cards/expansion.ts`; the rulebook summary is in [game-rules
 | East "As a free action, take a <district> card from Market" | Like other free actions: the **buyer only**, once per turn per event, during the action step, and only while **under the hand limit**. Never an event card. The Market stays short until the next refill. |
 | Legacy "Activate a Victory Condition" | The **buyer** chooses any one inactive victory (Military, Popularity, Ideological, Cultural, Diplomatic) and flips it active. |
 | Events played as civil cards | **Fully civil cards** of the event's district, with the printed value: influence, electors, Civil Service, Diet of Saints, Currency Ballots, Urban Aristocrats swaps, conspiracies, and so on. The only difference: when discarded, they leave the game (see "Discarding events" above). |
+
+### 2026-11-14 (Joe, via Ian)
+
+| Topic | Decision |
+| --- | --- |
+| East "Revealed <district> cards do not occupy hand limit" (expansion) | Works **like Planet Next**: during your own turn (action, politics, or income) the event's buyer may move cards of that district from hand to a face-up area. They are usable as if in hand and don't count toward the hand limit. If the event leaves play (discarded, legacy, …), those cards go **straight back to the hand**, even if that puts the player **over the hand limit**. That is allowed: there is no discard down to the limit. The player simply can't take a Market card or draw at income until the hand is back under the limit. |
 
 ### Earlier rulings still valid under the current rules
 
