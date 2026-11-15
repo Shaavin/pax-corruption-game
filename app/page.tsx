@@ -78,7 +78,9 @@ export default function Home() {
               <span key={district.name} className="w-2.5" style={{ background: district.color }} />
             ))}
           </span>
-          Pax Corruption
+          <span>
+            <span className="text-ember">Pax</span> <span className="text-stamp-blue">Corruption</span>
+          </span>
         </span>
         <nav aria-label="Site" className="flex items-center gap-5 text-sm text-stone-400">
           <a href={MARKETING_SITE} className="hidden transition hover:text-stone-100 sm:inline">
@@ -96,15 +98,13 @@ export default function Home() {
       <main className="mx-auto grid max-w-6xl items-center gap-12 px-5 py-12 sm:px-8 lg:min-h-[calc(100dvh-9rem)] lg:grid-cols-[minmax(0,1fr)_27rem] lg:gap-x-16 lg:gap-y-8 lg:py-10">
         <div className="max-w-xl lg:self-end">
           <p className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-medium text-stone-300 backdrop-blur">
-            <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-[var(--brass)]" />
+            <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-ember" />
             A two-player political card game
           </p>
           <h1 className="mt-5 text-6xl leading-[0.92] font-semibold tracking-[-0.035em] sm:text-7xl lg:text-8xl">
-            Pax
+            <span className="text-ember">Pax</span>
             <br />
-            <span className="bg-gradient-to-r from-[#f1d9a6] via-[var(--brass)] to-[#a5824a] bg-clip-text text-transparent">
-              Corruption
-            </span>
+            <span className="text-stamp-blue">Corruption</span>
           </h1>
           <p className="mt-6 max-w-md text-base leading-relaxed text-stone-300 sm:text-lg">
             Two rival parties fight over a city of four districts. Play civil cards, forge alliances, sway the Senate,
@@ -149,7 +149,7 @@ export default function Home() {
             </a>
             <a
               href={GET_A_COPY}
-              className="rounded-xl bg-stone-100 px-4 py-2 text-sm font-semibold text-stone-950 transition hover:bg-white"
+              className="rounded-xl bg-pax-red px-4 py-2 text-sm font-semibold text-white shadow-[0_8px_20px_-8px_rgb(168_29_17/0.7)] transition hover:bg-pax-red-deep"
             >
               Get a copy <span aria-hidden>→</span>
             </a>

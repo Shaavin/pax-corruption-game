@@ -101,12 +101,12 @@ export function HomeLauncher({ onlineOnly = false }: { onlineOnly?: boolean } = 
             {GAME_MODES.map((mode, index) => (
               <label
                 key={mode.id}
-                className="group relative flex cursor-pointer flex-col rounded-2xl border border-white/[0.08] bg-white/[0.03] px-3.5 py-3 transition hover:border-white/20 hover:bg-white/[0.05] has-[:checked]:border-[var(--brass)]/70 has-[:checked]:bg-[var(--brass)]/[0.08] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-[var(--brass)]"
+                className="group relative flex cursor-pointer flex-col rounded-2xl border border-white/[0.08] bg-white/[0.03] px-3.5 py-3 transition hover:border-white/20 hover:bg-white/[0.05] has-[:checked]:border-stamp-blue/70 has-[:checked]:bg-stamp-blue/[0.08] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-stamp-blue"
               >
                 <input type="radio" name="mode" value={mode.id} defaultChecked={index === 0} className="peer sr-only" />
                 <span className="flex items-center justify-between gap-2">
                   <span className="text-sm font-semibold text-stone-100">{mode.name}</span>
-                  <span className="h-3.5 w-3.5 rounded-full border border-white/25 transition group-has-[:checked]:border-[4px] group-has-[:checked]:border-[var(--brass)]" />
+                  <span className="h-3.5 w-3.5 rounded-full border border-white/25 transition group-has-[:checked]:border-[4px] group-has-[:checked]:border-stamp-blue" />
                 </span>
                 <span className="mt-0.5 text-[0.7rem] font-medium tracking-wide text-stone-500 uppercase">{mode.term}</span>
                 <span className="mt-1.5 text-xs leading-snug text-stone-400">{mode.blurb}</span>
@@ -153,7 +153,7 @@ export function HomeLauncher({ onlineOnly = false }: { onlineOnly?: boolean } = 
         <button
           type="submit"
           disabled={busy || (online && !onlineConfigured())}
-          className="group flex cursor-pointer items-center justify-center gap-2 rounded-2xl bg-[var(--brass)] px-6 py-3.5 text-sm font-semibold text-stone-950 shadow-[0_10px_30px_-10px_rgba(198,165,108,0.7)] transition hover:bg-[#d6b97f] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--brass)] disabled:cursor-not-allowed disabled:opacity-50"
+          className="group flex cursor-pointer items-center justify-center gap-2 rounded-2xl bg-pax-red px-6 py-3.5 text-sm font-semibold text-white shadow-[0_10px_30px_-10px_rgba(168,29,17,0.8)] transition hover:bg-pax-red-deep focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-stamp-blue disabled:cursor-not-allowed disabled:opacity-50"
         >
           {busy ? "Creating game…" : online ? "Create online game" : "Start on this device"}
           <span aria-hidden className="transition group-hover:translate-x-0.5">→</span>
@@ -185,7 +185,7 @@ function NameInput({
       maxLength={MAX_NAME_LENGTH}
       autoComplete="off"
       spellCheck={false}
-      className="w-full rounded-xl border border-white/[0.08] bg-white/[0.03] px-3.5 py-2.5 text-sm text-stone-100 placeholder:text-stone-500 focus:border-[var(--brass)]/70 focus:outline-none"
+      className="w-full rounded-xl border border-white/[0.08] bg-white/[0.03] px-3.5 py-2.5 text-sm text-stone-100 placeholder:text-stone-500 focus:border-stamp-blue/70 focus:outline-none"
     />
   );
 }
@@ -238,7 +238,7 @@ function Switch({
       />
       <span
         aria-hidden
-        className="relative mt-0.5 h-6 w-10 shrink-0 rounded-full bg-white/15 transition peer-checked:bg-[var(--brass)] peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-[var(--brass)] after:absolute after:top-0.5 after:left-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow after:transition peer-checked:after:translate-x-4"
+        className="relative mt-0.5 h-6 w-10 shrink-0 rounded-full bg-white/15 transition peer-checked:bg-stamp-blue peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-stamp-blue after:absolute after:top-0.5 after:left-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow after:transition peer-checked:after:translate-x-4"
       />
     </label>
   );

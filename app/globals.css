@@ -8,6 +8,12 @@
   --shavvinne: #a3d9bd;
   --smarbbit: #eeaec4;
   --brass: #c6a56c;
+  /* Brand, from the marketing site's logo (pax-corruption-marketing/app/globals.css).
+     On dark, "Pax" is ember and "Corruption" the pale stamp blue; buttons are pax red. */
+  --pax-red: #a81d11;
+  --pax-red-deep: #8a170d;
+  --ember: #ef6a4c;
+  --stamp-blue: #8ec4dc;
   /* One hue per seat, used everywhere: lanes, totals, history, handoff. */
   --you: #5eead4;
   --opp: #fb7185;
@@ -26,6 +32,10 @@
   --color-you: var(--you);
   --color-opp: var(--opp);
   --color-act: var(--act);
+  --color-pax-red: var(--pax-red);
+  --color-pax-red-deep: var(--pax-red-deep);
+  --color-ember: var(--ember);
+  --color-stamp-blue: var(--stamp-blue);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
