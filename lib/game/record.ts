@@ -1,3 +1,4 @@
+import { isAiLevel, type AiOpponent } from "./ai.ts";
 import { hasNames, parseNames, type PlayerNames } from "./names.ts";
 import { apply, currentActor } from "./engine.ts";
 import { IllegalActionError } from "./errors.ts";
@@ -33,6 +34,8 @@ export type GameRecord = {
   build?: string;
   /** Optional player names (display only). */
   names?: PlayerNames;
+  /** Playing against the computer: its seat and level (the engine never reads this). */
+  ai?: AiOpponent;
 };
 
 /** What a player sends when something went wrong. */
@@ -133,7 +136,7 @@ export function replayRecord(record: GameRecord): Replay {
   return replay;
 }
 
-export function toRecord(replay: Replay, build?: string, names?: PlayerNames): GameRecord {
+export function toRecord(replay: Replay, build?: string, names?: PlayerNames, ai?: AiOpponent): GameRecord {
   return {
     version: RECORD_VERSION,
     seed: replay.seed,
@@ -144,6 +147,7 @@ export function toRecord(replay: Replay, build?: string, names?: PlayerNames): G
     engineVersion: ENGINE_VERSION,
     ...(build ? { build } : {}),
     ...(hasNames(names) ? { names: [names[0], names[1]] as const } : {}),
+    ...(ai ? { ai: { seat: ai.seat, level: ai.level } } : {}),
   };
 }
 
@@ -222,7 +226,14 @@ export function parseRecord(value: unknown): GameRecord | null {
     ...(typeof candidate.engineVersion === "string" ? { engineVersion: candidate.engineVersion } : {}),
     ...(typeof candidate.build === "string" ? { build: candidate.build } : {}),
     ...(hasNames(parseNames(candidate.names)) ? { names: parseNames(candidate.names) } : {}),
+    ...(parseAi(candidate.ai) ? { ai: parseAi(candidate.ai)! } : {}),
   };
+}
+
+function parseAi(value: unknown): AiOpponent | null {
+  if (!value || typeof value !== "object") return null;
+  const { seat, level } = value as Partial<AiOpponent>;
+  return (seat === 0 || seat === 1) && isAiLevel(level) ? { seat, level } : null;
 }
 
 export function parseBugReport(value: unknown): BugReport | null {

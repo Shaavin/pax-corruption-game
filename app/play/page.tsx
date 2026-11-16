@@ -4,6 +4,7 @@ import { ResumeGame } from "@/components/game/ResumeGame";
 import { randomUint32 } from "@/lib/game/rng";
 import { cleanName } from "@/lib/game/names";
 import { isGameMode } from "@/lib/game/setup";
+import { aiPersona, isAiLevel } from "@/lib/game/ai";
 import { GameMode } from "@/lib/game/types";
 
 export const dynamic = "force-dynamic";
@@ -38,13 +39,17 @@ export default async function PlayPage({
   const expansion = flag("expansion");
 
   const name = (key: string) => cleanName(Array.isArray(params[key]) ? params[key]![0] : params[key]);
+  // ?ai=easy|normal: the computer takes Player 2's seat; you're Player 1.
+  const rawAi = Array.isArray(params.ai) ? params.ai[0] : params.ai;
+  const ai = isAiLevel(rawAi) ? ({ seat: 1, level: rawAi } as const) : undefined;
   return (
     <HotseatSession
       seed={seed}
       mode={mode}
       expansion={expansion}
       foreignInfluence={expansion && flag("fi")}
-      names={[name("n1"), name("n2")]}
+      names={[name("n1"), ai ? aiPersona(ai.level).name : name("n2")]}
+      ai={ai}
     />
   );
 }

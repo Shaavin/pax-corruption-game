@@ -7,8 +7,9 @@ import { rememberedNames, rememberNames } from "../game/players";
 import { createOnlineGame, onlineConfigured } from "../online/online-client";
 import { cleanName, MAX_NAME_LENGTH, nameProblem } from "@/lib/game/names";
 import { GAME_MODES, isGameMode } from "@/lib/game/setup";
+import { AI_LEVELS } from "@/lib/game/ai";
 
-type Where = "local" | "online";
+type Where = "local" | "computer" | "online";
 
 /** The home page's one control surface: where to play, which deck, which expansion. */
 export function HomeLauncher({ onlineOnly = false }: { onlineOnly?: boolean } = {}) {
@@ -18,6 +19,9 @@ export function HomeLauncher({ onlineOnly = false }: { onlineOnly?: boolean } = 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const online = where === "online";
+  const computer = where === "computer";
+  /** One name field (yours) online and against the computer; two for pass and play. */
+  const solo = online || computer;
   const firstName = useRef<HTMLInputElement>(null);
   const secondName = useRef<HTMLInputElement>(null);
 
@@ -30,7 +34,7 @@ export function HomeLauncher({ onlineOnly = false }: { onlineOnly?: boolean } = 
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     const form = new FormData(event.currentTarget);
-    const problem = nameProblem(form.get("n1")) ?? (online ? null : nameProblem(form.get("n2")));
+    const problem = nameProblem(form.get("n1")) ?? (solo ? null : nameProblem(form.get("n2")));
     if (problem) {
       event.preventDefault();
       setError(problem);
@@ -38,9 +42,10 @@ export function HomeLauncher({ onlineOnly = false }: { onlineOnly?: boolean } = 
     }
     setError(null);
     const n1 = cleanName(form.get("n1"));
-    const n2 = online ? rememberedNames()[1] : cleanName(form.get("n2"));
+    const n2 = solo ? rememberedNames()[1] : cleanName(form.get("n2"));
     rememberNames([n1, n2]);
-    if (!online) return; // Local games are a plain GET to /play (names ride along as n1, n2).
+    // Local games are a plain GET to /play (names ride along as n1, n2; the computer's level as ai).
+    if (!online) return;
     event.preventDefault();
     const mode = String(form.get("mode"));
     setBusy(true);
@@ -80,8 +85,11 @@ export function HomeLauncher({ onlineOnly = false }: { onlineOnly?: boolean } = 
           aria-label="Where to play"
           className={onlineOnly ? "hidden" : "flex rounded-full bg-white/[0.06] p-1 ring-1 ring-white/10"}
         >
-          <Tab selected={!online} onClick={() => setWhere("local")}>
-            This device
+          <Tab selected={where === "local"} onClick={() => setWhere("local")}>
+            Pass &amp; play
+          </Tab>
+          <Tab selected={computer} onClick={() => setWhere("computer")}>
+            vs Computer
           </Tab>
           <Tab selected={online} onClick={() => setWhere("online")}>
             Online
@@ -91,7 +99,9 @@ export function HomeLauncher({ onlineOnly = false }: { onlineOnly?: boolean } = 
       <p className="mt-1.5 text-[0.8rem] text-stone-400">
         {online
           ? "Each player on their own device. You get a link to send your opponent."
-          : "Two players share this screen and pass it between turns."}
+          : computer
+            ? "Play against the computer on this device. It follows the same rules and never sees your hand."
+            : "Two players share this screen and pass it between turns."}
       </p>
 
       <form action="/play" method="get" onSubmit={submit} className="mt-5 flex flex-col gap-5">
@@ -134,13 +144,36 @@ export function HomeLauncher({ onlineOnly = false }: { onlineOnly?: boolean } = 
           </div>
         </fieldset>
 
+        {computer ? (
+          <fieldset>
+            <legend className="mb-2 text-[0.7rem] font-semibold tracking-[0.14em] text-stone-500 uppercase">Difficulty</legend>
+            <div className="grid grid-cols-2 gap-2">
+              {AI_LEVELS.map((level) => (
+                <label
+                  key={level.id}
+                  className="group relative flex cursor-pointer flex-col rounded-2xl border border-white/[0.08] bg-white/[0.03] px-3.5 py-3 transition hover:border-white/20 hover:bg-white/[0.05] has-[:checked]:border-stamp-blue/70 has-[:checked]:bg-stamp-blue/[0.08] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-stamp-blue"
+                >
+                  <input type="radio" name="ai" value={level.id} defaultChecked={level.id === "normal"} className="peer sr-only" />
+                  <span className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-semibold text-stone-100">{level.persona.name}</span>
+                    <span className="h-3.5 w-3.5 rounded-full border border-white/25 transition group-has-[:checked]:border-[4px] group-has-[:checked]:border-stamp-blue" />
+                  </span>
+                  <span className="mt-0.5 text-[0.7rem] font-medium tracking-wide text-stone-500 uppercase">{level.name}</span>
+                  <span className="mt-1.5 text-xs leading-snug text-stone-300 italic">&ldquo;{level.persona.tagline}&rdquo;</span>
+                  <span className="mt-1 text-xs leading-snug text-stone-400">{level.blurb}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        ) : null}
+
         <fieldset>
           <legend className="mb-2 text-[0.7rem] font-semibold tracking-[0.14em] text-stone-500 uppercase">
-            {online ? "Your name" : "Players"} <span className="font-normal tracking-normal normal-case">(optional)</span>
+            {solo ? "Your name" : "Players"} <span className="font-normal tracking-normal normal-case">(optional)</span>
           </legend>
-          <div className={online ? "" : "grid grid-cols-2 gap-2"}>
-            <NameInput ref={firstName} name="n1" placeholder={online ? "Your name" : "Player 1"} label={online ? "Your name" : "Player 1 name"} />
-            {online ? null : <NameInput ref={secondName} name="n2" placeholder="Player 2" label="Player 2 name" />}
+          <div className={solo ? "" : "grid grid-cols-2 gap-2"}>
+            <NameInput ref={firstName} name="n1" placeholder={solo ? "Your name" : "Player 1"} label={solo ? "Your name" : "Player 1 name"} />
+            {solo ? null : <NameInput ref={secondName} name="n2" placeholder="Player 2" label="Player 2 name" />}
           </div>
         </fieldset>
 
@@ -155,7 +188,7 @@ export function HomeLauncher({ onlineOnly = false }: { onlineOnly?: boolean } = 
           disabled={busy || (online && !onlineConfigured())}
           className="group flex cursor-pointer items-center justify-center gap-2 rounded-2xl bg-pax-red px-6 py-3.5 text-sm font-semibold text-white shadow-[0_10px_30px_-10px_rgba(168,29,17,0.8)] transition hover:bg-pax-red-deep focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-stamp-blue disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {busy ? "Creating game…" : online ? "Create online game" : "Start on this device"}
+          {busy ? "Creating game…" : online ? "Create online game" : computer ? "Play the computer" : "Start on this device"}
           <span aria-hidden className="transition group-hover:translate-x-0.5">→</span>
         </button>
         {error ? <p className="text-sm text-red-300">{error}</p> : null}

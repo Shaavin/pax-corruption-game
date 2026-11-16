@@ -3,6 +3,7 @@
 import { useSyncExternalStore } from "react";
 import { parseRecord, toRecord, type GameRecord, type Replay } from "@/lib/game/record";
 import type { PlayerNames } from "@/lib/game/names";
+import type { AiOpponent } from "@/lib/game/ai";
 import { APP_BUILD } from "./share";
 
 /** The one in-progress hotseat game, kept in this browser so a reload can resume it. */
@@ -16,8 +17,8 @@ export type SavedGame = {
 
 const listeners = new Set<() => void>();
 
-export function saveGame(replay: Replay, names?: PlayerNames): void {
-  writeSave(toSaved(replay, names));
+export function saveGame(replay: Replay, names?: PlayerNames, ai?: AiOpponent): void {
+  writeSave(toSaved(replay, names, ai));
 }
 
 /** Save an arbitrary record (troubleshooting: "play on from here"). */
@@ -25,8 +26,8 @@ export function saveRecord(record: GameRecord, over = false): void {
   writeSave({ record, over, savedAt: Date.now() });
 }
 
-function toSaved(replay: Replay, names?: PlayerNames): SavedGame {
-  return { record: toRecord(replay, APP_BUILD, names), over: Boolean(replay.state.victory), savedAt: Date.now() };
+function toSaved(replay: Replay, names?: PlayerNames, ai?: AiOpponent): SavedGame {
+  return { record: toRecord(replay, APP_BUILD, names, ai), over: Boolean(replay.state.victory), savedAt: Date.now() };
 }
 
 function writeSave(saved: SavedGame): void {

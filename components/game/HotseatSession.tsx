@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { captureCards } from "./card-motion";
 import { getSettings } from "./settings";
 import { APP_BUILD, copyText } from "./share";
@@ -11,6 +11,8 @@ import { GameOverOverlay } from "./GameOverOverlay";
 import { PassDeviceGate } from "./PassDeviceGate";
 import { playerLabel, PlayerNamesContext } from "./players";
 import { NO_NAMES, type PlayerNames } from "@/lib/game/names";
+import { aiPersona, chooseAiAction, type AiOpponent } from "@/lib/game/ai";
+import { createSeededRng, randomUint32 } from "@/lib/game/rng";
 import { ReportDialog } from "./ReportDialog";
 import { saveGame } from "./saved-game";
 import { SetupOverlay } from "./SetupOverlay";
@@ -137,11 +139,20 @@ export type RemoteGame = {
 
 type LocalProps = { remote?: undefined };
 type HotseatSessionProps =
-  | (LocalProps & { seed: number; mode?: GameModeId; expansion?: boolean; foreignInfluence?: boolean; names?: PlayerNames; record?: undefined })
+  | (LocalProps & {
+      seed: number;
+      mode?: GameModeId;
+      expansion?: boolean;
+      foreignInfluence?: boolean;
+      names?: PlayerNames;
+      /** Play against the computer in this seat. */
+      ai?: AiOpponent;
+      record?: undefined;
+    })
   /** Resume a saved game. The caller has already checked that it replays. */
-  | (LocalProps & { record: GameRecord; seed?: undefined; mode?: undefined; expansion?: undefined; foreignInfluence?: undefined; names?: undefined })
+  | (LocalProps & { record: GameRecord; seed?: undefined; mode?: undefined; expansion?: undefined; foreignInfluence?: undefined; names?: undefined; ai?: undefined })
   /** Online: render one seat of a server-run game. */
-  | { remote: RemoteGame; record?: undefined; seed?: undefined; mode?: undefined; expansion?: undefined; foreignInfluence?: undefined; names?: undefined };
+  | { remote: RemoteGame; record?: undefined; seed?: undefined; mode?: undefined; expansion?: undefined; foreignInfluence?: undefined; names?: undefined; ai?: undefined };
 
 export function HotseatSession(props: HotseatSessionProps) {
   const remote = props.remote ?? null;
@@ -157,13 +168,17 @@ export function HotseatSession(props: HotseatSessionProps) {
   );
   const [localNames] = useState<PlayerNames>(() => props.record?.names ?? props.names ?? NO_NAMES);
   const names = remote ? (remote.names ?? NO_NAMES) : localNames;
+  /** Against the computer: it holds this seat, and you keep the other one (no handoffs). */
+  const [localAi] = useState<AiOpponent | null>(() => props.record?.ai ?? props.ai ?? null);
+  const ai = remote ? null : localAi;
+  const [aiRng] = useState(() => createSeededRng(randomUint32()));
   const [localSeated, setSeated] = useState<PlayerId | null>(null);
   /** Hotseat: how many moves each seat had seen when it last held the device. */
   const [lastSeen, setLastSeen] = useState<Partial<Record<PlayerId, number>>>({});
   /** Hotseat: the other player's moves, replayed one at a time after the handoff. */
   const [playback, setPlayback] = useState<{ states: GameState[]; actions: Action[]; index: number } | null>(null);
   const replaying = playback !== null;
-  const seated = remote ? remote.seat : localSeated;
+  const seated = remote ? remote.seat : ai ? otherPlayer(ai.seat) : localSeated;
   const [selectedHandIds, setSelectedHandIds] = useState<string[]>([]);
   const [spendKind, setSpendKind] = useState<SpendKind | null>(null);
   const [proposeTarget, setProposeTarget] = useState<PolicyTarget | null>(null);
@@ -187,10 +202,10 @@ export function HotseatSession(props: HotseatSessionProps) {
     [remoteHistory, localSession],
   );
   const actor = currentActor(state);
-  // Online, each device is one seat: nothing to hide behind a pass-device screen.
-  const veiled = !remote && seated !== null && seated !== actor && !state.victory;
+  // Online and against the computer, this device is one seat: nothing to hide behind a pass-device screen.
+  const veiled = !remote && !ai && seated !== null && seated !== actor && !state.victory;
   const waitingFirstSeat = seated === null;
-  const myMove = !remote || actor === remote.seat;
+  const myMove = remote ? actor === remote.seat : ai ? actor !== ai.seat : true;
   const viewer: PlayerId = seated ?? 0;
   // During a replay the table shows the replayed position; everything else uses the real one.
   const shownState = playback ? playback.states[playback.index]! : state;
@@ -227,7 +242,7 @@ export function HotseatSession(props: HotseatSessionProps) {
     resetSelection();
     setSession({ replay, lastEvents });
     if (seated !== null) setLastSeen((seen) => ({ ...seen, [seated]: replay.steps.length }));
-    if (replay.steps.length > 0) saveGame(replay, names);
+    if (replay.steps.length > 0) saveGame(replay, names, ai ?? undefined);
   }
 
   function dispatch(action: Action) {
@@ -289,6 +304,22 @@ export function HotseatSession(props: HotseatSessionProps) {
     );
     return () => window.clearTimeout(timer);
   }, [playback]);
+
+  // The computer's turn: pick a move, wait a beat (so its plays can be followed), make it.
+  const aiTurn = Boolean(ai && !state.victory && actor === ai.seat && !replaying);
+  const dispatchRef = useRef(dispatch);
+  useEffect(() => {
+    dispatchRef.current = dispatch;
+  });
+  useEffect(() => {
+    if (!ai || !aiTurn) return;
+    const action = chooseAiAction(session.replay.state, ai.seat, ai.level, aiRng);
+    if (!action) return;
+    const quiet = action.type === "endAction" || action.type === "endPolitics";
+    const pace = getSettings().motion === "fast" ? 0.6 : 1;
+    const timer = window.setTimeout(() => dispatchRef.current(action), (quiet ? 350 : 950) * pace);
+    return () => window.clearTimeout(timer);
+  }, [ai, aiTurn, session, aiRng]);
 
   const undoAvailable = remote
     ? remote.canUndo && actor === viewer
@@ -816,7 +847,7 @@ export function HotseatSession(props: HotseatSessionProps) {
           inPlayPick: centuryPick,
         };
 
-  const showGate = !remote && (waitingFirstSeat || veiled) && !state.victory;
+  const showGate = !remote && !ai && (waitingFirstSeat || veiled) && !state.victory;
 
   return (
     <PlayerNamesContext.Provider value={names}>
@@ -831,7 +862,10 @@ export function HotseatSession(props: HotseatSessionProps) {
           ? `Replaying ${playerLabel(otherPlayer(viewer), names)}'s moves…`
           : remote && !myMove && !state.victory
             ? remote.waitingText
-            : statusLine(state)
+            : ai && !myMove && !state.victory
+              ? // A different line per move, in character.
+                aiPersona(ai.level).thinking[session.replay.steps.length % aiPersona(ai.level).thinking.length]!
+              : statusLine(state)
       }
       showTour={!veiled && !waitingFirstSeat && !inSetup && !state.victory}
       veiled={veiled || waitingFirstSeat}
@@ -904,7 +938,7 @@ export function HotseatSession(props: HotseatSessionProps) {
           newGameHref={
             remote
               ? "/online"
-              : `/play?mode=${settings.mode}${settings.expansion ? "&expansion=1" : ""}${settings.foreignInfluence ? "&fi=1" : ""}${namesQuery(names)}`
+              : `/play?mode=${settings.mode}${settings.expansion ? "&expansion=1" : ""}${settings.foreignInfluence ? "&fi=1" : ""}${namesQuery(names)}${ai ? `&ai=${ai.level}` : ""}`
           }
         />
       ) : null}
