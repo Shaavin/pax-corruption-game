@@ -1,6 +1,7 @@
 "use client";
 
 import { CardView } from "./CardView";
+import { PeekableOverlay } from "./PeekableOverlay";
 import { usePlayerLabel } from "./players";
 import { getCard } from "@/lib/cards/catalog";
 import { CardKind, type DecreeIdValue } from "@/lib/cards/schema";
@@ -18,7 +19,10 @@ type DecreeChoiceProps = {
 export function DecreeChoice({ winner, chooserIsYou, remaining, options, onChoose }: DecreeChoiceProps) {
   const playerLabel = usePlayerLabel();
   return (
-    <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center bg-black/70 px-4">
+    <PeekableOverlay
+      label={chooserIsYou ? "Activate a decree" : `${playerLabel(winner)} is activating a decree`}
+      className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center bg-black/70 px-4"
+    >
       <div className="pointer-events-auto max-w-3xl rounded-2xl glass-strong px-5 py-6 text-center shadow-2xl ring-1 ring-white/10">
         <p className="text-[0.65rem] font-semibold tracking-[0.18em] text-stamp-blue uppercase">
           Election won
@@ -56,6 +60,6 @@ export function DecreeChoice({ winner, chooserIsYou, remaining, options, onChoos
           </div>
         ) : null}
       </div>
-    </div>
+    </PeekableOverlay>
   );
 }

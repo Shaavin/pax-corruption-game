@@ -5,6 +5,7 @@ import { CardView } from "./CardView";
 import { getCard } from "@/lib/cards/catalog";
 import { getEvent, VICTORY_CARDS, WORLD_POWER_NAME } from "@/lib/cards/expansion";
 import { LEGACY_VICTORY_ORDER } from "./table-model";
+import { PeekableOverlay } from "./PeekableOverlay";
 import { District } from "@/lib/cards/schema";
 import {
   eventCost,
@@ -64,7 +65,11 @@ export function BuyEventDialog({ state, viewer, instanceId, onAction, onClose }:
   }
 
   return (
-    <div className="absolute inset-0 z-[45] flex items-center justify-center bg-black/65 px-4" onClick={onClose}>
+    <PeekableOverlay
+      label={`Buy ${event.name}`}
+      className="absolute inset-0 z-[45] flex items-center justify-center bg-black/65 px-4"
+      onBackdropClick={onClose}
+    >
       <div
         role="dialog"
         aria-modal="true"
@@ -156,7 +161,7 @@ export function BuyEventDialog({ state, viewer, instanceId, onAction, onClose }:
           </button>
         </div>
       </div>
-    </div>
+    </PeekableOverlay>
   );
 }
 

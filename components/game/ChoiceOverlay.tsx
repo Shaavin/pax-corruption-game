@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import { PeekableOverlay } from "./PeekableOverlay";
 import { CardView } from "./CardView";
 import { DISTRICT_LABEL } from "./Lane";
 import { getCard } from "@/lib/cards/catalog";
@@ -188,14 +189,17 @@ function RouteChoice({
 
 function Frame({ kicker, title, body, children }: { kicker: string; title: string; body: string; children: ReactNode }) {
   return (
-    <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center bg-black/60 px-4">
+    <PeekableOverlay
+      label={`${kicker}: ${title}`}
+      className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center bg-black/60 px-4"
+    >
       <div className="rise-in glass-strong pointer-events-auto max-h-[90dvh] max-w-3xl overflow-y-auto rounded-2xl px-5 py-5 text-center shadow-2xl">
         <p className="label !text-[var(--act)]">{kicker}</p>
         <h2 className="mt-1.5 text-xl font-semibold text-stone-100">{title}</h2>
         <p className="mx-auto mt-1.5 max-w-lg text-sm leading-relaxed text-stone-300">{body}</p>
         <div className="mt-4 flex flex-col items-center gap-3">{children}</div>
       </div>
-    </div>
+    </PeekableOverlay>
   );
 }
 

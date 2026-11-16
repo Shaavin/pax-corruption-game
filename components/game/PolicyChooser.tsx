@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, type CSSProperties } from "react";
+import { PeekableOverlay } from "./PeekableOverlay";
 import { CardView } from "./CardView";
 import { getCard, POLICIES } from "@/lib/cards/catalog";
 import type { DistrictId, PolicyIdValue } from "@/lib/cards/schema";
@@ -56,7 +57,11 @@ export function PolicyChooser({ districtOrder, policies, frozen, open, onChoose,
   const cardSize = { "--card-choice": "clamp(84px, 22vw, 128px)" } as CSSProperties;
 
   return (
-    <div className="fixed inset-0 z-[65] flex items-center justify-center bg-black/65 px-3" onClick={onClose}>
+    <PeekableOverlay
+      label={onChoose ? "Choose a policy to change" : "District policies"}
+      className="fixed inset-0 z-[65] flex items-center justify-center bg-black/65 px-3"
+      onBackdropClick={onClose}
+    >
       <div
         role="dialog"
         aria-modal="true"
@@ -153,6 +158,6 @@ export function PolicyChooser({ districtOrder, policies, frozen, open, onChoose,
           })}
         </ul>
       </div>
-    </div>
+    </PeekableOverlay>
   );
 }
