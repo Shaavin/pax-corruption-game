@@ -1,11 +1,9 @@
 "use client";
 
-import Image from "next/image";
-import type { CSSProperties, ReactNode } from "react";
-import { CardBack, CardView } from "./CardView";
+import type { CSSProperties } from "react";
+import { CardView } from "./CardView";
 import { InfoTip } from "./InfoTip";
 import { useNotice } from "./notice";
-import { VictoryMark, type SeatVictory } from "./victory-marks";
 import { resolveCard, type FixtureCard } from "./layout-fixture";
 import { CardKind, type DistrictId, type PolicyIdValue } from "@/lib/cards/schema";
 import type { DistrictInfluence } from "@/lib/game/influence";
@@ -41,7 +39,8 @@ type LaneProps = {
   /** Cards in play that can be picked right now (e.g. Century Inc.'s alliance to replace). */
   pickable?: InPlayPick | null;
   /** Popularity Victory pills, for each seat whose best lead is in this district. */
-  popularity?: { you?: SeatVictory; opponent?: SeatVictory };
+  /** Popularity Victory: whether it's active, and the support lead it needs. */
+  popularityRule?: { active: boolean; target: number };
   /** Grid column (1–4): lanes share rows with the center band above the plates. */
   column: number;
 };
@@ -56,7 +55,7 @@ export type InPlayPick = {
  * One district, Snap-style: the opponent's cards hang down toward the district
  * plate, yours rise up toward it, and the plate shows who leads.
  */
-export function Lane({ district, policyId, you, opponent, electors, leader, tourAnchor, target, onShowPolicies, pickable, popularity, column }: LaneProps) {
+export function Lane({ district, policyId, you, opponent, electors, leader, tourAnchor, target, onShowPolicies, pickable, popularityRule, column }: LaneProps) {
   const lane = { "--lane": `var(--${district})` } as CSSProperties;
   return (
     <section
@@ -79,7 +78,7 @@ export function Lane({ district, policyId, you, opponent, electors, leader, tour
         leader={leader}
         onShowPolicies={onShowPolicies}
         tourAnchor={tourAnchor}
-        popularity={popularity}
+        popularityRule={popularityRule}
       />
       </div>
 
@@ -191,7 +190,7 @@ function Plate({
   leader: tallied,
   tourAnchor,
   onShowPolicies,
-  popularity,
+  popularityRule,
 }: {
   district: DistrictId;
   policyId: PolicyIdValue | null;
@@ -201,7 +200,8 @@ function Plate({
   leader?: "you" | "opponent" | null;
   tourAnchor?: boolean;
   onShowPolicies?: () => void;
-  popularity?: { you?: SeatVictory; opponent?: SeatVictory };
+  /** Popularity Victory: whether it's active, and the support lead it needs. */
+  popularityRule?: { active: boolean; target: number };
 }) {
   const policy = policyId ? resolveCard(policyId) : null;
   const lead = you.influence.total - opponent.influence.total;
@@ -242,10 +242,11 @@ function Plate({
           </span>
           <span className="contents @max-[15rem]:hidden">
           <InfoTip label="How to read a district">
-            <b>Inf</b> is influence: civil card values + 1 per support-pile card (+1 per
-            Planet Next banked card in Horsard). The higher total wins the district at an
-            election; the plate border shows who leads. <b>Pop</b> is the support-pile count:
-            lead by 9 in one district to declare Popularity Victory.
+            The top row is <b>influence</b>, theirs on the left and yours on the right: civil card
+            values + 1 per support-pile card (+1 per Planet Next banked card in Horsard). The higher
+            total wins the district at an election; the plate border shows who leads. Below,
+            the <b>support piles</b> pull a tug-of-war: lead by 9 in one district to declare
+            Popularity Victory.
           </InfoTip>
           </span>
           {electors !== null ? (
@@ -259,20 +260,8 @@ function Plate({
             </span>
           ) : null}
         </div>
-        <ScoreRow
-          label="Opp"
-          side={opponent}
-          color="var(--opp)"
-          leading={leader === "opponent"}
-          mark={popularity?.opponent ? <VictoryMark victory={popularity.opponent} who="Opponent" /> : null}
-        />
-        <ScoreRow
-          label="You"
-          side={you}
-          color="var(--you)"
-          leading={leader === "you"}
-          mark={popularity?.you ? <VictoryMark victory={popularity.you} who="You" /> : null}
-        />
+        <InfluenceRow you={you} opponent={opponent} leader={leader} />
+        <PopularityTug you={you.support} opponent={opponent.support} rule={popularityRule} district={district} />
       </div>
       <div className="flex shrink-0 flex-col items-center gap-0.5 @max-[15rem]:items-stretch">
         {policy ? (
@@ -298,73 +287,153 @@ function Plate({
   );
 }
 
-function ScoreRow({
-  label,
-  side,
-  color,
-  leading,
-  tour,
-  mark,
-}: {
-  label: string;
-  side: Side;
-  color: string;
-  leading: boolean;
-  tour?: string;
-  /** Popularity Victory pill beside the support count. */
-  mark?: ReactNode;
-}) {
+/** Influence side by side: the opponent on the left, you on the right (like the Military tug-of-war). */
+function InfluenceRow({ you, opponent, leader }: { you: Side; opponent: Side; leader: "you" | "opponent" | null }) {
   const notify = useNotice();
-  const who = label === "You" ? "Your" : "Their";
-  const influenceText = `${who} influence here: ${side.influence.total} (${side.influence.civil} from civil cards + ${side.influence.support} from the support pile${side.influence.bank ? ` + ${side.influence.bank} banked` : ""}${side.influence.bonus ? ` + ${side.influence.bonus} from abilities` : ""}). More influence wins the district at an election.`;
-  const supportText = `${who} support pile here: ${side.support} card${side.support === 1 ? "" : "s"} (popularity). Lead by 9 in one district for Popularity Victory.`;
-  return (
-    <div className="flex items-center gap-1.5 leading-none" data-tour={tour}>
-      <span className="w-6 text-[0.55rem] font-semibold tracking-[0.1em] uppercase @max-[15rem]:w-auto @max-[15rem]:text-[0.45rem] @max-[15rem]:tracking-normal" style={{ color }}>
-        {label}
-      </span>
+  const text = (who: "Your" | "Their", side: Side) =>
+    `${who} influence here: ${side.influence.total} (${side.influence.civil} from civil cards + ${side.influence.support} from the support pile${side.influence.bank ? ` + ${side.influence.bank} banked` : ""}${side.influence.bonus ? ` + ${side.influence.bonus} from abilities` : ""}). More influence wins the district at an election.`;
+  const cell = (seat: "you" | "opponent") => {
+    const side = seat === "you" ? you : opponent;
+    const color = seat === "you" ? "var(--you)" : "var(--opp)";
+    const leads = leader === seat;
+    const explain = text(seat === "you" ? "Your" : "Their", side);
+    const label = (
       <span
-        className={["cursor-help text-base font-semibold tabular-nums @max-[15rem]:text-sm", leading ? "" : "text-stone-300"].join(" ")}
-        style={leading ? { color } : undefined}
-        title={influenceText}
-        onClick={() => notify(influenceText)}
+        className="text-[0.55rem] font-semibold tracking-[0.1em] uppercase @max-[15rem]:text-[0.45rem] @max-[15rem]:tracking-normal"
+        style={{ color }}
+      >
+        {seat === "you" ? "You" : "Opp"}
+      </span>
+    );
+    const value = (
+      <span
+        className={["text-base font-semibold tabular-nums @max-[15rem]:text-sm", leads ? "" : "text-stone-300"].join(" ")}
+        style={leads ? { color } : undefined}
       >
         {side.influence.total}
       </span>
-      <span className="text-[0.5rem] tracking-[0.1em] text-stone-400 uppercase @max-[15rem]:hidden">inf</span>
-      {leading ? (
-        // Not color alone: say who leads.
-        <span
-          className="rounded-sm px-1 text-[0.5rem] font-bold tracking-[0.08em] uppercase @max-[15rem]:px-0 @max-[15rem]:text-[0.55rem]"
-          style={{ color, background: "color-mix(in srgb, currentColor 14%, transparent)" }}
-          aria-label={label === "You" ? "You lead here" : "They lead here"}
-        >
-          <span className="@max-[15rem]:hidden">leads</span>
-          <span aria-hidden className="hidden @max-[15rem]:inline">▲</span>
-        </span>
-      ) : null}
-      <span className="ml-auto flex cursor-help items-center gap-1" title={supportText} onClick={() => notify(supportText)}>
-        <span className="contents @max-[15rem]:hidden">
-          <PileIcon count={side.support} />
-        </span>
-        <span className="text-xs font-semibold tabular-nums text-stone-200 @max-[15rem]:text-[0.6rem] @max-[15rem]:text-stone-400">
-          {side.support}
-        </span>
-        <span className="text-[0.5rem] tracking-[0.1em] text-stone-400 uppercase @max-[15rem]:hidden">pop</span>
-        {mark}
+    );
+    const tag = leads ? (
+      // Not color alone: say who leads.
+      <span
+        className="rounded-sm px-1 text-[0.5rem] font-bold tracking-[0.08em] uppercase @max-[15rem]:px-0 @max-[15rem]:text-[0.55rem]"
+        style={{ color, background: "color-mix(in srgb, currentColor 14%, transparent)" }}
+        aria-label={seat === "you" ? "You lead here" : "They lead here"}
+      >
+        <span className="@max-[15rem]:hidden">leads</span>
+        <span aria-hidden className="hidden @max-[15rem]:inline">▲</span>
       </span>
+    ) : null;
+    return (
+      <span
+        className={["flex cursor-help items-center gap-1", seat === "you" ? "flex-row-reverse" : ""].join(" ")}
+        title={explain}
+        onClick={() => notify(explain)}
+      >
+        {label}
+        {value}
+        {tag}
+      </span>
+    );
+  };
+  return (
+    <div className="flex items-center justify-between gap-1 leading-none">
+      {cell("opponent")}
+      <span className="text-[0.5rem] tracking-[0.12em] text-stone-500 uppercase @max-[15rem]:hidden">influence</span>
+      {cell("you")}
     </div>
   );
 }
 
-function PileIcon({ count }: { count: number }) {
-  if (count === 0) {
-    return <span className="block aspect-[825/1125] w-3 rounded-[2px] border border-dashed border-white/20" aria-hidden />;
-  }
+/**
+ * Popularity Victory as a tug-of-war of support piles: the marker sits at the support lead,
+ * with win lines at the needed lead (9) on each side. Amber one step away, gold when won.
+ */
+function PopularityTug({
+  you,
+  opponent,
+  rule,
+  district,
+}: {
+  you: number;
+  opponent: number;
+  rule?: { active: boolean; target: number };
+  district: DistrictId;
+}) {
+  const notify = useNotice();
+  const target = rule?.target ?? 9;
+  const active = rule?.active ?? true;
+  const lead = you - opponent; // + toward you (right), − toward them (left)
+  const gap = target - Math.abs(lead);
+  const state = !active ? "off" : lead !== 0 && gap <= 0 ? "met" : lead !== 0 && gap === 1 ? "close" : "far";
+  const span = target + 1;
+  const pct = (value: number) => `${((Math.max(-span, Math.min(span, value)) + span) / (2 * span)) * 100}%`;
+  const markerColor =
+    state === "met" ? "var(--act)" : lead > 0 ? "var(--you)" : lead < 0 ? "var(--opp)" : "rgb(214 211 209)";
+  const explain = `Popularity in ${DISTRICT_LABEL[district]}: support piles you ${you}, opponent ${opponent}${
+    lead === 0 ? " (even)" : ` (${lead > 0 ? "you" : "they"} lead by ${Math.abs(lead)})`
+  }. Lead by ${target} in one district for Popularity Victory.${
+    state === "off"
+      ? " Not active yet: a legacy event must activate it first."
+      : state === "met"
+        ? " Can be declared in Politics."
+        : state === "close"
+          ? " One step away."
+          : ""
+  }`;
   return (
-    <span className="relative block aspect-[825/1125] w-3 overflow-hidden rounded-[2px] ring-1 ring-black/60" aria-hidden>
-      <Image src={CardBack.common} alt="" fill sizes="12px" className="object-cover" draggable={false} />
-    </span>
+    <div
+      className={[
+        "flex cursor-help items-center gap-1.5 text-[0.62rem] leading-none text-stone-300 @max-[15rem]:gap-1 @max-[15rem]:text-[0.55rem]",
+        state === "off" ? "opacity-50" : "",
+      ].join(" ")}
+      title={explain}
+      role="img"
+      aria-label={explain}
+      onClick={() => notify(explain)}
+    >
+      {/* Same shape as the Military tug-of-war: label, Opp count, track, You count, badge. */}
+      <span
+        className="font-semibold tracking-[0.12em] text-stone-200 uppercase @max-[15rem]:tracking-normal"
+        aria-hidden
+      >
+        Pop.
+      </span>
+      <span className="tabular-nums" style={{ color: "var(--opp)" }}>
+        <span className="@max-[15rem]:hidden">Opp </span>
+        {opponent}
+      </span>
+      <div className="relative h-3 min-w-[2rem] flex-1">
+        <div className="absolute inset-x-0 top-1/2 h-[3px] -translate-y-1/2 rounded-full bg-white/12" />
+        <TugTick at={pct(-target)} color="var(--opp)" />
+        <TugTick at={pct(0)} color="rgb(255 255 255 / 0.35)" short />
+        <TugTick at={pct(target)} color="var(--you)" />
+        <span
+          className={[
+            "absolute top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 ring-black/60 transition-[left] duration-500",
+            state === "met" ? "shadow-[0_0_10px_var(--act)]" : state === "close" ? "shadow-[0_0_8px_rgb(251_191_36)]" : "",
+          ].join(" ")}
+          style={{ left: pct(lead), background: markerColor }}
+        />
+      </div>
+      <span className="tabular-nums" style={{ color: "var(--you)" }}>
+        <span className="@max-[15rem]:hidden">You </span>
+        {you}
+      </span>
+      {state === "off" ? <span className="text-stone-500 @max-[15rem]:hidden">off</span> : null}
+      {state === "close" ? <span className="font-bold text-amber-300 uppercase">1 away</span> : null}
+      {state === "met" ? <span className="font-bold text-[var(--act)] uppercase">Win ★</span> : null}
+    </div>
+  );
+}
+
+function TugTick({ at, color, short = false }: { at: string; color: string; short?: boolean }) {
+  return (
+    <span
+      aria-hidden
+      className={["absolute top-1/2 w-[2px] -translate-x-1/2 -translate-y-1/2 rounded-full", short ? "h-1.5" : "h-3"].join(" ")}
+      style={{ left: at, background: color }}
+    />
   );
 }
 

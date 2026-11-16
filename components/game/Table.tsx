@@ -12,7 +12,7 @@ import { PeekContext, type PeekCard } from "./peek";
 import { PlayerAid } from "./PlayerAid";
 import { PlayerBar } from "./PlayerBar";
 import { CenterBand } from "./CenterBand";
-import { seatVictories, type SeatVictory } from "./victory-marks";
+import { seatVictories } from "./victory-marks";
 import { usePlayerLabel } from "./players";
 import { SharedZones, sharedNeedsAttention, SidePanel, TurnDock, type DockBanner, type ExtraAction, type ZoneProps } from "./SidePanel";
 import { useCompact, useCompactLandscape } from "./use-compact";
@@ -214,10 +214,11 @@ function TableView({
             influence: model.you.influence[district],
           }}
           electors={model.electors ? model.electors[district] : null}
-          popularity={{
-            you: popularityHere(yourVictories.popularity, district),
-            opponent: popularityHere(opponentVictories.popularity, district),
-          }}
+          popularityRule={
+            yourVictories.popularity
+              ? { active: yourVictories.popularity.active, target: yourVictories.popularity.standing.target }
+              : undefined
+          }
           leader={model.districtLeader?.[district]}
           tourAnchor={index === 0}
           pickable={interaction?.inPlayPick ?? null}
@@ -764,7 +765,3 @@ function MenuButton({ onClick, children }: { onClick: () => void; children: Reac
 }
 
 /** A seat's Popularity pill for this district: only where its best lead is, and only once it leads there. */
-function popularityHere(victory: SeatVictory | undefined, district: DistrictId): SeatVictory | undefined {
-  if (!victory || !victory.active) return undefined;
-  return victory.standing.district === district && victory.standing.value > 0 ? victory : undefined;
-}

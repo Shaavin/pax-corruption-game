@@ -52,10 +52,10 @@ const STEP_DEFS: StepDef[] = [
     view: "districts",
     desktop: {
       title: "Ways to win",
-      body: "Victory progress sits next to what it measures: Military (partisan tug-of-war) and Ideological (symbol tally) on this band, Popularity on a district's Pop, Political on the decrees, Civil on the elections band. Amber is one step away; gold means declare it in Politics.",
+      body: "Victory progress sits next to what it measures: Military (partisan tug-of-war) and Ideological (symbol tally) on this band, Popularity on each district's support tug-of-war, Political on the decrees, Civil on the elections band. Amber is one step away; gold means declare it in Politics.",
     },
     expansion: {
-      body: "Victory progress sits next to what it measures: Military and Ideological on this band, Popularity on a district's Pop, Political on the decrees, Civil on the elections band, Culture and Diplo. by your name. \"off\" needs a legacy event first. Amber is one step away; gold means declare it in Politics.",
+      body: "Victory progress sits next to what it measures: Military and Ideological on this band, Popularity on each district's support tug-of-war, Political on the decrees, Civil on the elections band, Culture and Diplo. by your name. \"off\" needs a legacy event first. Amber is one step away; gold means declare it in Politics.",
     },
   },
   {
@@ -99,10 +99,10 @@ const STEP_DEFS: StepDef[] = [
     view: "districts",
     desktop: {
       title: "Districts",
-      body: "Yours below the plate, theirs above. Inf is civil card numbers plus 1 per support-pile card; more Inf wins the district at an election. Pop is your support pile: lead by 9 for Popularity Victory.",
+      body: "Yours below the plate, theirs above. The top row is influence (theirs left, yours right): civil card numbers plus 1 per support-pile card; more wins the district at an election. Below, support piles pull a tug-of-war: lead by 9 for Popularity Victory.",
     },
     expansion: {
-      body: "Yours below the plate, theirs above. Inf is civil card numbers plus 1 per support-pile card; more Inf wins the district at an election. Pop is your support pile: lead by 9 for Popularity Victory, once it's active.",
+      body: "Yours below the plate, theirs above. The top row is influence (theirs left, yours right): civil card numbers plus 1 per support-pile card; more wins the district at an election. Below, support piles pull a tug-of-war: lead by 9 for Popularity Victory, once it's active.",
     },
   },
   {
