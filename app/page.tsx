@@ -3,7 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { HomeLauncher } from "@/components/home/HomeLauncher";
 import { SeedForm } from "@/components/game/Troubleshooter";
-import { MARKETING_URL, SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
+import { EXPANSION_RULEBOOK_URL, MARKETING_URL, RULEBOOK_URL, SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/" },
@@ -168,6 +168,21 @@ export default function Home() {
             <li key={way.title} className="rounded-2xl border border-white/[0.07] bg-white/[0.025] px-5 py-4">
               <h3 className="text-sm font-semibold text-stone-100">{way.title}</h3>
               <p className="mt-1.5 text-sm leading-relaxed text-stone-400">{way.body}</p>
+              {way.title === "Every rule built in" ? (
+                <p className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-sm">
+                  <a href={RULEBOOK_URL} target="_blank" rel="noopener" className="text-stamp-blue underline-offset-4 hover:underline">
+                    Rulebook (PDF) ↗
+                  </a>
+                  <a
+                    href={EXPANSION_RULEBOOK_URL}
+                    target="_blank"
+                    rel="noopener"
+                    className="text-stamp-blue underline-offset-4 hover:underline"
+                  >
+                    Legacy &amp; Diplomacy rules (PDF) ↗
+                  </a>
+                </p>
+              ) : null}
             </li>
           ))}
         </ul>

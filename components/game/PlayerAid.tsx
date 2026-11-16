@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { EXPANSION_TERMS, TERMS } from "./terms";
+import { EXPANSION_RULEBOOK_URL, RULEBOOK_URL } from "@/lib/site";
 
 /** The printed player aid (Actions and Victories sides), side by side. */
 export function PlayerAid({ onClose, expansion = false }: { onClose: () => void; expansion?: boolean }) {
@@ -78,13 +79,34 @@ export function PlayerAid({ onClose, expansion = false }: { onClose: () => void;
           ))}
         </div>
         )}
-        <button
-          type="button"
-          onClick={onClose}
-          className="cursor-pointer rounded-full px-5 py-2 text-sm font-semibold text-stone-200 ring-1 ring-white/20 hover:bg-white/8"
-        >
-          Close
-        </button>
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          {/* The full rules, opened in a new tab. */}
+          <a
+            href={RULEBOOK_URL}
+            target="_blank"
+            rel="noopener"
+            className="rounded-full px-4 py-2 text-sm text-stamp-blue ring-1 ring-stamp-blue/40 hover:bg-stamp-blue/10"
+          >
+            Rulebook (PDF) ↗
+          </a>
+          {expansion ? (
+            <a
+              href={EXPANSION_RULEBOOK_URL}
+              target="_blank"
+              rel="noopener"
+              className="rounded-full px-4 py-2 text-sm text-stamp-blue ring-1 ring-stamp-blue/40 hover:bg-stamp-blue/10"
+            >
+              Legacy &amp; Diplomacy rules (PDF) ↗
+            </a>
+          ) : null}
+          <button
+            type="button"
+            onClick={onClose}
+            className="cursor-pointer rounded-full px-5 py-2 text-sm font-semibold text-stone-200 ring-1 ring-white/20 hover:bg-white/8"
+          >
+            Close
+          </button>
+        </div>
       </div>
     </div>
   );
