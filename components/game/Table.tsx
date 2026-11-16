@@ -174,6 +174,7 @@ function TableView({
     electionsOut: model.electionsOut,
     electionsOngoing: model.electionsOngoing,
     race: model.race,
+    builtMonuments: { you: model.you.monuments.length, opponent: model.opponent.monuments.length },
     monuments: model.availableMonuments,
     deckCount: model.deckCount,
     takeableIds: interaction?.takeableMarketIds,
@@ -242,6 +243,7 @@ function TableView({
         <CenterBand
           military={{ you: yourVictories.military, opponent: opponentVictories.military }}
           partisans={{ you: model.you.partisans, opponent: model.opponent.partisans }}
+          political={{ you: yourVictories.political, opponent: opponentVictories.political }}
           ideological={{ you: yourVictories.ideological, opponent: opponentVictories.ideological }}
           symbols={model.symbols}
           seats={{ you: model.you.id, opponent: model.opponent.id }}
@@ -370,7 +372,6 @@ function TableView({
               electionWins={model.opponent.electionWins}
               electorates={model.opponent.electorates}
               lords={model.opponent.lords}
-              victories={opponentVictories}
               active={!yourTurn && live}
             />
             <Hand cards={model.opponent.hand} variant="opponent" />
@@ -456,7 +457,6 @@ function TableView({
               electionWins={model.you.electionWins}
               electorates={model.you.electorates}
               lords={model.you.lords}
-              victories={yourVictories}
               active={yourTurn && live}
             />
           </div>
@@ -536,8 +536,6 @@ function CompactTable({
   const [logOpen, setLogOpen] = useState(false);
   const landscape = useCompactLandscape();
   const attention = sharedNeedsAttention(zoneProps);
-  const yourVictories = useMemo(() => seatVictories(model.race, "you"), [model.race]);
-  const opponentVictories = useMemo(() => seatVictories(model.race, "opponent"), [model.race]);
 
   // Follow the game to where the next decision is (players can still switch back):
   // a card waiting for a district or a new action step → districts;
@@ -583,7 +581,6 @@ function CompactTable({
           electionWins={model.opponent.electionWins}
           electorates={model.opponent.electorates}
           lords={model.opponent.lords}
-          victories={opponentVictories}
           active={!yourTurn && live}
           handCount={model.opponent.hand.length}
         />
@@ -665,7 +662,6 @@ function CompactTable({
         electionWins={model.you.electionWins}
         electorates={model.you.electorates}
         lords={model.you.lords}
-        victories={yourVictories}
         active={yourTurn && live}
       />
     </div>

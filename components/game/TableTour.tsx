@@ -55,7 +55,7 @@ const STEP_DEFS: StepDef[] = [
       body: "Victory progress sits next to what it measures: Military (partisan tug-of-war) and Ideological (symbol tally) on this band, Popularity on each district's support tug-of-war, Political on the decrees, Civil on the elections band. Amber is one step away; gold means declare it in Politics.",
     },
     expansion: {
-      body: "Victory progress sits next to what it measures: Military and Ideological on this band, Popularity on each district's support tug-of-war, Political on the decrees, Civil on the elections band, Cultural by your name, Diplomatic in the World section. \"off\" needs a legacy event first. Amber is one step away; gold means declare it in Politics.",
+      body: "Victory progress sits next to what it measures: Military and Ideological on this band, Popularity on each district's support tug-of-war, Political on the decrees, Civil on the elections band, Cultural in the Monuments section, Diplomatic in the World section. \"off\" needs a legacy event first. Amber is one step away; gold means declare it in Politics.",
     },
   },
   {

@@ -5,13 +5,15 @@ import { CardBack, CardView } from "./CardView";
 import { InfoTip } from "./InfoTip";
 import { resolveCard } from "./layout-fixture";
 import type { DecreeView, ExpansionView, RaceView } from "./table-model";
-import { seatVictories, VictoryMark } from "./victory-marks";
+import { seatVictories } from "./victory-marks";
+import type { VictoryKindId } from "@/lib/game/types";
 import { useNotice } from "./notice";
 import { getEvent, isEventId, VICTORY_CARDS, WORLD_POWER_NAME } from "@/lib/cards/expansion";
 import { getCard } from "@/lib/cards/catalog";
 import { CardKind } from "@/lib/cards/schema";
 import { senatorVotes } from "@/lib/game/senate";
-import { DIPLOMATIC_POWERS } from "@/lib/game/victory";
+import { CULTURAL_LEAD, DIPLOMATIC_POWERS } from "@/lib/game/victory";
+import { TugBar, tugStateText } from "./TugBar";
 import type { CardInstance } from "@/lib/game/types";
 
 export type ExtraAction = {
@@ -40,6 +42,8 @@ type SidePanelProps = {
   electionActive: boolean;
   /** How close each player is to each victory (null during setup). */
   race?: RaceView | null;
+  /** Monuments each player has built (Cultural Victory, expansion). */
+  builtMonuments?: { you: number; opponent: number };
   electionsOut: number;
   /** Of `electionsOut`, those revealed during the election under way. */
   electionsOngoing: number;
@@ -91,8 +95,8 @@ export function SharedZones(props: ZoneProps) {
         civil={props.race?.civil ?? null}
       />
       <SenateSection {...props} />
-      <DecreeSection decrees={props.decrees} race={props.race ?? null} />
-      {props.expansion ? <VictoryCardsSection expansion={props.expansion} /> : null}
+      <DecreeSection decrees={props.decrees} />
+      {props.expansion ? <VictoryCardsSection expansion={props.expansion} race={props.race ?? null} /> : null}
       {props.expansion ? <WorldSection expansion={props.expansion} /> : null}
       <MarketSection {...props} />
       <SupplySection {...props} />
@@ -299,27 +303,14 @@ function CivilOutlook({ civil }: { civil: RaceView["civil"] }) {
   );
 }
 
-function DecreeSection({ decrees, race }: { decrees: DecreeView[]; race: RaceView | null }) {
+function DecreeSection({ decrees }: { decrees: DecreeView[] }) {
   const active = decrees.filter((decree) => decree.active).length;
-  const you = seatVictories(race, "you").political;
-  const opponent = seatVictories(race, "opponent").political;
+  // Political Victory's progress is on the center band; the dots here show who meets each decree.
   return (
     <Section
       title="Decrees"
       tour="decrees"
-      aside={
-        <span className="inline-flex items-center gap-1.5">
-          <span>{active}/4 active</span>
-          {you && opponent ? (
-            <>
-              <span className="text-[var(--you)]">You</span>
-              <VictoryMark victory={you} who="You" />
-              <span className="text-[var(--opp)]">Opp</span>
-              <VictoryMark victory={opponent} who="Opponent" />
-            </>
-          ) : null}
-        </span>
-      }
+      aside={`${active}/4 active`}
       info={
         <>
           Election winners activate one decree per General Election revealed. Active decrees
@@ -609,8 +600,14 @@ function RelationsTable({ expansion }: { expansion: ExpansionView }) {
 }
 
 /** Legacy Victories: the five extra ways to win that legacy events unlock (expansion). */
-function VictoryCardsSection({ expansion }: { expansion: ExpansionView }) {
+function VictoryCardsSection({ expansion, race }: { expansion: ExpansionView; race: RaceView | null }) {
   const active = expansion.victories.filter((entry) => entry.active).length;
+  const standings = { you: seatVictories(race, "you"), opponent: seatVictories(race, "opponent") };
+  /** Whether this seat could declare the victory now (it's unlocked and the condition is met). */
+  const claimable = (kind: VictoryKindId, seat: "you" | "opponent") => {
+    const victory = standings[seat][kind];
+    return Boolean(victory?.active && victory.standing.met);
+  };
   return (
     <Section
       title="Legacy Victories"
@@ -635,7 +632,18 @@ function VictoryCardsSection({ expansion }: { expansion: ExpansionView }) {
                 square
                 dimmed={!entry.active}
               />
-              <span className="text-[0.5rem] tracking-wide text-stone-400 uppercase">{entry.active ? "active" : "off"}</span>
+              {entry.active ? (
+                // Like the decree dots: lit for whoever can claim this victory right now.
+                <span
+                  className="flex h-2 items-center gap-1"
+                  aria-label={`${def.name} Victory: you ${claimable(entry.id, "you") ? "can" : "can't"} claim it; opponent ${claimable(entry.id, "opponent") ? "can" : "can't"}`}
+                >
+                  <Dot on={claimable(entry.id, "opponent")} color="var(--opp)" />
+                  <Dot on={claimable(entry.id, "you")} color="var(--you)" />
+                </span>
+              ) : (
+                <span className="text-[0.5rem] tracking-wide text-stone-500 uppercase">off</span>
+              )}
             </li>
           );
         })}
@@ -644,7 +652,8 @@ function VictoryCardsSection({ expansion }: { expansion: ExpansionView }) {
   );
 }
 
-function SupplySection({ monuments, deckCount, claimableIds, onClaimMonument }: ZoneProps) {
+function SupplySection({ monuments, deckCount, claimableIds, onClaimMonument, expansion, builtMonuments }: ZoneProps) {
+  const cultural = expansion?.victories.find((entry) => entry.id === "cultural");
   return (
     <Section title="Monuments" tour="supply" aside={`${deckCount} in the deck`}>
       <div className="flex items-end justify-between gap-1">
@@ -672,6 +681,22 @@ function SupplySection({ monuments, deckCount, claimableIds, onClaimMonument }: 
           <span className="text-[0.6rem] font-semibold tabular-nums text-stone-300">{deckCount}</span>
         </div>
       </div>
+      {cultural && builtMonuments ? (
+        <div className="mt-2 border-t border-white/[0.07] pt-2">
+          <TugBar
+            label="Cultural"
+            you={builtMonuments.you}
+            opponent={builtMonuments.opponent}
+            target={CULTURAL_LEAD}
+            active={cultural.active}
+            explain={(lead, state) =>
+              `Cultural Victory: monuments built, you ${builtMonuments.you}, opponent ${builtMonuments.opponent}${
+                lead === 0 ? " (even)" : ` (${lead > 0 ? "you" : "they"} lead by ${Math.abs(lead)})`
+              }. Build ${CULTURAL_LEAD} more monuments than the other player to win.${tugStateText(state)}`
+            }
+          />
+        </div>
+      ) : null}
     </Section>
   );
 }

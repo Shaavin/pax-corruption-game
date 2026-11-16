@@ -5,8 +5,6 @@ import type { ReactNode } from "react";
 import { CardBack, CardView } from "./CardView";
 import { resolveCard, type FixtureCard } from "./layout-fixture";
 import type { PartyIdValue } from "@/lib/cards/schema";
-import type { VictoryKindId } from "@/lib/game/types";
-import { VictoryMark, type SeatVictory } from "./victory-marks";
 
 type PlayerBarProps = {
   seat: "you" | "opponent";
@@ -19,8 +17,6 @@ type PlayerBarProps = {
   electorates: number;
   /** Council of Lords handshake symbols in play. */
   lords: number;
-  /** This seat's victory progress; the bar shows Military, Ideological, Cultural, Diplomatic. */
-  victories?: Partial<Record<VictoryKindId, SeatVictory>>;
   active: boolean;
   /** Phone layout: tighter spacing, smaller labels. */
   compact?: boolean;
@@ -39,7 +35,6 @@ export function PlayerBar({
   electionWins,
   electorates,
   lords,
-  victories = {},
   active,
   compact = false,
   handCount,
@@ -47,11 +42,6 @@ export function PlayerBar({
 }: PlayerBarProps) {
   const color = seat === "you" ? "var(--you)" : "var(--opp)";
   const party = partyId ? resolveCard(partyId) : null;
-  const who = seat === "you" ? "You" : "Opponent";
-  const mark = (kind: VictoryKindId) => {
-    const victory = victories[kind];
-    return victory ? <VictoryMark victory={victory} who={who} /> : null;
-  };
 
   return (
     <div className={["flex min-w-0 items-center", compact ? "w-max gap-2.5" : "gap-3"].join(" ")}>
@@ -116,10 +106,7 @@ export function PlayerBar({
           title="Electorates: how many of the 5 (4 districts + Council of Lords) this player would win if the election were scored now."
           color={electorates >= 3 ? color : undefined}
         />
-        {victories.cultural ? (
-          <Stat label="Culture" value={mark("cultural")} title="Cultural Victory: monument lead over the opponent." />
-        ) : null}
-        {/* Diplomatic Victory lives in the World section's relations table. */}
+        {/* Cultural Victory lives in the Monuments section, Diplomatic in the World section. */}
       </dl>
 
       {monuments.length + setAside.length > 0 ? (

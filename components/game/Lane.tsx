@@ -3,6 +3,7 @@
 import type { CSSProperties } from "react";
 import { CardView } from "./CardView";
 import { InfoTip } from "./InfoTip";
+import { TugBar, tugStateText } from "./TugBar";
 import { useNotice } from "./notice";
 import { resolveCard, type FixtureCard } from "./layout-fixture";
 import { CardKind, type DistrictId, type PolicyIdValue } from "@/lib/cards/schema";
@@ -345,10 +346,7 @@ function InfluenceRow({ you, opponent, leader }: { you: Side; opponent: Side; le
   );
 }
 
-/**
- * Popularity Victory as a tug-of-war of support piles: the marker sits at the support lead,
- * with win lines at the needed lead (9) on each side. Amber one step away, gold when won.
- */
+/** Popularity Victory as a tug-of-war of this district's support piles (lead by 9). */
 function PopularityTug({
   you,
   opponent,
@@ -360,79 +358,19 @@ function PopularityTug({
   rule?: { active: boolean; target: number };
   district: DistrictId;
 }) {
-  const notify = useNotice();
   const target = rule?.target ?? 9;
-  const active = rule?.active ?? true;
-  const lead = you - opponent; // + toward you (right), − toward them (left)
-  const gap = target - Math.abs(lead);
-  const state = !active ? "off" : lead !== 0 && gap <= 0 ? "met" : lead !== 0 && gap === 1 ? "close" : "far";
-  const span = target + 1;
-  const pct = (value: number) => `${((Math.max(-span, Math.min(span, value)) + span) / (2 * span)) * 100}%`;
-  const markerColor =
-    state === "met" ? "var(--act)" : lead > 0 ? "var(--you)" : lead < 0 ? "var(--opp)" : "rgb(214 211 209)";
-  const explain = `Popularity in ${DISTRICT_LABEL[district]}: support piles you ${you}, opponent ${opponent}${
-    lead === 0 ? " (even)" : ` (${lead > 0 ? "you" : "they"} lead by ${Math.abs(lead)})`
-  }. Lead by ${target} in one district for Popularity Victory.${
-    state === "off"
-      ? " Not active yet: a legacy event must activate it first."
-      : state === "met"
-        ? " Can be declared in Politics."
-        : state === "close"
-          ? " One step away."
-          : ""
-  }`;
   return (
-    <div
-      className={[
-        "flex cursor-help items-center gap-1.5 text-[0.62rem] leading-none text-stone-300 @max-[15rem]:gap-1 @max-[15rem]:text-[0.55rem]",
-        state === "off" ? "opacity-50" : "",
-      ].join(" ")}
-      title={explain}
-      role="img"
-      aria-label={explain}
-      onClick={() => notify(explain)}
-    >
-      {/* Same shape as the Military tug-of-war: label, Opp count, track, You count, badge. */}
-      <span
-        className="font-semibold tracking-[0.12em] text-stone-200 uppercase @max-[15rem]:tracking-normal"
-        aria-hidden
-      >
-        Pop.
-      </span>
-      <span className="tabular-nums" style={{ color: "var(--opp)" }}>
-        <span className="@max-[15rem]:hidden">Opp </span>
-        {opponent}
-      </span>
-      <div className="relative h-3 min-w-[2rem] flex-1">
-        <div className="absolute inset-x-0 top-1/2 h-[3px] -translate-y-1/2 rounded-full bg-white/12" />
-        <TugTick at={pct(-target)} color="var(--opp)" />
-        <TugTick at={pct(0)} color="rgb(255 255 255 / 0.35)" short />
-        <TugTick at={pct(target)} color="var(--you)" />
-        <span
-          className={[
-            "absolute top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 ring-black/60 transition-[left] duration-500",
-            state === "met" ? "shadow-[0_0_10px_var(--act)]" : state === "close" ? "shadow-[0_0_8px_rgb(251_191_36)]" : "",
-          ].join(" ")}
-          style={{ left: pct(lead), background: markerColor }}
-        />
-      </div>
-      <span className="tabular-nums" style={{ color: "var(--you)" }}>
-        <span className="@max-[15rem]:hidden">You </span>
-        {you}
-      </span>
-      {state === "off" ? <span className="text-stone-500 @max-[15rem]:hidden">off</span> : null}
-      {state === "close" ? <span className="font-bold text-amber-300 uppercase">1 away</span> : null}
-      {state === "met" ? <span className="font-bold text-[var(--act)] uppercase">Win ★</span> : null}
-    </div>
-  );
-}
-
-function TugTick({ at, color, short = false }: { at: string; color: string; short?: boolean }) {
-  return (
-    <span
-      aria-hidden
-      className={["absolute top-1/2 w-[2px] -translate-x-1/2 -translate-y-1/2 rounded-full", short ? "h-1.5" : "h-3"].join(" ")}
-      style={{ left: at, background: color }}
+    <TugBar
+      label="Pop."
+      you={you}
+      opponent={opponent}
+      target={target}
+      active={rule?.active ?? true}
+      explain={(lead, state) =>
+        `Popularity in ${DISTRICT_LABEL[district]}: support piles you ${you}, opponent ${opponent}${
+          lead === 0 ? " (even)" : ` (${lead > 0 ? "you" : "they"} lead by ${Math.abs(lead)})`
+        }. Lead by ${target} in one district for Popularity Victory.${tugStateText(state)}`
+      }
     />
   );
 }
