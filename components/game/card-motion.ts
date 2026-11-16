@@ -62,10 +62,14 @@ function originRect(name: string): DOMRect | null {
   return rect.width > 0 ? rect : null;
 }
 
-/** Where a card with no previous spot comes from: the deck for the Market and draws, else a hand. */
+/**
+ * Where a card with no previous spot comes from: new Market cards slide in from the
+ * Market's left edge (it fills like a conveyor), draws come from the deck, else a hand.
+ */
 function entryOrigin(element: HTMLElement, actorSide: "you" | "opponent" | null): DOMRect | null {
   const zone = element.closest<HTMLElement>("[data-motion-zone]")?.dataset.motionZone;
-  if (zone === "market" || zone === "hand-you") return originRect("deck") ?? originRect("hand-you");
+  if (zone === "market") return originRect("market-left") ?? originRect("deck");
+  if (zone === "hand-you") return originRect("deck") ?? originRect("hand-you");
   const side = element.closest<HTMLElement>("[data-motion-side]")?.dataset.motionSide ?? actorSide;
   if (side === "you") return originRect("hand-you");
   if (side === "opponent") return originRect("hand-opponent");

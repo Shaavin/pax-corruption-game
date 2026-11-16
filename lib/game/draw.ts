@@ -41,13 +41,16 @@ export function drawNonElection(
   return null;
 }
 
-/** Fill the Market up to `size`, stopping early if an election phase opens mid-fill. */
+/**
+ * Fill the Market up to `size`, stopping early if an election phase opens mid-fill.
+ * Like the expansion conveyor, new cards enter on the left and older cards slide right.
+ */
 function fillMarketTo(state: GameState, size: number, events: GameEvent[]): void {
   const added: string[] = [];
   while (state.market.length < size) {
     const card = drawNonElection(state, events);
     if (!card) break;
-    state.market.push(card);
+    state.market.unshift(card);
     added.push(card.cardId);
     if (state.election.needsOpening) break;
   }

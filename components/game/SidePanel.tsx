@@ -401,10 +401,18 @@ function MarketSection({
       {market.length === 0 ? (
         <p className="py-3 text-center text-xs text-stone-500">Empty</p>
       ) : (
-        <div className="flex flex-col gap-1.5">
+        <div className="relative flex flex-col gap-1.5">
+        {/* New Market cards slide in from here, the row's left edge (card-motion.ts). */}
+        <span
+          aria-hidden
+          data-motion-origin="market-left"
+          className="pointer-events-none absolute top-0 right-full aspect-[825/1125] w-[var(--card-panel)] opacity-0"
+        />
         {rows.map((row, rowIndex) => {
-        // Expansion rows flow like a conveyor: a short row sits in its right-most spots.
-        const offset = expansion && row.length < 5 ? 5 - row.length : 0;
+        // Rows flow like a conveyor: new cards enter on the left, so a short row sits in its
+        // right-most spots. (The base game's 8-card election Market just wraps.)
+        const conveyor = Boolean(expansion) || !electionActive;
+        const offset = conveyor && row.length < 5 ? 5 - row.length : 0;
         const at = (index: number) => (index === 0 && offset > 0 ? { gridColumnStart: offset + 1 } : undefined);
         return (
         <ol key={rowIndex} className="grid grid-cols-5 justify-items-center gap-1">
