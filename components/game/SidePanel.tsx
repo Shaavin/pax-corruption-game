@@ -287,11 +287,15 @@ function SenateSection({
 /** Civil Victory, on the elections band: who'd win now, and Roman Basilica's early win. */
 function CivilOutlook({ civil }: { civil: RaceView["civil"] }) {
   const color = civil.projected === "you" ? "var(--you)" : civil.projected === "opponent" ? "var(--opp)" : undefined;
+  const leader = civil.projected === "you" ? "you" : civil.projected === "opponent" ? "your opponent" : null;
   return (
-    <div className="text-stone-400" title="Civil Victory goes to whoever wins the final election.">
-      Civil: {civil.electionsLeft} left · now{" "}
+    <div
+      className="text-stone-400"
+      title={`${leader ? `If the election were scored right now, ${leader} would win it. ` : ""}Civil Victory goes to whoever wins the final election.`}
+    >
+      Civil: {civil.electionsLeft} left ·{" "}
       <span className="font-semibold" style={{ color }}>
-        {civil.projected === "you" ? "you win" : civil.projected === "opponent" ? "they win" : "—"}
+        {civil.projected === "you" ? "you lead" : civil.projected === "opponent" ? "they lead" : "—"}
       </span>
       {civil.basilica ? (
         <>
