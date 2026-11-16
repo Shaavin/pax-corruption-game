@@ -91,6 +91,7 @@ export function SharedZones(props: ZoneProps) {
       />
       <SenateSection {...props} />
       <DecreeSection decrees={props.decrees} race={props.race ?? null} />
+      {props.expansion ? <VictoryCardsSection expansion={props.expansion} /> : null}
       <MarketSection {...props} />
       {props.expansion ? <WorldSection expansion={props.expansion} /> : null}
       <SupplySection {...props} />
@@ -479,8 +480,7 @@ function WorldSection({ expansion }: { expansion: ExpansionView }) {
       info={
         <>
           Events played for their effect apply to both players while in play; East effects only help their
-          buyer. Each purchase gives +1 relation with that power. Military, Popularity, Ideological, Cultural,
-          and Diplomatic must be activated by a legacy event before anyone can declare them.
+          buyer. Each purchase gives +1 relation with that power.
         </>
       }
     >
@@ -510,7 +510,7 @@ function WorldSection({ expansion }: { expansion: ExpansionView }) {
       ) : (
         <p className="mb-2 text-[0.7rem] text-stone-500">No events in effect.</p>
       )}
-      <table className="mb-2 w-full text-center text-[0.7rem] tabular-nums" aria-label="Relations with the World Powers">
+      <table className="w-full text-center text-[0.7rem] tabular-nums" aria-label="Relations with the World Powers">
         <thead>
           <tr className="text-stone-500">
             <th className="text-left font-normal">Relations</th>
@@ -540,6 +540,25 @@ function WorldSection({ expansion }: { expansion: ExpansionView }) {
           </tr>
         </tbody>
       </table>
+    </Section>
+  );
+}
+
+/** Legacy Victories: the five extra ways to win that legacy events unlock (expansion). */
+function VictoryCardsSection({ expansion }: { expansion: ExpansionView }) {
+  const active = expansion.victories.filter((entry) => entry.active).length;
+  return (
+    <Section
+      title="Legacy Victories"
+      tour="victory-cards"
+      aside={`${active}/${expansion.victories.length} unlocked`}
+      info={
+        <>
+          Extra ways to win, on top of Civil and Political. Military, Popularity, Ideological, Cultural, and Diplomatic
+          start locked; a legacy event can unlock one, and from then on either player may win by it.
+        </>
+      }
+    >
       <ol className="flex justify-between gap-1" aria-label="Expansion victories">
         {expansion.victories.map((entry) => {
           const def = VICTORY_CARDS.find((card) => card.id === entry.id)!;

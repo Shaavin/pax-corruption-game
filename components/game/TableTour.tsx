@@ -144,6 +144,16 @@ const STEP_DEFS: StepDef[] = [
     },
   },
   {
+    id: "victory-cards",
+    target: "victory-cards",
+    view: "table",
+    expansionOnly: true,
+    desktop: {
+      title: "Legacy Victories",
+      body: "Extra ways to win. Legacy events unlock them one at a time; once a card shows active, either player may win by it.",
+    },
+  },
+  {
     id: "market",
     target: "market",
     view: "table",
