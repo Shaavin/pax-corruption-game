@@ -10,6 +10,8 @@ import { otherPlayer } from "@/lib/game/zones";
 import { eventCost, marketRows } from "@/lib/game/draw";
 import { isEventId, VICTORY_CARDS, WORLD_POWERS, type ExpansionVictoryId, type WorldPowerId } from "@/lib/cards/expansion";
 import type { PhaseStep } from "./SidePanel";
+import { privateSymbols, sharedSymbols } from "@/lib/game/victory";
+import type { SymbolId } from "@/lib/cards/schema";
 
 /** Legacy & Diplomacy: what the table shows besides the base game. */
 export type ExpansionView = {
@@ -59,7 +61,16 @@ export type RaceView = {
   };
 };
 
+/** Ideological symbol copies: shared (policies, active decrees) and each seat's private ones. */
+export type SymbolsView = {
+  shared: Record<SymbolId, number>;
+  you: Record<SymbolId, number>;
+  opponent: Record<SymbolId, number>;
+};
+
 export type TableModel = {
+  /** Symbol copies for the Ideological tally (null during setup). */
+  symbols: SymbolsView | null;
   /** How close each player is to each victory (null during setup). */
   race: RaceView | null;
   districtOrder: DistrictId[];
@@ -119,6 +130,9 @@ export function tableModel(state: GameState, viewer: PlayerId): TableModel {
   }
   return {
     race,
+    symbols: tally
+      ? { shared: sharedSymbols(state), you: privateSymbols(state, viewer), opponent: privateSymbols(state, opponentId) }
+      : null,
     districtOrder: state.districtOrder,
     districtLeader,
     policies: state.policy,

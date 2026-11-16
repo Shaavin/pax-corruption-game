@@ -1,10 +1,11 @@
 "use client";
 
 import Image from "next/image";
-import type { CSSProperties } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { CardBack, CardView } from "./CardView";
 import { InfoTip } from "./InfoTip";
 import { useNotice } from "./notice";
+import { VictoryMark, type SeatVictory } from "./victory-marks";
 import { resolveCard, type FixtureCard } from "./layout-fixture";
 import { CardKind, type DistrictId, type PolicyIdValue } from "@/lib/cards/schema";
 import type { DistrictInfluence } from "@/lib/game/influence";
@@ -39,6 +40,10 @@ type LaneProps = {
   onShowPolicies?: () => void;
   /** Cards in play that can be picked right now (e.g. Century Inc.'s alliance to replace). */
   pickable?: InPlayPick | null;
+  /** Popularity Victory pills, for each seat whose best lead is in this district. */
+  popularity?: { you?: SeatVictory; opponent?: SeatVictory };
+  /** Grid column (1–4): lanes share rows with the center band above the plates. */
+  column: number;
 };
 
 export type InPlayPick = {
@@ -51,15 +56,16 @@ export type InPlayPick = {
  * One district, Snap-style: the opponent's cards hang down toward the district
  * plate, yours rise up toward it, and the plate shows who leads.
  */
-export function Lane({ district, policyId, you, opponent, electors, leader, tourAnchor, target, onShowPolicies, pickable }: LaneProps) {
+export function Lane({ district, policyId, you, opponent, electors, leader, tourAnchor, target, onShowPolicies, pickable, popularity, column }: LaneProps) {
   const lane = { "--lane": `var(--${district})` } as CSSProperties;
   return (
     <section
       aria-label={`${DISTRICT_LABEL[district]} district`}
-      className="lane flex h-full min-h-0 min-w-0 flex-col border-x border-[var(--line)]"
-      style={lane}
+      // Rows (shared with the other lanes via subgrid): their cards, the center band, the plate, yours.
+      className="lane row-span-4 row-start-1 grid min-h-0 min-w-0 grid-rows-subgrid border-x border-[var(--line)]"
+      style={{ ...lane, gridColumn: column }}
     >
-      <div className="flex min-h-0 flex-1 flex-col justify-end overflow-hidden px-1.5 pt-1.5">
+      <div className="row-start-1 flex min-h-0 flex-col justify-end overflow-hidden px-1.5 pt-1.5">
         <LaneCards cards={opponent.cards} side="opponent" pickable={pickable} />
       </div>
 
@@ -72,11 +78,12 @@ export function Lane({ district, policyId, you, opponent, electors, leader, tour
         leader={leader}
         onShowPolicies={onShowPolicies}
         tourAnchor={tourAnchor}
+        popularity={popularity}
       />
 
       <div
         className={[
-          "relative flex min-h-0 flex-1 flex-col justify-start overflow-hidden px-1.5 pb-1.5",
+          "relative row-start-4 flex min-h-0 flex-col justify-start overflow-hidden px-1.5 pb-1.5",
           target ? "lane-target rounded-b-xl" : "",
         ].join(" ")}
       >
@@ -182,6 +189,7 @@ function Plate({
   leader: tallied,
   tourAnchor,
   onShowPolicies,
+  popularity,
 }: {
   district: DistrictId;
   policyId: PolicyIdValue | null;
@@ -191,6 +199,7 @@ function Plate({
   leader?: "you" | "opponent" | null;
   tourAnchor?: boolean;
   onShowPolicies?: () => void;
+  popularity?: { you?: SeatVictory; opponent?: SeatVictory };
 }) {
   const policy = policyId ? resolveCard(policyId) : null;
   const lead = you.influence.total - opponent.influence.total;
@@ -211,7 +220,7 @@ function Plate({
             : `A card effect wins this district for ${leader === "you" ? "you" : "your opponent"}, whatever the influence`
           : undefined
       }
-      className="relative z-10 mx-1.5 flex shrink-0 items-center gap-2 overflow-hidden rounded-xl bg-[rgb(12_15_20/0.85)] px-2 pt-2 pb-1.5 shadow-[0_6px_18px_rgba(0,0,0,0.45)] @max-[15rem]:mx-0.5 @max-[15rem]:flex-col @max-[15rem]:items-stretch @max-[15rem]:gap-1 @max-[15rem]:rounded-lg @max-[15rem]:px-1 @max-[15rem]:py-1"
+      className="relative z-10 row-start-3 mx-1.5 flex shrink-0 items-center gap-2 overflow-hidden rounded-xl bg-[rgb(12_15_20/0.85)] px-2 pt-2 pb-1.5 shadow-[0_6px_18px_rgba(0,0,0,0.45)] @max-[15rem]:mx-0.5 @max-[15rem]:flex-col @max-[15rem]:items-stretch @max-[15rem]:gap-1 @max-[15rem]:rounded-lg @max-[15rem]:px-1 @max-[15rem]:py-1"
       style={{ boxShadow: `0 0 0 1px ${ring}, 0 6px 18px rgba(0,0,0,0.45)` }}
     >
       {/* The district's color along the top edge (the ring around the plate is who leads). */}
@@ -248,8 +257,20 @@ function Plate({
             </span>
           ) : null}
         </div>
-        <ScoreRow label="Opp" side={opponent} color="var(--opp)" leading={leader === "opponent"} />
-        <ScoreRow label="You" side={you} color="var(--you)" leading={leader === "you"} />
+        <ScoreRow
+          label="Opp"
+          side={opponent}
+          color="var(--opp)"
+          leading={leader === "opponent"}
+          mark={popularity?.opponent ? <VictoryMark victory={popularity.opponent} who="Opponent" /> : null}
+        />
+        <ScoreRow
+          label="You"
+          side={you}
+          color="var(--you)"
+          leading={leader === "you"}
+          mark={popularity?.you ? <VictoryMark victory={popularity.you} who="You" /> : null}
+        />
       </div>
       <div className="flex shrink-0 flex-col items-center gap-0.5 @max-[15rem]:items-stretch">
         {policy ? (
@@ -281,12 +302,15 @@ function ScoreRow({
   color,
   leading,
   tour,
+  mark,
 }: {
   label: string;
   side: Side;
   color: string;
   leading: boolean;
   tour?: string;
+  /** Popularity Victory pill beside the support count. */
+  mark?: ReactNode;
 }) {
   const notify = useNotice();
   const who = label === "You" ? "Your" : "Their";
@@ -325,6 +349,7 @@ function ScoreRow({
           {side.support}
         </span>
         <span className="text-[0.5rem] tracking-[0.1em] text-stone-400 uppercase @max-[15rem]:hidden">pop</span>
+        {mark}
       </span>
     </div>
   );

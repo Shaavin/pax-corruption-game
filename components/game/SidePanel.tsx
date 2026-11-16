@@ -5,7 +5,7 @@ import { CardBack, CardView } from "./CardView";
 import { InfoTip } from "./InfoTip";
 import { resolveCard } from "./layout-fixture";
 import type { DecreeView, ExpansionView, RaceView } from "./table-model";
-import { VictoryRace } from "./VictoryRace";
+import { seatVictories, VictoryMark } from "./victory-marks";
 import { useNotice } from "./notice";
 import { getEvent, isEventId, VICTORY_CARDS, WORLD_POWER_NAME } from "@/lib/cards/expansion";
 import { getCard } from "@/lib/cards/catalog";
@@ -87,23 +87,10 @@ export function SharedZones(props: ZoneProps) {
         electionsOut={props.electionsOut}
         ongoing={props.electionsOngoing}
         marketLeft={props.market.length}
+        civil={props.race?.civil ?? null}
       />
-      {props.race ? (
-        <Section
-          title="Victories"
-          tour="victories"
-          info={
-            <>
-              How close each of you is to every victory. Amber: one step away. Gold: can be declared in that
-              player&apos;s Politics step. Tap a victory&apos;s <b>i</b> for how it&apos;s won.
-            </>
-          }
-        >
-          <VictoryRace race={props.race} />
-        </Section>
-      ) : null}
       <SenateSection {...props} />
-      <DecreeSection decrees={props.decrees} />
+      <DecreeSection decrees={props.decrees} race={props.race ?? null} />
       <MarketSection {...props} />
       {props.expansion ? <WorldSection expansion={props.expansion} /> : null}
       <SupplySection {...props} />
@@ -156,11 +143,14 @@ function ElectionStatus({
   electionsOut,
   ongoing,
   marketLeft,
+  civil,
 }: {
   active: boolean;
   electionsOut: number;
   ongoing: number;
   marketLeft: number;
+  /** Civil Victory outlook: who would win if scored now, and Roman Basilica progress. */
+  civil: RaceView["civil"] | null;
 }) {
   const resolved = electionsOut - ongoing;
   return (
@@ -207,6 +197,7 @@ function ElectionStatus({
               General Elections <span className="font-semibold text-stone-100">{electionsOut}/4</span>
             </div>
           )}
+          {civil ? <CivilOutlook civil={civil} /> : null}
         </div>
       </div>
     </div>
@@ -287,13 +278,46 @@ function SenateSection({
   );
 }
 
-function DecreeSection({ decrees }: { decrees: DecreeView[] }) {
+/** Civil Victory, on the elections band: who'd win now, and Roman Basilica's early win. */
+function CivilOutlook({ civil }: { civil: RaceView["civil"] }) {
+  const color = civil.projected === "you" ? "var(--you)" : civil.projected === "opponent" ? "var(--opp)" : undefined;
+  return (
+    <div className="text-stone-400" title="Civil Victory goes to whoever wins the final election.">
+      Civil: {civil.electionsLeft} left · now{" "}
+      <span className="font-semibold" style={{ color }}>
+        {civil.projected === "you" ? "you win" : civil.projected === "opponent" ? "they win" : "—"}
+      </span>
+      {civil.basilica ? (
+        <>
+          {" "}
+          · Basilica {civil.basilica.who === "you" ? "(yours)" : "(theirs)"} {civil.basilica.wins}/{civil.basilica.target}
+        </>
+      ) : null}
+    </div>
+  );
+}
+
+function DecreeSection({ decrees, race }: { decrees: DecreeView[]; race: RaceView | null }) {
   const active = decrees.filter((decree) => decree.active).length;
+  const you = seatVictories(race, "you").political;
+  const opponent = seatVictories(race, "opponent").political;
   return (
     <Section
       title="Decrees"
       tour="decrees"
-      aside={`${active}/4 active`}
+      aside={
+        <span className="inline-flex items-center gap-1.5">
+          <span>{active}/4 active</span>
+          {you && opponent ? (
+            <>
+              <span className="text-[var(--you)]">You</span>
+              <VictoryMark victory={you} who="You" />
+              <span className="text-[var(--opp)]">Opp</span>
+              <VictoryMark victory={opponent} who="Opponent" />
+            </>
+          ) : null}
+        </span>
+      }
       info={
         <>
           Election winners activate one decree per General Election revealed. Active decrees

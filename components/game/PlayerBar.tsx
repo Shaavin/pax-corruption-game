@@ -5,6 +5,8 @@ import type { ReactNode } from "react";
 import { CardBack, CardView } from "./CardView";
 import { resolveCard, type FixtureCard } from "./layout-fixture";
 import type { PartyIdValue } from "@/lib/cards/schema";
+import type { VictoryKindId } from "@/lib/game/types";
+import { VictoryMark, type SeatVictory } from "./victory-marks";
 
 type PlayerBarProps = {
   seat: "you" | "opponent";
@@ -12,12 +14,13 @@ type PlayerBarProps = {
   partyId: PartyIdValue | null;
   monuments: readonly string[];
   setAside: FixtureCard[];
-  partisans: number;
   electionWins: number;
   /** Electorates this player would win if the election were scored now (of 5). */
   electorates: number;
   /** Council of Lords handshake symbols in play. */
   lords: number;
+  /** This seat's victory progress; the bar shows Military, Ideological, Cultural, Diplomatic. */
+  victories?: Partial<Record<VictoryKindId, SeatVictory>>;
   active: boolean;
   /** Phone layout: tighter spacing, smaller labels. */
   compact?: boolean;
@@ -33,10 +36,10 @@ export function PlayerBar({
   partyId,
   monuments,
   setAside,
-  partisans,
   electionWins,
   electorates,
   lords,
+  victories = {},
   active,
   compact = false,
   handCount,
@@ -44,6 +47,11 @@ export function PlayerBar({
 }: PlayerBarProps) {
   const color = seat === "you" ? "var(--you)" : "var(--opp)";
   const party = partyId ? resolveCard(partyId) : null;
+  const who = seat === "you" ? "You" : "Opponent";
+  const mark = (kind: VictoryKindId) => {
+    const victory = victories[kind];
+    return victory ? <VictoryMark victory={victory} who={who} /> : null;
+  };
 
   return (
     <div className={["flex min-w-0 items-center", compact ? "w-max gap-2.5" : "gap-3"].join(" ")}>
@@ -87,11 +95,6 @@ export function PlayerBar({
         data-tour={seat === "you" ? "partisans" : undefined}
       >
         {handCount !== undefined ? <Stat label="Hand" value={handCount} title="Hand: cards in their hand." /> : null}
-        <Stat
-          label="Partisans"
-          value={partisans}
-          title="Partisans: how many times this player has recruited. A lead of 3 wins Military Victory."
-        />
         <Stat label="Wins" value={electionWins} title="Wins: elections won so far." />
         <Stat
           label="Lords"
@@ -113,6 +116,16 @@ export function PlayerBar({
           title="Electorates: how many of the 5 (4 districts + Council of Lords) this player would win if the election were scored now."
           color={electorates >= 3 ? color : undefined}
         />
+        {victories.cultural ? (
+          <Stat label="Culture" value={mark("cultural")} title="Cultural Victory: monument lead over the opponent." />
+        ) : null}
+        {victories.diplomatic ? (
+          <Stat
+            label="Diplo."
+            value={mark("diplomatic")}
+            title="Diplomatic Victory: World Powers this player has the higher relation with."
+          />
+        ) : null}
       </dl>
 
       {monuments.length + setAside.length > 0 ? (
@@ -159,7 +172,7 @@ function Stat({
   color,
 }: {
   label: ReactNode;
-  value: number | string;
+  value: ReactNode;
   title?: string;
   color?: string;
 }) {

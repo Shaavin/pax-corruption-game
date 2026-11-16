@@ -11,6 +11,8 @@ import { Lane, type InPlayPick } from "./Lane";
 import { PeekContext, type PeekCard } from "./peek";
 import { PlayerAid } from "./PlayerAid";
 import { PlayerBar } from "./PlayerBar";
+import { CenterBand } from "./CenterBand";
+import { seatVictories, type SeatVictory } from "./victory-marks";
 import { usePlayerLabel } from "./players";
 import { SharedZones, sharedNeedsAttention, SidePanel, TurnDock, type DockBanner, type ExtraAction, type ZoneProps } from "./SidePanel";
 import { useCompact, useCompactLandscape } from "./use-compact";
@@ -123,6 +125,9 @@ function TableView({
   const closeAid = useCallback(() => setAidOpen(false), []);
   if (veiled && peek !== null) setPeek(null);
   const compact = useCompact();
+  // Victory progress lives on the table, next to what each victory measures.
+  const yourVictories = useMemo(() => seatVictories(model.race, "you"), [model.race]);
+  const opponentVictories = useMemo(() => seatVictories(model.race, "opponent"), [model.race]);
   // The tour opens by itself the first time a game reaches play, and again from the menu.
   const tourSeen = useTourSeen();
   const [tourRequest, setTourRequest] = useState<"auto" | "open" | "closed">("auto");
@@ -191,10 +196,11 @@ function TableView({
     />
   );
   const lanes = (
-    <div className="grid min-h-0 flex-1 grid-cols-4">
+    <div className="grid min-h-0 flex-1 grid-cols-4 grid-rows-[minmax(0,1fr)_auto_auto_minmax(0,1fr)]">
       {model.districtOrder.map((district, index) => (
         <Lane
           key={district}
+          column={index + 1}
           district={district}
           policyId={model.policies[district]}
           opponent={{
@@ -208,6 +214,10 @@ function TableView({
             influence: model.you.influence[district],
           }}
           electors={model.electors ? model.electors[district] : null}
+          popularity={{
+            you: popularityHere(yourVictories.popularity, district),
+            opponent: popularityHere(opponentVictories.popularity, district),
+          }}
           leader={model.districtLeader?.[district]}
           tourAnchor={index === 0}
           pickable={interaction?.inPlayPick ?? null}
@@ -226,6 +236,15 @@ function TableView({
           }
         />
       ))}
+      {/* Player-wide victories across the middle of the districts, just above the plates. */}
+      <div className="col-span-4 col-start-1 row-start-2 min-w-0" data-tour="center-band">
+        <CenterBand
+          military={{ you: yourVictories.military, opponent: opponentVictories.military }}
+          partisans={{ you: model.you.partisans, opponent: model.opponent.partisans }}
+          ideological={{ you: yourVictories.ideological, opponent: opponentVictories.ideological }}
+          symbols={model.symbols}
+        />
+      </div>
     </div>
   );
   const actionCards = interaction?.actionCards ?? [];
@@ -344,10 +363,10 @@ function TableView({
               partyId={model.opponent.partyId}
               monuments={model.opponent.monuments}
               setAside={model.opponent.setAside}
-              partisans={model.opponent.partisans}
               electionWins={model.opponent.electionWins}
               electorates={model.opponent.electorates}
               lords={model.opponent.lords}
+              victories={opponentVictories}
               active={!yourTurn && live}
             />
             <Hand cards={model.opponent.hand} variant="opponent" />
@@ -430,10 +449,10 @@ function TableView({
               partyId={model.you.partyId}
               monuments={model.you.monuments}
               setAside={model.you.setAside}
-              partisans={model.you.partisans}
               electionWins={model.you.electionWins}
               electorates={model.you.electorates}
               lords={model.you.lords}
+              victories={yourVictories}
               active={yourTurn && live}
             />
           </div>
@@ -513,6 +532,8 @@ function CompactTable({
   const [logOpen, setLogOpen] = useState(false);
   const landscape = useCompactLandscape();
   const attention = sharedNeedsAttention(zoneProps);
+  const yourVictories = useMemo(() => seatVictories(model.race, "you"), [model.race]);
+  const opponentVictories = useMemo(() => seatVictories(model.race, "opponent"), [model.race]);
 
   // Follow the game to where the next decision is (players can still switch back):
   // a card waiting for a district or a new action step → districts;
@@ -555,10 +576,10 @@ function CompactTable({
           partyId={model.opponent.partyId}
           monuments={model.opponent.monuments}
           setAside={model.opponent.setAside}
-          partisans={model.opponent.partisans}
           electionWins={model.opponent.electionWins}
           electorates={model.opponent.electorates}
           lords={model.opponent.lords}
+          victories={opponentVictories}
           active={!yourTurn && live}
           handCount={model.opponent.hand.length}
         />
@@ -637,10 +658,10 @@ function CompactTable({
         partyId={model.you.partyId}
         monuments={model.you.monuments}
         setAside={model.you.setAside}
-        partisans={model.you.partisans}
         electionWins={model.you.electionWins}
         electorates={model.you.electorates}
         lords={model.you.lords}
+        victories={yourVictories}
         active={yourTurn && live}
       />
     </div>
@@ -737,4 +758,10 @@ function MenuButton({ onClick, children }: { onClick: () => void; children: Reac
       {children}
     </button>
   );
+}
+
+/** A seat's Popularity pill for this district: only where its best lead is, and only once it leads there. */
+function popularityHere(victory: SeatVictory | undefined, district: DistrictId): SeatVictory | undefined {
+  if (!victory || !victory.active) return undefined;
+  return victory.standing.district === district && victory.standing.value > 0 ? victory : undefined;
 }

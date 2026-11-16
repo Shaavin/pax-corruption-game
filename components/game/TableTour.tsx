@@ -48,14 +48,14 @@ const STEP_DEFS: StepDef[] = [
   },
   {
     id: "victories",
-    target: "victories",
-    view: "table",
+    target: "center-band",
+    view: "districts",
     desktop: {
       title: "Ways to win",
-      body: "Win the last election (Civil), meet two active decrees (Political), or lead in partisans, support, or symbols (Military, Popularity, Ideological). This panel tracks every target; declare a win in your Politics step.",
+      body: "Victory progress sits next to what it measures: Military (partisan tug-of-war) and Ideological (symbol tally) on this band, Popularity on a district's Pop, Political on the decrees, Civil on the elections band. Amber is one step away; gold means declare it in Politics.",
     },
     expansion: {
-      body: "Civil and Political are active from the start; legacy events switch on the other five. This panel shows each target, which are active, and your symbol counts (Ideological). Declare a win in your Politics step.",
+      body: "Victory progress sits next to what it measures: Military and Ideological on this band, Popularity on a district's Pop, Political on the decrees, Civil on the elections band, Culture and Diplo. by your name. \"off\" needs a legacy event first. Amber is one step away; gold means declare it in Politics.",
     },
   },
   {
@@ -109,11 +109,8 @@ const STEP_DEFS: StepDef[] = [
     id: "numbers",
     target: "partisans",
     desktop: {
-      title: "Partisans and Lords",
-      body: "Lead by 3 partisans for Military Victory. Lords (alliance handshakes) decides the Council of Lords, the fifth electorate.",
-    },
-    expansion: {
-      body: "Lead by 3 partisans for Military Victory, once it's active. Lords (alliance handshakes) decides the Council of Lords, the fifth electorate.",
+      title: "Lords and electorates",
+      body: "Lords (alliance handshakes) decides the Council of Lords, the fifth electorate. Elect. is how many of the 5 you'd win if an election were scored now.",
     },
   },
   {
