@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { CardView } from "./CardView";
 import { getCard } from "@/lib/cards/catalog";
 import { getEvent, VICTORY_CARDS, WORLD_POWER_NAME } from "@/lib/cards/expansion";
+import { LEGACY_VICTORY_ORDER } from "./table-model";
 import { District } from "@/lib/cards/schema";
 import {
   eventCost,
@@ -126,6 +127,7 @@ export function BuyEventDialog({ state, viewer, instanceId, onAction, onClose }:
               </UseButton>
               {uses
                 .filter((entry) => entry.use === "legacyActivate")
+                .sort((a, b) => LEGACY_VICTORY_ORDER.indexOf(a.victory!) - LEGACY_VICTORY_ORDER.indexOf(b.victory!))
                 .map((entry) => {
                   const victory = VICTORY_CARDS.find((card) => card.id === entry.victory)!;
                   return (

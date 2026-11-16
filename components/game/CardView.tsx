@@ -149,7 +149,7 @@ export function CardView({
   function showPeek(event: { currentTarget: HTMLElement }) {
     if (!canPeek) return;
     const box = event.currentTarget.getBoundingClientRect();
-    const peek = { name, art, cardId, ...peekExtra, anchorX: box.left + box.width / 2 };
+    const peek = { name, art, cardId, square, ...peekExtra, anchorX: box.left + box.width / 2 };
     if (inspectDelay <= 0) {
       setPeek(peek);
       return;
@@ -191,7 +191,7 @@ export function CardView({
       longPressed.current = true;
       pressTimer.current = null;
       const box = target.getBoundingClientRect();
-      setPeek({ name, art, cardId, ...peekExtra, anchorX: box.left + box.width / 2 });
+      setPeek({ name, art, cardId, square, ...peekExtra, anchorX: box.left + box.width / 2 });
     }, 420);
   }
 
@@ -245,7 +245,7 @@ export function CardView({
           touchPress.current = false;
           clearPeekTimer();
           const box = event.currentTarget.getBoundingClientRect();
-          setPeek({ name, art, cardId, ...peekExtra, anchorX: box.left + box.width / 2 });
+          setPeek({ name, art, cardId, square, ...peekExtra, anchorX: box.left + box.width / 2 });
           return;
         }
         hidePeek();

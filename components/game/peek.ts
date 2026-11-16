@@ -16,6 +16,8 @@ export type PeekCard = {
   contentsLabel?: string;
   /** Decrees: whether the active side is in effect (defaults to which art is shown). */
   decreeActive?: boolean;
+  /** Square art (decrees, Legacy Victory cards): the zoom keeps its shape. */
+  square?: boolean;
   /** Viewport x of the hovered element's center; the zoom opens on the other half. */
   anchorX?: number;
 };

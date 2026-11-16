@@ -45,7 +45,7 @@ export function ZoomPreview({ card }: { card: PeekCard | null }) {
             art={card.art}
             size="zoom"
             cardId={card.cardId}
-            square={isDecree(card)}
+            square={card.square || isDecree(card)}
           />
         ) : null}
         {contents.length > 0 ? (

@@ -68,6 +68,9 @@ export type SymbolsView = {
   opponent: Record<SymbolId, number>;
 };
 
+/** Display order for the Legacy Victories (Ian, 2026-11-16). The engine's own order is unchanged. */
+export const LEGACY_VICTORY_ORDER: readonly ExpansionVictoryId[] = ["cultural", "diplomatic", "military", "popularity", "ideological"];
+
 export type TableModel = {
   /** Symbol copies for the Ideological tally (null during setup). */
   symbols: SymbolsView | null;
@@ -182,7 +185,9 @@ function expansionView(state: GameState, viewer: PlayerId): ExpansionView | null
       owner: played.owner === null ? "all" : played.owner === viewer ? "you" : "opponent",
     })),
     relations: WORLD_POWERS.map((power) => ({ power, you: x.relations[viewer][power], opponent: x.relations[opponent][power] })),
-    victories: VICTORY_CARDS.map((card) => ({ id: card.id, active: x.activeVictories.includes(card.id) })),
+    victories: [...VICTORY_CARDS]
+      .sort((a, b) => LEGACY_VICTORY_ORDER.indexOf(a.id) - LEGACY_VICTORY_ORDER.indexOf(b.id))
+      .map((card) => ({ id: card.id, active: x.activeVictories.includes(card.id) })),
     eventDeck: x.eventDeck.length,
   };
 }
