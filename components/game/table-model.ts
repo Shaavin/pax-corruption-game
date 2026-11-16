@@ -42,6 +42,8 @@ export type TablePlayerView = {
   setAside: CardInstance[];
   /** Your own set-aside cards show in your hand with a tag (they work as hand cards). */
   handTags: Record<string, string>;
+  /** Your hand cards the opponent can see (taken face up, or in a face-up zone): they get an eye. */
+  revealedIds: string[];
   partyId: PartyIdValue | null;
   monuments: string[];
   partisans: number;
@@ -218,6 +220,14 @@ function playerView(state: GameState, player: PlayerId, isYou: boolean, electora
     hand: isYou
       ? [...seat.hand, ...seat.consultativeOffice, ...seat.planetNextBank, ...revealed].map((card) => ({ ...card, faceUp: true }))
       : seat.hand,
+    revealedIds: isYou
+      ? [
+          ...seat.hand.filter((card) => card.faceUp),
+          ...seat.consultativeOffice,
+          ...seat.planetNextBank,
+          ...revealed,
+        ].map((card) => card.instanceId)
+      : [],
     handTags: isYou
       ? Object.fromEntries([
           ...seat.consultativeOffice.map((card) => [card.instanceId, "Office"]),

@@ -1,5 +1,6 @@
 "use client";
 
+import { useNotice } from "./notice";
 import { useState, type CSSProperties } from "react";
 import { CardView } from "./CardView";
 import { resolveCard, type FixtureCard } from "./layout-fixture";
@@ -17,6 +18,8 @@ type HandProps = {
   onSelect?: (instanceId: string) => void;
   /** Why a card can't be chosen right now (shown when it's tapped). */
   blockedReasons?: ReadonlyMap<string, string>;
+  /** Cards your opponent can see: marked with an eye. */
+  revealedIds?: ReadonlySet<string>;
 };
 
 /** Degrees between neighbouring cards in the fan, capped so big hands stay readable. */
@@ -29,7 +32,18 @@ function overlapFor(count: number): number {
   return Math.min(0.58, Math.max(0.12, 0.07 * count));
 }
 
-export function Hand({ cards, variant, tourId, tags, playableIds, selectableIds, selectedIds, onSelect, blockedReasons }: HandProps) {
+export function Hand({
+  cards,
+  variant,
+  tourId,
+  tags,
+  playableIds,
+  selectableIds,
+  selectedIds,
+  onSelect,
+  blockedReasons,
+  revealedIds,
+}: HandProps) {
   const [hover, setHover] = useState<number | null>(null);
 
   if (variant === "opponent") {
@@ -89,6 +103,7 @@ export function Hand({ cards, variant, tourId, tags, playableIds, selectableIds,
               ? `translateY(-20%) rotate(${offset * step * 0.5}deg)`
               : `translateY(${Math.abs(offset) ** 1.6 * 3}px) rotate(${offset * step}deg)`,
         };
+        const revealed = revealedIds?.has(entry.instanceId) ?? false;
         return (
           <li
             key={entry.instanceId}
@@ -109,10 +124,15 @@ export function Hand({ cards, variant, tourId, tags, playableIds, selectableIds,
               cardId={entry.cardId}
               motionKey={entry.instanceId}
               peekDelay={600}
-              selectLabel={selectable ? (selected ? `Deselect ${catalog.name}` : `Choose ${catalog.name}`) : undefined}
+              selectLabel={
+                selectable
+                  ? `${selected ? "Deselect" : "Choose"} ${catalog.name}${revealed ? " (your opponent can see it)" : ""}`
+                  : undefined
+              }
               onSelect={selectable && onSelect ? () => onSelect(entry.instanceId) : undefined}
               blockedReason={selectable ? undefined : blockedReasons?.get(entry.instanceId)}
             />
+            {revealed ? <RevealedEye /> : null}
             {tags?.[entry.instanceId] ? (
               <span className="pointer-events-none absolute top-1 left-1/2 z-10 -translate-x-1/2 rounded-full bg-[var(--you)] px-2 py-0.5 text-[0.55rem] font-bold tracking-wide text-stone-950 uppercase shadow">
                 {tags[entry.instanceId]}
@@ -122,5 +142,32 @@ export function Hand({ cards, variant, tourId, tags, playableIds, selectableIds,
         );
       })}
     </ul>
+  );
+}
+
+/**
+ * Like MTGA and Hearthstone: an eye on a card in your hand means your opponent knows it
+ * (you took it face up from the Market, or it sits in a face-up zone).
+ */
+function RevealedEye() {
+  const notify = useNotice();
+  return (
+    <span
+      role="img"
+      aria-label="Revealed to your opponent"
+      onClick={(event) => {
+        // Explain instead of choosing the card underneath.
+        event.stopPropagation();
+        notify("Your opponent can see this card: it was taken face up (from the Market, for example) or sits in a face-up zone.");
+      }}
+      title="Your opponent can see this card"
+      // Floats just above the card's top-left corner: the next card in the fan covers the right side.
+      className="pointer-events-auto absolute -top-[0.7rem] left-[9%] z-30 flex h-[1.45rem] w-[1.45rem] cursor-help items-center justify-center rounded-full bg-gradient-to-b from-red-500 to-red-700 text-white shadow-[0_0_0_1.5px_rgb(10_12_16),0_0_12px_rgb(239_68_68/0.75),0_4px_8px_rgb(0_0_0/0.6)]"
+    >
+      <svg aria-hidden viewBox="0 0 16 16" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="1.6">
+        <path d="M1 8s2.6-4.5 7-4.5S15 8 15 8s-2.6 4.5-7 4.5S1 8 1 8z" />
+        <circle cx="8" cy="8" r="2" fill="currentColor" />
+      </svg>
+    </span>
   );
 }

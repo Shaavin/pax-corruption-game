@@ -249,6 +249,7 @@ function TableView({
     </div>
   );
   const actionCards = interaction?.actionCards ?? [];
+  const revealedIds = useMemo(() => new Set(model.you.revealedIds), [model.you.revealedIds]);
   const hand = (
     <div className="relative h-[calc(var(--card-hand)*1.364*0.7)] shrink-0 bg-black/20">
       {compact ? null : (
@@ -275,6 +276,7 @@ function TableView({
           selectedIds={interaction?.selectedHandIds}
           onSelect={interaction?.onSelectHand}
           blockedReasons={interaction?.handBlockedReasons}
+          revealedIds={revealedIds}
         />
       </div>
     </div>

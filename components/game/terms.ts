@@ -62,6 +62,11 @@ export const TERMS: Term[] = [
     meaning:
       "Each turn you take exactly one main action (play a card, recruit, or build a monument). Free actions come from your alliances and monuments, each once per turn.",
   },
+  {
+    term: "Revealed card (eye)",
+    meaning:
+      "A card in your hand that your opponent can see, because you took it face up (from the Market, for example) or it sits in a face-up zone. Cards you draw from the deck stay secret.",
+  },
   { term: "Hand limit", meaning: "Usually 5. Going over is fine; it only stops you taking or drawing cards at Income." },
   { term: "Monument", meaning: "Built by discarding 5 cards of its district. Its ability is yours for the rest of the game." },
 ];
