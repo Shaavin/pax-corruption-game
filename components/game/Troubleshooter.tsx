@@ -347,7 +347,7 @@ function ReplayViewer({ loaded, onClose }: { loaded: Loaded; onClose: () => void
             <div className="flex items-center justify-between text-xs text-stone-400 tabular-nums">
               <span>
                 Step {index} / {last} · {state.phase}
-                {state.pending.length > 0 ? " · choice pending" : ""}
+                {state.pending.length > 0 ? " · decision pending" : ""}
               </span>
               <span className="flex items-center gap-1">
                 View as

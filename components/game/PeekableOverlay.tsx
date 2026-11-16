@@ -3,10 +3,10 @@
 import { useEffect, useState, type ReactNode } from "react";
 
 /**
- * A choice that covers the table (decree activation, buying an event, discards, swaps…) with a
- * way to look past it, like the hide/view-board control on choice screens in digital card
- * games: "View table" (or V) hides the choice and its backdrop and shows a slim "Back to
- * choice" bar; V or Esc brings it back. The choice stays mounted while hidden, so any
+ * A decision that covers the table (decree activation, buying an event, discards, swaps…) with a
+ * way to look past it, like the hide/view-board control on decision screens in digital card
+ * games: "View table" (or V) hides the decision and its backdrop and shows a slim "Back to
+ * decision" bar; V or Esc brings it back. The decision stays mounted while hidden, so any
  * half-made selection survives the peek.
  */
 export function PeekableOverlay({
@@ -31,7 +31,7 @@ export function PeekableOverlay({
       if (event.key === "v" || event.key === "V") {
         setPeeking((current) => !current);
       } else if (event.key === "Escape" && peeking) {
-        // While peeking, Esc only returns to the choice (it must not also close a dialog).
+        // While peeking, Esc only returns to the decision (it must not also close a dialog).
         event.stopImmediatePropagation();
         setPeeking(false);
       }
@@ -49,7 +49,7 @@ export function PeekableOverlay({
             event.stopPropagation();
             setPeeking(true);
           }}
-          title="Hide this choice to look at the table (V)"
+          title="Hide this decision to look at the table (V)"
           className="pointer-events-auto absolute top-3 left-1/2 z-10 flex -translate-x-1/2 cursor-pointer items-center gap-2 rounded-full bg-[#0d1117]/95 px-4 py-2 text-sm font-semibold text-stone-50 shadow-[0_0_18px_rgb(142_196_220/0.35),0_8px_20px_rgb(0_0_0/0.6)] ring-2 ring-stamp-blue/80 backdrop-blur transition hover:bg-[#141a24] hover:ring-stamp-blue"
         >
           <EyeIcon />
@@ -61,15 +61,15 @@ export function PeekableOverlay({
         <div className="pointer-events-none fixed inset-x-0 top-3 z-[80] flex justify-center px-3">
           <div className="rise-in pointer-events-auto flex max-w-full items-center gap-3 rounded-full bg-[#0d1117]/95 py-1.5 pr-1.5 pl-4 text-sm shadow-2xl ring-1 ring-[var(--act)]/60">
             <span className="truncate text-stone-200">
-              <span className="font-semibold text-[var(--act)]">Choice:</span> {label}
+              <span className="font-semibold text-[var(--act)]">Decision:</span> {label}
             </span>
             <button
               type="button"
               onClick={() => setPeeking(false)}
-              title="Back to the choice (V or Esc)"
+              title="Back to the decision (V or Esc)"
               className="shrink-0 cursor-pointer rounded-full bg-[var(--act)] px-3 py-1 text-xs font-semibold text-stone-950 hover:brightness-110"
             >
-              Back to choice
+              Back to decision
             </button>
           </div>
         </div>
