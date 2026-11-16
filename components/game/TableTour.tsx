@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 
-export const TABLE_TOUR_KEY = "pax-table-tour-v9";
+export const TABLE_TOUR_KEY = "pax-table-tour-v10";
 
 /** Which half of the phone layout a step needs on screen. */
 export type TourView = "districts" | "table";
@@ -29,16 +29,33 @@ type StepDef = {
   expansionOnly?: boolean;
 };
 
+/**
+ * The one walkthrough ("How to play"): each rule is explained while its part of the table is
+ * spotlighted, and each victory at the component that tracks it. Expansion wording covers the
+ * five victories that start inactive, buying events, and the two-row election Market.
+ */
 const STEP_DEFS: StepDef[] = [
   {
     id: "welcome",
     target: null,
     desktop: {
-      title: "Welcome to the table",
-      body: "Two parties compete for a country of four districts. This quick tour shows where everything is. Use the arrow keys to step through and Esc to skip. Reopen it any time from Table guide at the top.",
+      title: "Welcome to Pax Corruption",
+      body: "Two parties compete for a country of four districts. This guide shows the table and how to win. Arrow keys step through, Esc skips; reopen it from How to play.",
     },
     phone: {
-      body: "Two parties compete for a country of four districts. This quick tour shows where everything is. Reopen it any time from the ⋯ menu.",
+      body: "Two parties compete for a country of four districts. This guide shows the table and how to win. Reopen it from the ⋯ menu.",
+    },
+  },
+  {
+    id: "victories",
+    target: "victories",
+    view: "table",
+    desktop: {
+      title: "Ways to win",
+      body: "Win the last election (Civil), meet two active decrees (Political), or lead in partisans, support, or symbols (Military, Popularity, Ideological). This panel tracks every target; declare a win in your Politics step.",
+    },
+    expansion: {
+      body: "Civil and Political are active from the start; legacy events switch on the other five. This panel shows each target, which are active, and your symbol counts (Ideological). Declare a win in your Politics step.",
     },
   },
   {
@@ -47,10 +64,21 @@ const STEP_DEFS: StepDef[] = [
     view: "districts",
     desktop: {
       title: "Your hand",
-      body: "Click a card to choose it, and the places you can play it light up. Hover any face-up card, here or on the table, to see it full size.",
+      body: "Click a card and the places it can go light up. Hover any face-up card to see it full size.",
     },
     phone: {
-      body: "Tap a card to choose it, and the places you can play it light up. Press and hold any card to see it full size; on the table, a tap is enough.",
+      body: "Tap a card and the places it can go light up. Press and hold a card to see it full size.",
+    },
+  },
+  {
+    id: "turn",
+    target: "turn",
+    desktop: {
+      title: "Your turn",
+      body: "Action: one main action, plus any free actions. Politics: seat a Senator, propose a policy, or declare a victory. Income: take a Market card, then draw if under your hand limit.",
+    },
+    expansion: {
+      body: "Action: one main action, plus any free actions. Politics: seat a Senator, propose a policy, or declare a victory. Income: take a Market card or buy an event, then draw if under your hand limit.",
     },
   },
   {
@@ -59,10 +87,10 @@ const STEP_DEFS: StepDef[] = [
     view: "districts",
     desktop: {
       title: "Special actions",
-      body: "Recruit, Construct, free actions from your alliances and monuments, and Propose policy show up as bordered cards beside your hand when you can take them. A dimmed card can't be used yet: hover it to see why.",
+      body: "Recruit, Construct, Propose policy, and free actions appear here when available. Hover a dimmed one to see why.",
     },
     phone: {
-      body: "Recruit, Construct, free actions from your alliances and monuments, and Propose policy show up as bordered cards just above your hand. A dimmed card can't be used yet: tap it to see why.",
+      body: "Recruit, Construct, Propose policy, and free actions appear above your hand. Tap a dimmed one to see why.",
     },
   },
   {
@@ -70,30 +98,22 @@ const STEP_DEFS: StepDef[] = [
     target: "district",
     view: "districts",
     desktop: {
-      title: "Reading a district",
-      body: "Your cards go below the plate and your opponent's above it. Influence (Inf) is your civil cards' numbers plus 1 per card in your support pile; popularity (Pop) counts the support pile. The border shows who leads: teal for you, red for them. Lead Pop by 9 for Popularity Victory.",
+      title: "Districts",
+      body: "Yours below the plate, theirs above. Inf is civil card numbers plus 1 per support-pile card; more Inf wins the district at an election. Pop is your support pile: lead by 9 for Popularity Victory.",
     },
     expansion: {
-      body: "Your cards go below the plate and your opponent's above it. Influence (Inf) is your civil cards' numbers plus 1 per card in your support pile; popularity (Pop) counts the support pile. The border shows who leads: teal for you, red for them. Lead Pop by 9 for Popularity Victory, once a legacy event activates it.",
+      body: "Yours below the plate, theirs above. Inf is civil card numbers plus 1 per support-pile card; more Inf wins the district at an election. Pop is your support pile: lead by 9 for Popularity Victory, once it's active.",
     },
   },
   {
     id: "numbers",
     target: "partisans",
     desktop: {
-      title: "Your numbers",
-      body: "Partisans: lead by 3 for Military Victory. Wins: elections won. Lords: alliance handshakes in play, and whoever has more wins the Council of Lords. Leading: how many of the 5 electorates you'd win if an election were scored now.",
+      title: "Partisans and Lords",
+      body: "Lead by 3 partisans for Military Victory. Lords (alliance handshakes) decides the Council of Lords, the fifth electorate.",
     },
     expansion: {
-      body: "Partisans: lead by 3 for Military Victory, once a legacy event activates it. Wins: elections won. Lords: alliance handshakes in play, and whoever has more wins the Council of Lords. Leading: how many of the 5 electorates you'd win if an election were scored now.",
-    },
-  },
-  {
-    id: "turn",
-    target: "turn",
-    desktop: {
-      title: "Your turn",
-      body: "Each turn goes Action → Politics → Income. This panel shows the current step, what to do next, and the buttons for it.",
+      body: "Lead by 3 partisans for Military Victory, once it's active. Lords (alliance handshakes) decides the Council of Lords, the fifth electorate.",
     },
   },
   {
@@ -102,10 +122,10 @@ const STEP_DEFS: StepDef[] = [
     view: "table",
     desktop: {
       title: "General Elections",
-      body: "Four General Elections are shuffled into the deck. When one turns up, the Market fills to 8 cards and stops refilling; the election is scored once it's empty. The winner activates decrees, and whoever wins the last election takes Civil Victory.",
+      body: "Four are hidden in the deck. When one appears, the Market stops refilling; once it's empty, the election is scored. The winner activates decrees, and the last election decides Civil Victory.",
     },
     expansion: {
-      body: "Four General Elections are shuffled into the deck. When one turns up, the Market splits into two rows (8 main cards plus events) and stops refilling with main cards; the election is scored once no main cards are left. The winner activates decrees, and whoever wins the last election takes Civil Victory.",
+      body: "Four are hidden in the deck. When one appears, the Market splits into two rows and stops refilling; once its main cards are gone, the election is scored. The winner activates decrees, and the last election decides Civil Victory.",
     },
   },
   {
@@ -114,7 +134,7 @@ const STEP_DEFS: StepDef[] = [
     view: "table",
     desktop: {
       title: "The Senate",
-      body: "Five Senators: civil and conspiracy cards carry 1 vote, alliances 2. In Politics you may seat a card here (the rightmost Senator goes to your support pile), or reveal cards that convince more than half the votes to change the policy of a district where they convinced a Senator.",
+      body: "In Politics, seat a card here, or reveal cards that convince a majority of votes to change a policy.",
     },
   },
   {
@@ -122,8 +142,8 @@ const STEP_DEFS: StepDef[] = [
     target: "decrees",
     view: "table",
     desktop: {
-      title: "Decree objectives",
-      body: "Election winners activate decrees. Meet any two active decrees at once to declare Political Victory. The dots show who meets each one right now.",
+      title: "Decrees",
+      body: "Election winners activate these. Meet two active decrees at once for Political Victory; the dots show who meets each.",
     },
   },
   {
@@ -132,10 +152,10 @@ const STEP_DEFS: StepDef[] = [
     view: "table",
     desktop: {
       title: "The Market",
-      body: "At Income you take one Market card. The Market refills, then you draw a card if you're still under your hand limit.",
+      body: "At Income, take one card here.",
     },
     expansion: {
-      body: "At Income you take one Market card or buy an event (◆ shows its cost: one card from your hand per main card to its right). The Market refills, then you draw a card if you're still under your hand limit.",
+      body: "At Income, take one card here or buy an event (◆ is its cost).",
     },
   },
   {
@@ -145,7 +165,7 @@ const STEP_DEFS: StepDef[] = [
     expansionOnly: true,
     desktop: {
       title: "The World",
-      body: "Legacy & Diplomacy: events in play, your relations with the four World Powers, and which victories are active. Each event you buy gives +1 relation with its power; a higher relation with 3 of the 4 is Diplomatic Victory, and legacy events activate the inactive victories.",
+      body: "Events in play and your relations with the World Powers. Each event you buy is +1 relation; lead with 3 of the 4 for Diplomatic Victory, once it's active.",
     },
   },
   {
@@ -154,10 +174,10 @@ const STEP_DEFS: StepDef[] = [
     view: "table",
     desktop: {
       title: "Monuments",
-      body: "Construct a monument by discarding 5 cards of its district from your hand. Its ability is yours for the rest of the game. The deck count shows how many cards are left to draw.",
+      body: "Discard 5 cards of a monument's district to build it and keep its ability.",
     },
     expansion: {
-      body: "Construct a monument by discarding 5 cards of its district from your hand. Its ability is yours for the rest of the game. Build 2 more than your opponent for Cultural Victory, once a legacy event activates it. The deck count shows how many cards are left to draw.",
+      body: "Discard 5 cards of a monument's district to build it and keep its ability. Lead by 2 monuments for Cultural Victory, once it's active.",
     },
   },
   {
@@ -165,11 +185,11 @@ const STEP_DEFS: StepDef[] = [
     target: "history",
     desktop: {
       title: "History",
-      body: "Every public move lands here, tinted by who made it. Hover a tile to see the cards involved; click to pin it.",
+      body: "Every public move, tinted by who made it. Stuck? Hover anything greyed out for why, or any number for what it means.",
     },
     phone: {
       title: "The log",
-      body: "Tap Log to see every public move, tinted by who made it. That's the tour. Good luck!",
+      body: "Tap Log for every public move. Tap anything greyed out for why. Good luck!",
     },
   },
 ];

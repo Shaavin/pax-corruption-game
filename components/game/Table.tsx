@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { playCardMotion } from "./card-motion";
 import { NoticeProvider, useNotice } from "./notice";
-import { markPrimerSeen, Primer, usePrimerSeen } from "./Primer";
 import { SettingsDialog } from "./SettingsDialog";
 import { Hand } from "./Hand";
 import { HistoryRail } from "./HistoryRail";
@@ -128,25 +127,8 @@ function TableView({
   const tourSeen = useTourSeen();
   const [tourRequest, setTourRequest] = useState<"auto" | "open" | "closed">("auto");
   const [tourStep, setTourStep] = useState(0);
-  // First game: "How to play" comes first, then the table guide.
-  const primerSeen = usePrimerSeen();
-  const [primerRequest, setPrimerRequest] = useState<"auto" | "open" | "closed">("auto");
-  const [primerPage, setPrimerPage] = useState(0);
-  const primerOpen = showTour && (primerRequest === "open" || (primerRequest === "auto" && !primerSeen));
-  const primerFirstRun = primerRequest === "auto";
-  const openPrimer = useCallback(() => {
-    setPeek(null);
-    setAidOpen(false);
-    setPrimerPage(0);
-    setPrimerRequest("open");
-  }, []);
-  const closePrimer = useCallback(() => {
-    markPrimerSeen();
-    setPrimerRequest("closed");
-    setPrimerPage(0);
-  }, []);
-  const tourOpen =
-    showTour && !primerOpen && (tourRequest === "open" || (tourRequest === "auto" && !tourSeen));
+  // "How to play" is the one walkthrough: rules explained on the table they apply to.
+  const tourOpen = showTour && (tourRequest === "open" || (tourRequest === "auto" && !tourSeen));
   const tourSteps = useMemo(() => tableTourSteps({ compact, expansion }), [compact, expansion]);
   const step = Math.min(tourStep, tourSteps.length - 1);
   const tourView: TourView | null = tourOpen ? (tourSteps[step]?.view ?? null) : null;
@@ -163,9 +145,9 @@ function TableView({
   }, []);
   const setPeekSafe = useCallback(
     (card: PeekCard | null) => {
-      if (!tourOpen && !primerOpen && !veiled) setPeek(card);
+      if (!tourOpen && !veiled) setPeek(card);
     },
-    [tourOpen, primerOpen, veiled],
+    [tourOpen, veiled],
   );
   // Slide cards from where they were (captured just before the change) to where they are now.
   useLayoutEffect(() => {
@@ -282,7 +264,7 @@ function TableView({
       {children}
       {aidOpen && !veiled ? <PlayerAid onClose={closeAid} expansion={expansion} /> : null}
       {settingsOpen ? <SettingsDialog onClose={() => setSettingsOpen(false)} hotseat={seed !== null} /> : null}
-      {tourOpen || primerOpen || veiled || aidOpen ? null : <ZoomPreview card={peek} />}
+      {tourOpen || veiled || aidOpen ? null : <ZoomPreview card={peek} />}
       {policyFocus && !veiled ? (
         <PolicyChooser
           districtOrder={model.districtOrder}
@@ -294,9 +276,6 @@ function TableView({
         />
       ) : null}
       {tourOpen ? <TableTour steps={tourSteps} step={step} onStep={setTourStep} onClose={closeTour} /> : null}
-      {primerOpen ? (
-        <Primer page={primerPage} onPage={setPrimerPage} onClose={closePrimer} firstRun={primerFirstRun} expansion={expansion} />
-      ) : null}
     </>
   );
   // No seed here: anyone could load it in another tab and see the deck order. (Reports carry it.)
@@ -337,7 +316,6 @@ function TableView({
           onReport={onReport}
           extraMenu={extraMenu}
           onTour={showTour ? openTour : undefined}
-          onPrimer={showTour ? openPrimer : undefined}
           onSettings={() => {
             setPeek(null);
             setSettingsOpen(true);
@@ -375,22 +353,13 @@ function TableView({
             <Hand cards={model.opponent.hand} variant="opponent" />
             <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1 text-[0.68rem] whitespace-nowrap text-stone-400">
               {showTour ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={openPrimer}
-                    className="cursor-pointer tracking-[0.1em] uppercase hover:text-stone-300"
-                  >
-                    How to play
-                  </button>
-                  <button
-                    type="button"
-                    onClick={openTour}
-                    className="cursor-pointer tracking-[0.1em] uppercase hover:text-stone-300"
-                  >
-                    Table guide
-                  </button>
-                </>
+                <button
+                  type="button"
+                  onClick={openTour}
+                  className="cursor-pointer tracking-[0.1em] uppercase hover:text-stone-300"
+                >
+                  How to play
+                </button>
               ) : null}
               {veiled ? null : (
                 <button
@@ -496,10 +465,8 @@ type CompactTableProps = {
   onPlayerAid: () => void;
   onReport?: () => void;
   extraMenu?: TableMenuItem[];
-  /** Opens the table guide (absent while it can't run, e.g. during setup). */
+  /** Opens "How to play", the walkthrough (absent while it can't run, e.g. during setup). */
   onTour?: () => void;
-  /** Opens "How to play". */
-  onPrimer?: () => void;
   onSettings: () => void;
   /** The tour holds the view on the half it's pointing at. */
   pinnedView: CompactView | null;
@@ -533,7 +500,6 @@ function CompactTable({
   onReport,
   extraMenu,
   onTour,
-  onPrimer,
   onSettings,
   pinnedView,
   clearPeek,
@@ -606,8 +572,7 @@ function CompactTable({
         </summary>
         <div className="absolute top-11 right-0 z-[60] flex w-52 flex-col rounded-xl border border-white/10 bg-[#0d1117] p-1.5 text-sm shadow-2xl">
           <p className="px-3 py-1.5 text-xs text-stone-500 tabular-nums">{modeLabel}</p>
-          {onPrimer ? <MenuButton onClick={onPrimer}>How to play</MenuButton> : null}
-          {onTour ? <MenuButton onClick={onTour}>Table guide</MenuButton> : null}
+          {onTour ? <MenuButton onClick={onTour}>How to play</MenuButton> : null}
           <MenuButton onClick={onSettings}>Settings</MenuButton>
           {veiled ? null : <MenuButton onClick={onPlayerAid}>Player aid</MenuButton>}
           {(extraMenu ?? []).map((item) => (
