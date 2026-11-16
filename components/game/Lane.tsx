@@ -211,17 +211,22 @@ function Plate({
             : `A card effect wins this district for ${leader === "you" ? "you" : "your opponent"}, whatever the influence`
           : undefined
       }
-      className="relative z-10 mx-1.5 flex shrink-0 items-center gap-2 rounded-xl bg-[rgb(12_15_20/0.85)] px-2 py-1.5 shadow-[0_6px_18px_rgba(0,0,0,0.45)] @max-[15rem]:mx-0.5 @max-[15rem]:flex-col @max-[15rem]:items-stretch @max-[15rem]:gap-1 @max-[15rem]:rounded-lg @max-[15rem]:px-1 @max-[15rem]:py-1"
+      className="relative z-10 mx-1.5 flex shrink-0 items-center gap-2 overflow-hidden rounded-xl bg-[rgb(12_15_20/0.85)] px-2 pt-2 pb-1.5 shadow-[0_6px_18px_rgba(0,0,0,0.45)] @max-[15rem]:mx-0.5 @max-[15rem]:flex-col @max-[15rem]:items-stretch @max-[15rem]:gap-1 @max-[15rem]:rounded-lg @max-[15rem]:px-1 @max-[15rem]:py-1"
       style={{ boxShadow: `0 0 0 1px ${ring}, 0 6px 18px rgba(0,0,0,0.45)` }}
     >
+      {/* The district's color along the top edge (the ring around the plate is who leads). */}
+      <span aria-hidden className="absolute inset-x-0 top-0 h-1" style={{ background: `var(--${district})` }} />
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <div className="flex items-center gap-1.5">
           <span
-            className="h-2.5 w-2.5 shrink-0 rounded-full"
-            style={{ background: `var(--${district})` }}
+            className="h-3 w-3 shrink-0 rounded-full shadow-[0_0_8px_var(--glow)]"
+            style={{ background: `var(--${district})`, "--glow": `var(--${district})` } as CSSProperties}
             aria-hidden
           />
-          <span className="truncate text-[0.7rem] font-semibold tracking-[0.12em] text-stone-100 uppercase @max-[15rem]:text-[0.55rem] @max-[15rem]:tracking-[0.04em]">
+          <span
+            className="truncate text-[0.7rem] font-semibold tracking-[0.12em] uppercase @max-[15rem]:text-[0.55rem] @max-[15rem]:tracking-[0.04em]"
+            style={{ color: `var(--${district})` }}
+          >
             {DISTRICT_LABEL[district]}
           </span>
           <span className="contents @max-[15rem]:hidden">
