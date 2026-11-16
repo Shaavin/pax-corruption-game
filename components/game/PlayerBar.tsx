@@ -119,13 +119,7 @@ export function PlayerBar({
         {victories.cultural ? (
           <Stat label="Culture" value={mark("cultural")} title="Cultural Victory: monument lead over the opponent." />
         ) : null}
-        {victories.diplomatic ? (
-          <Stat
-            label="Diplo."
-            value={mark("diplomatic")}
-            title="Diplomatic Victory: World Powers this player has the higher relation with."
-          />
-        ) : null}
+        {/* Diplomatic Victory lives in the World section's relations table. */}
       </dl>
 
       {monuments.length + setAside.length > 0 ? (

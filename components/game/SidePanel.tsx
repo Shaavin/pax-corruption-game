@@ -11,6 +11,7 @@ import { getEvent, isEventId, VICTORY_CARDS, WORLD_POWER_NAME } from "@/lib/card
 import { getCard } from "@/lib/cards/catalog";
 import { CardKind } from "@/lib/cards/schema";
 import { senatorVotes } from "@/lib/game/senate";
+import { DIPLOMATIC_POWERS } from "@/lib/game/victory";
 import type { CardInstance } from "@/lib/game/types";
 
 export type ExtraAction = {
@@ -515,37 +516,95 @@ function WorldSection({ expansion }: { expansion: ExpansionView }) {
       ) : (
         <p className="mb-2 text-[0.7rem] text-stone-500">No events in effect.</p>
       )}
-      <table className="w-full text-center text-[0.7rem] tabular-nums" aria-label="Relations with the World Powers">
+      <RelationsTable expansion={expansion} />
+    </Section>
+  );
+}
+
+/**
+ * Relations with the four World Powers. Each power's column takes the color of whoever has the
+ * higher relation there (a "Leads" row says it in words), and a line below counts those leads
+ * toward Diplomatic Victory.
+ */
+function RelationsTable({ expansion }: { expansion: ExpansionView }) {
+  const lead = (entry: ExpansionView["relations"][number]) =>
+    entry.you > entry.opponent ? "you" : entry.opponent > entry.you ? "opponent" : null;
+  const yourLeads = expansion.relations.filter((entry) => lead(entry) === "you").length;
+  const theirLeads = expansion.relations.filter((entry) => lead(entry) === "opponent").length;
+  const active = expansion.victories.find((entry) => entry.id === "diplomatic")?.active ?? false;
+  const best = Math.max(yourLeads, theirLeads);
+  const state = !active ? "off" : best >= DIPLOMATIC_POWERS ? "met" : best === DIPLOMATIC_POWERS - 1 ? "close" : "far";
+  const tint = (who: "you" | "opponent" | null) =>
+    who === "you"
+      ? "bg-[var(--you)]/15"
+      : who === "opponent"
+        ? "bg-[var(--opp)]/15"
+        : "";
+  return (
+    <>
+      <table className="w-full border-separate border-spacing-x-0.5 text-center text-[0.7rem] tabular-nums" aria-label="Relations with the World Powers">
         <thead>
           <tr className="text-stone-500">
             <th className="text-left font-normal">Relations</th>
             {expansion.relations.map((entry) => (
-              <th key={entry.power} className="font-semibold" title={WORLD_POWER_NAME[entry.power]}>
+              <th
+                key={entry.power}
+                className={["rounded-t font-semibold", tint(lead(entry))].join(" ")}
+                style={{ color: lead(entry) === "you" ? "var(--you)" : lead(entry) === "opponent" ? "var(--opp)" : undefined }}
+                title={WORLD_POWER_NAME[entry.power]}
+              >
                 {POWER_LETTER[entry.power]}
               </th>
             ))}
           </tr>
         </thead>
         <tbody>
-          <tr>
-            <td className="text-left text-[var(--opp)]">Opp</td>
-            {expansion.relations.map((entry) => (
-              <td key={entry.power} className={entry.opponent > entry.you ? "font-bold text-stone-100" : "text-stone-400"}>
-                {entry.opponent}
+          {(["opponent", "you"] as const).map((seat) => (
+            <tr key={seat}>
+              <td className="text-left" style={{ color: seat === "you" ? "var(--you)" : "var(--opp)" }}>
+                {seat === "you" ? "You" : "Opp"}
               </td>
-            ))}
-          </tr>
-          <tr>
-            <td className="text-left text-[var(--you)]">You</td>
-            {expansion.relations.map((entry) => (
-              <td key={entry.power} className={entry.you > entry.opponent ? "font-bold text-stone-100" : "text-stone-400"}>
-                {entry.you}
-              </td>
-            ))}
+              {expansion.relations.map((entry) => (
+                <td
+                  key={entry.power}
+                  className={[tint(lead(entry)), lead(entry) === seat ? "font-bold text-stone-50" : "text-stone-400"].join(" ")}
+                >
+                  {entry[seat]}
+                </td>
+              ))}
+            </tr>
+          ))}
+          <tr className="text-[0.55rem] tracking-wide uppercase">
+            <td className="text-left text-stone-500">Leads</td>
+            {expansion.relations.map((entry) => {
+              const who = lead(entry);
+              return (
+                <td
+                  key={entry.power}
+                  className={["rounded-b font-bold", tint(who)].join(" ")}
+                  style={{ color: who === "you" ? "var(--you)" : who === "opponent" ? "var(--opp)" : "rgb(120 113 108)" }}
+                >
+                  {who === "you" ? "You" : who === "opponent" ? "Opp" : "–"}
+                </td>
+              );
+            })}
           </tr>
         </tbody>
       </table>
-    </Section>
+      <p
+        className={["mt-1.5 flex items-center gap-1.5 text-[0.65rem] text-stone-300", state === "off" ? "opacity-50" : ""].join(" ")}
+        title={`Diplomatic Victory: a higher relation than the other player with ${DIPLOMATIC_POWERS} of the 4 World Powers.${state === "off" ? " Not active yet: a legacy event must activate it first." : ""}`}
+      >
+        <span className="font-semibold tracking-[0.12em] text-stone-200 uppercase">Diplomatic</span>
+        <span style={{ color: "var(--you)" }}>You {yourLeads}</span>
+        <span className="text-stone-500">·</span>
+        <span style={{ color: "var(--opp)" }}>Opp {theirLeads}</span>
+        <span className="text-stone-500">of {DIPLOMATIC_POWERS} needed</span>
+        {state === "off" ? <span className="text-stone-500">off</span> : null}
+        {state === "close" ? <span className="font-bold text-amber-300 uppercase">1 away</span> : null}
+        {state === "met" ? <span className="font-bold text-[var(--act)] uppercase">Win ★</span> : null}
+      </p>
+    </>
   );
 }
 
