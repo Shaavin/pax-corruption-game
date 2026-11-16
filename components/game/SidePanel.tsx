@@ -92,8 +92,8 @@ export function SharedZones(props: ZoneProps) {
       <SenateSection {...props} />
       <DecreeSection decrees={props.decrees} race={props.race ?? null} />
       {props.expansion ? <VictoryCardsSection expansion={props.expansion} /> : null}
-      <MarketSection {...props} />
       {props.expansion ? <WorldSection expansion={props.expansion} /> : null}
+      <MarketSection {...props} />
       <SupplySection {...props} />
     </>
   );
