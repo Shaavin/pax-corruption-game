@@ -135,6 +135,18 @@ const STEP_DEFS: StepDef[] = [
     },
   },
   {
+    id: "market",
+    target: "market",
+    view: "table",
+    desktop: {
+      title: "The Market",
+      body: "At Income, take one card here.",
+    },
+    expansion: {
+      body: "At Income, take one card here or buy an event (◆ is its cost).",
+    },
+  },
+  {
     id: "decrees",
     target: "decrees",
     view: "table",
@@ -161,18 +173,6 @@ const STEP_DEFS: StepDef[] = [
     desktop: {
       title: "The World",
       body: "Events in play and your relations with the World Powers. Each event you buy is +1 relation; lead with 3 of the 4 for Diplomatic Victory, once it's active.",
-    },
-  },
-  {
-    id: "market",
-    target: "market",
-    view: "table",
-    desktop: {
-      title: "The Market",
-      body: "At Income, take one card here.",
-    },
-    expansion: {
-      body: "At Income, take one card here or buy an event (◆ is its cost).",
     },
   },
   {

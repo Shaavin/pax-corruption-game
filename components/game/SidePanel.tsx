@@ -83,7 +83,7 @@ export function SidePanel(props: SidePanelProps) {
   );
 }
 
-/** Everything players share (election status, Senate, decrees, Market, world, monuments). */
+/** Everything players share (election status, Senate, Market, decrees, world, monuments). */
 export function SharedZones(props: ZoneProps) {
   return (
     <>
@@ -95,10 +95,10 @@ export function SharedZones(props: ZoneProps) {
         civil={props.race?.civil ?? null}
       />
       <SenateSection {...props} />
+      <MarketSection {...props} />
       <DecreeSection decrees={props.decrees} />
       {props.expansion ? <VictoryCardsSection expansion={props.expansion} race={props.race ?? null} /> : null}
       {props.expansion ? <WorldSection expansion={props.expansion} /> : null}
-      <MarketSection {...props} />
       <SupplySection {...props} />
     </>
   );
