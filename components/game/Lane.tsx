@@ -65,10 +65,11 @@ export function Lane({ district, policyId, you, opponent, electors, leader, tour
       className="lane row-span-4 row-start-1 grid min-h-0 min-w-0 grid-rows-subgrid border-x border-[var(--line)]"
       style={{ ...lane, gridColumn: column }}
     >
-      <div className="row-start-1 flex min-h-0 flex-col justify-end overflow-hidden px-1.5 pt-1.5">
+      <div className="lane-cell row-start-1 flex min-h-0 flex-col justify-end overflow-hidden px-1.5 pt-1.5">
         <LaneCards cards={opponent.cards} side="opponent" pickable={pickable} />
       </div>
 
+      <div className="lane-cell row-start-3">
       <Plate
         district={district}
         policyId={policyId}
@@ -80,10 +81,11 @@ export function Lane({ district, policyId, you, opponent, electors, leader, tour
         tourAnchor={tourAnchor}
         popularity={popularity}
       />
+      </div>
 
       <div
         className={[
-          "relative row-start-4 flex min-h-0 flex-col justify-start overflow-hidden px-1.5 pb-1.5",
+          "lane-cell relative row-start-4 flex min-h-0 flex-col justify-start overflow-hidden px-1.5 pb-1.5",
           target ? "lane-target rounded-b-xl" : "",
         ].join(" ")}
       >
@@ -220,7 +222,7 @@ function Plate({
             : `A card effect wins this district for ${leader === "you" ? "you" : "your opponent"}, whatever the influence`
           : undefined
       }
-      className="relative z-10 row-start-3 mx-1.5 flex shrink-0 items-center gap-2 overflow-hidden rounded-xl bg-[rgb(12_15_20/0.85)] px-2 pt-2 pb-1.5 shadow-[0_6px_18px_rgba(0,0,0,0.45)] @max-[15rem]:mx-0.5 @max-[15rem]:flex-col @max-[15rem]:items-stretch @max-[15rem]:gap-1 @max-[15rem]:rounded-lg @max-[15rem]:px-1 @max-[15rem]:py-1"
+      className="relative z-10 mx-1.5 flex shrink-0 items-center gap-2 overflow-hidden rounded-xl bg-[rgb(12_15_20/0.85)] px-2 pt-2 pb-1.5 shadow-[0_6px_18px_rgba(0,0,0,0.45)] @max-[15rem]:mx-0.5 @max-[15rem]:flex-col @max-[15rem]:items-stretch @max-[15rem]:gap-1 @max-[15rem]:rounded-lg @max-[15rem]:px-1 @max-[15rem]:py-1"
       style={{ boxShadow: `0 0 0 1px ${ring}, 0 6px 18px rgba(0,0,0,0.45)` }}
     >
       {/* The district's color along the top edge (the ring around the plate is who leads). */}

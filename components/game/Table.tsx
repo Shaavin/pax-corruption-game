@@ -243,6 +243,7 @@ function TableView({
           partisans={{ you: model.you.partisans, opponent: model.opponent.partisans }}
           ideological={{ you: yourVictories.ideological, opponent: opponentVictories.ideological }}
           symbols={model.symbols}
+          seats={{ you: model.you.id, opponent: model.opponent.id }}
         />
       </div>
     </div>

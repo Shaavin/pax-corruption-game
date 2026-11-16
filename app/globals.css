@@ -84,12 +84,16 @@ body {
   filter: saturate(0.6) blur(2px);
 }
 
-/* Each lane is a size container: cards and the district plate scale to the lane,
-   so four lanes fit a phone as well as a desktop. */
+/* Cards and the district plate scale to the lane, so four lanes fit a phone as well as a
+   desktop. The size container is each row of the lane (.lane-cell), not the lane itself:
+   containment on the lane would switch off its subgrid and misalign the center band. */
 .lane {
-  container-type: inline-size;
   --card-board: min(clamp(26px, 4.8vw, 74px), 30cqw);
   --card-mini: min(clamp(22px, 3vw, 46px), 24cqw);
+}
+
+.lane-cell {
+  container-type: inline-size;
 }
 
 /* Touch: no double-tap zoom on the table, no long-press callout on cards. */

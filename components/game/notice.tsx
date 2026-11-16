@@ -31,7 +31,7 @@ export function NoticeProvider({ children }: { children: ReactNode }) {
             key={notice.id}
             type="button"
             onClick={() => setNotice(null)}
-            className="rise-in pointer-events-auto max-w-sm cursor-pointer rounded-xl bg-[#0d1117]/95 px-4 py-2.5 text-center text-sm leading-snug text-stone-100 shadow-2xl ring-1 ring-amber-300/40"
+            className="rise-in pointer-events-auto max-w-sm cursor-pointer rounded-xl bg-[#0d1117]/95 px-4 py-2.5 text-center text-sm leading-snug whitespace-pre-line text-stone-100 shadow-2xl ring-1 ring-amber-300/40"
           >
             {notice.text}
           </button>

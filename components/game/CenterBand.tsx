@@ -5,6 +5,8 @@ import { useNotice } from "./notice";
 import type { SymbolsView } from "./table-model";
 import { howToWin, type SeatVictory } from "./victory-marks";
 import { SYMBOLS, type SymbolId } from "@/lib/cards/schema";
+import type { PlayerId } from "@/lib/game/types";
+import { usePlayerLabel } from "./players";
 
 /**
  * The band across the middle of the districts, just above the plates: Military Victory
@@ -16,17 +18,20 @@ export function CenterBand({
   partisans,
   ideological,
   symbols,
+  seats,
 }: {
   military: { you?: SeatVictory; opponent?: SeatVictory };
   partisans: { you: number; opponent: number };
   ideological: { you?: SeatVictory; opponent?: SeatVictory };
   symbols: SymbolsView | null;
+  /** Which seat is "you": the symbol tooltip names players in seat order. */
+  seats: { you: PlayerId; opponent: PlayerId };
 }) {
   if (!military.you || !military.opponent || !symbols) return null;
   return (
     <div className="relative z-20 mx-1.5 my-1 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg bg-black/60 px-2.5 py-1 text-[0.62rem] leading-none text-stone-300 ring-1 ring-white/10 backdrop-blur-sm">
       <TugOfWar you={military.you} opponent={military.opponent} partisans={partisans} />
-      <SymbolTally symbols={symbols} active={ideological.you?.active ?? true} />
+      <SymbolTally symbols={symbols} active={ideological.you?.active ?? true} seats={seats} />
     </div>
   );
 }
@@ -105,12 +110,25 @@ function Tick({ at, color, short = false }: { at: string; color: string; short?:
 
 // --- Ideological: symbol tally ----------------------------------------------------------------
 
-const SYMBOL_NAME: Record<SymbolId, string> = { atom: "Atom", chart: "Chart", crown: "Crown", scales: "Scales" };
+const SYMBOL_NAME: Record<SymbolId, string> = { atom: "Science", chart: "Economy", crown: "Authority", scales: "Justice" };
 const IDEOLOGICAL_COUNT = 4;
 
-function SymbolTally({ symbols, active }: { symbols: SymbolsView; active: boolean }) {
+/** "copy" for 1, "copies" otherwise. */
+const copyWord = (count: number) => (count === 1 ? "copy" : "copies");
+
+function SymbolTally({
+  symbols,
+  active,
+  seats,
+}: {
+  symbols: SymbolsView;
+  active: boolean;
+  seats: { you: PlayerId; opponent: PlayerId };
+}) {
   const notify = useNotice();
-  // Total copies: shared plus the private copies of whichever player has more (ties own nothing).
+  const playerLabel = usePlayerLabel();
+  // Ideological's total: public copies + the larger player's private copies. The color shows who has more
+  // private copies (who's dominating the symbol); ties own nothing.
   const rows = SYMBOLS.map((symbol) => {
     const you = symbols.you[symbol];
     const opponent = symbols.opponent[symbol];
@@ -138,9 +156,16 @@ function SymbolTally({ symbols, active }: { symbols: SymbolsView; active: boolea
       </span>
       {withNeed.map((row) => {
         const color = row.owner === "you" ? "var(--you)" : row.owner === "opponent" ? "var(--opp)" : "rgb(168 162 158)";
-        const explain = `${SYMBOL_NAME[row.symbol]}: ${row.total} cop${row.total === 1 ? "y" : "ies"} toward Ideological (needs ${row.need}). ${row.shared} shared; private: you ${row.you}, opponent ${row.opponent}. ${
-          row.owner ? `Counts for ${row.owner === "you" ? "you" : "your opponent"} (more private copies).` : "Nobody has more private copies, so it counts for no one yet."
-        }`;
+        // Players in seat order (Player 1 first).
+        const [first, second] = ([0, 1] as const).map((seat) => ({
+          name: playerLabel(seat),
+          count: seat === seats.you ? row.you : row.opponent,
+        }));
+        const explain = [
+          `${SYMBOL_NAME[row.symbol]}: ${row.total} total ${copyWord(row.total)}.`,
+          `${row.shared} public ${copyWord(row.shared)}. (+${row.shared})`,
+          `${first!.count} private ${copyWord(first!.count)} from ${first!.name}, and ${second!.count} private ${copyWord(second!.count)} from ${second!.name}. (+${Math.max(row.you, row.opponent)})`,
+        ].join("\n");
         return (
           <span
             key={row.symbol}
