@@ -83,6 +83,11 @@ export function replenishMarket(state: GameState, events: GameEvent[]): void {
 // during one it is two rows of 5 (`expansion.rowBreak` splits them). Spots are
 // preserved until the income-step collapse, which is why the "last 2 spots" checks
 // read the snapshot taken at the start of the turn (`expansion.turnMarket` / `turnRows`).
+//
+// Cards flow left to right like a conveyor (Ian, 2026-11-16): new cards enter on the left,
+// older cards slide right to close gaps, and a short row is right-aligned (its cards sit
+// in the last spots). An event starts expensive (main cards to its right) and gets cheaper
+// as it drifts right, until it leaves from the last 2 spots.
 
 /** Spots in a Market row. */
 export const ROW_SPOTS = 5;
@@ -148,9 +153,9 @@ function boxEvents(state: GameState, cards: CardInstance[], events: GameEvent[])
   events.push({ type: "eventsRemoved", cardIds: cards.map((card) => card.cardId), reason: "market" });
 }
 
-/** Events sitting in the last 2 of `spots` (instance ids) that are still in `row`. */
+/** Events sitting in the last 2 of `spots` (instance ids, right-aligned) that are still in `row`. */
 function lastTwoSpotEvents(row: CardInstance[], spots: readonly string[]): CardInstance[] {
-  const lastTwo = new Set(spots.slice(ROW_SPOTS - 2));
+  const lastTwo = new Set(spots.slice(-2));
   return row.filter((card) => isEventCard(card) && lastTwo.has(card.instanceId));
 }
 
@@ -168,12 +173,25 @@ function fillRow(state: GameState, row: CardInstance[], size: number, events: Ga
 }
 
 /**
+ * Conveyor refill of one row: the older cards keep the right-hand spots; a new event (if
+ * wanted) takes spot 1, and main-deck cards fill the gap between it and the older cards.
+ * Never past 5 cards. Stops early if a General Election needs the rows rebuilt.
+ */
+function refillFromLeft(state: GameState, row: CardInstance[], wantEvent: boolean, events: GameEvent[]): CardInstance[] {
+  const event = wantEvent && row.length < ROW_SPOTS ? revealEvent(state, events) : null;
+  const mains: CardInstance[] = [];
+  fillRow(state, mains, ROW_SPOTS - row.length - (event ? 1 : 0), events);
+  return [...(event ? [event] : []), ...mains, ...row];
+}
+
+/**
  * Expansion income step 2.
  * Outside an election, whatever the Market holds: (1) events that sat in the 2 right-most
- * spots at the start of the turn leave the game, collapse; (2) under 2 events and room
- * left, reveal one into the next spot; (3) fill from the main deck, never past 5.
+ * spots at the start of the turn leave the game, the rest slide right; (2) under 2 events
+ * and room left, a new event takes spot 1; (3) main cards fill the gap, never past 5.
  * During an election: per row, events in its last 2 spots leave; a row without an
- * event gets one only if it would not land in the row's last 2 spots. No main refill.
+ * event gets one on its left only if it would not land in the row's last 2 spots
+ * (the row holds at least 2 cards). No main refill.
  */
 function replenishExpansionMarket(state: GameState, events: GameEvent[]): void {
   const expansion = state.expansion!;
@@ -185,9 +203,10 @@ function replenishExpansionMarket(state: GameState, events: GameEvent[]): void {
       const gone = lastTwoSpotEvents(row, spots[index] ?? []);
       boxEvents(state, gone, events);
       const kept = row.filter((card) => !gone.includes(card));
-      if (!kept.some(isEventCard) && kept.length < ROW_SPOTS - 2) {
+      // Entering on the left of k right-aligned cards lands in spot 5 − k: the last 2 when k < 2.
+      if (!kept.some(isEventCard) && kept.length >= 2 && kept.length < ROW_SPOTS) {
         const event = revealEvent(state, events);
-        if (event) kept.push(event);
+        if (event) return [event, ...kept];
       }
       return kept;
     });
@@ -199,19 +218,15 @@ function replenishExpansionMarket(state: GameState, events: GameEvent[]): void {
   const gone = lastTwoSpotEvents(state.market, expansion.turnMarket);
   boxEvents(state, gone, events);
   const row = state.market.filter((card) => !gone.includes(card));
-  if (row.filter(isEventCard).length < 2 && row.length < ROW_SPOTS) {
-    const event = revealEvent(state, events);
-    if (event) row.push(event);
-  }
-  fillRow(state, row, ROW_SPOTS, events);
-  setRows(state, [row]);
+  setRows(state, [refillFromLeft(state, row, row.filter(isEventCard).length < 2, events)]);
 }
 
 /**
  * Expansion: an election phase splits the Market into two rows of 5.
  * Two events: the later (left-most) one drops to the same spot of row 2; nothing else
- * moves, and the open spots of both rows fill in place. Otherwise each row without an event
- * fills to 4 and a new event takes its last spot. 8 main cards either way.
+ * moves, and the open spots of both rows fill in place. Otherwise each row refills like the
+ * conveyor: a row without an event gets a new one in spot 1, and main cards fill the gap.
+ * 8 main cards either way.
  */
 function openElectionRows(state: GameState, events: GameEvent[]): void {
   const market = [...state.market];
@@ -223,19 +238,21 @@ function openElectionRows(state: GameState, events: GameEvent[]): void {
     // spot of row 2. Nothing else moves: the gap it leaves in row 1 and every other open
     // spot fill from the main deck in place.
     const later = marketEvents[0]!;
-    const spot = Math.min(market.indexOf(later), ROW_SPOTS - 1);
-    const slots1: (CardInstance | null)[] = market.map((card) => (card === later ? null : card));
+    // A short row is right-aligned: its first card sits in spot 5 − length.
+    const offset = Math.max(0, ROW_SPOTS - market.length);
+    const spot = Math.min(offset + market.indexOf(later), ROW_SPOTS - 1);
+    const slots1: (CardInstance | null)[] = [
+      ...Array.from({ length: offset }, () => null),
+      ...market.map((card) => (card === later ? null : card)),
+    ];
     const slots2: (CardInstance | null)[] = Array.from({ length: ROW_SPOTS }, (_, index) => (index === spot ? later : null));
     fillSlots(state, slots1, events);
     fillSlots(state, slots2, events);
     row1 = slots1.filter((card): card is CardInstance => card !== null);
     row2 = slots2.filter((card): card is CardInstance => card !== null);
   } else {
-    row1 = market;
-    if (row1.some(isEventCard)) fillRow(state, row1, ROW_SPOTS, events);
-    else withEventLast(state, row1, events);
-    row2 = [];
-    withEventLast(state, row2, events);
+    row1 = refillFromLeft(state, market, !market.some(isEventCard), events);
+    row2 = refillFromLeft(state, [], true, events);
   }
   setRows(state, [row1, row2]);
 }
@@ -252,13 +269,6 @@ function fillSlots(state: GameState, slots: (CardInstance | null)[], events: Gam
     added.push(card.cardId);
   }
   if (added.length > 0) events.push({ type: "marketReplenished", cardIds: added });
-}
-
-function withEventLast(state: GameState, row: CardInstance[], events: GameEvent[]): void {
-  fillRow(state, row, ROW_SPOTS - 1, events);
-  const event = revealEvent(state, events);
-  if (event) row.push(event);
-  else fillRow(state, row, ROW_SPOTS, events);
 }
 
 /**

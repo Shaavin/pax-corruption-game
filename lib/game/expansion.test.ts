@@ -3,7 +3,7 @@ import { getCard } from "../cards/catalog.ts";
 import { EVENTS, getEvent, WORLD_POWERS, type EventCard } from "../cards/expansion.ts";
 import { CardKind, DecreeId, District, MonumentId, PolicyId, type DistrictId } from "../cards/schema.ts";
 import { simulate } from "./diagnostics.ts";
-import { eventCost, marketRows, openElectionIfNeeded, replenishMarket, resetMarketAfterElection, snapshotMarket } from "./draw.ts";
+import { eventCost, liveEventCost, marketRows, openElectionIfNeeded, removeFromMarket, replenishMarket, resetMarketAfterElection, snapshotMarket } from "./draw.ts";
 import { apply, currentActor, legalActions } from "./engine.ts";
 import { handLimit } from "./abilities.ts";
 import { buyEventActions, returnUnrevealedCards } from "./events.ts";
@@ -399,7 +399,9 @@ const civilOf = (district: DistrictId, value?: number) => (id: string) => {
   replenishMarket(state, []);
   const after: CardInstance[] = [...state.market];
   assert(state.expansion!.box.some((c) => c.cardId === stale.cardId), "Full Market: the spot-5 event still leaves");
-  assert(mains.every((card, index) => after[index] === card), "…the rest collapse in order");
+  // Conveyor (Ian, 2026-11-16): the older cards slide right; the new event enters at spot 1.
+  assert(mains.every((card, index) => after[index + 1] === card), "…the rest slide right, in order");
+  assert(isEventCard(after[0]!) && eventCost(state, after[0]!.instanceId) === 4, "…a new event enters at spot 1 (costs 4)");
   assert(after.length === 5, `…and the Market refills to exactly 5, got ${after.length}`);
 
   // Nothing to remove and already 5: no sixth card, not even an event.
@@ -408,6 +410,26 @@ const civilOf = (district: DistrictId, value?: number) => (id: string) => {
   snapshotMarket(full);
   replenishMarket(full, []);
   assert(full.market.length === 5 && !full.market.some(isEventCard), "Never past 5 cards");
+}
+
+// --- Conveyor: cards enter on the left and drift right (Ian, 2026-11-16) -----------------------
+{
+  const { state } = start(21);
+  const first = inst(event("Railway Bonds"));
+  state.expansion!.eventDeck = state.expansion!.eventDeck.filter((c) => c.cardId !== first.cardId);
+  const mains = state.market.filter((c) => !isEventCard(c)).slice(0, 4);
+  state.market = [first, ...mains];
+  snapshotMarket(state);
+  assert(eventCost(state, first.instanceId) === 4, "A new event at spot 1 costs 4");
+  // Two main cards are taken this turn; at the refill the rest slide right and new cards enter left.
+  removeFromMarket(state, mains[2]!.instanceId);
+  removeFromMarket(state, mains[3]!.instanceId);
+  replenishMarket(state, []);
+  const row: CardInstance[] = [...state.market];
+  assert(row.length === 5, "Back to 5 cards");
+  assert(row.indexOf(first) === 2, `The older event drifted right to spot 3 (index ${row.indexOf(first)})`);
+  assert(liveEventCost(state, first.instanceId) === 2, "…and now costs 2 (2 main cards to its right)");
+  assert(isEventCard(row[0]!) && row[0] !== first, "A newer event entered at spot 1");
 }
 
 // --- Market after an election (Ian, 2026-11-15) ---------------------------------------------

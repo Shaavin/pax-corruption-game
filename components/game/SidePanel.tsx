@@ -395,9 +395,9 @@ function MarketSection({
       info={
         expansion ? (
           <>
-            Events cost one card per non-event card to their right (fixed for the turn). At income, buy one
-            instead of taking a card, while under your hand limit. Events in the last 2 spots leave at the
-            next refill.
+            Cards enter on the left and slide right as the row refills. Events cost one card per non-event card to
+            their right (fixed for the turn), so they start dear and get cheaper. At income, buy one instead of
+            taking a card, while under your hand limit. Events in the last 2 spots leave at the next refill.
           </>
         ) : undefined
       }
@@ -406,15 +406,19 @@ function MarketSection({
         <p className="py-3 text-center text-xs text-stone-500">Empty</p>
       ) : (
         <div className="flex flex-col gap-1.5">
-        {rows.map((row, rowIndex) => (
+        {rows.map((row, rowIndex) => {
+        // Expansion rows flow like a conveyor: a short row sits in its right-most spots.
+        const offset = expansion && row.length < 5 ? 5 - row.length : 0;
+        const at = (index: number) => (index === 0 && offset > 0 ? { gridColumnStart: offset + 1 } : undefined);
+        return (
         <ol key={rowIndex} className="grid grid-cols-5 justify-items-center gap-1">
-          {row.map((entry) => {
+          {row.map((entry, index) => {
             if (isEventId(entry.cardId)) {
               const event = getEvent(entry.cardId);
               const cost = expansion?.eventCosts[entry.instanceId] ?? 0;
               const buyable = buyableIds?.has(entry.instanceId) ?? false;
               return (
-                <li key={entry.instanceId} className="relative">
+                <li key={entry.instanceId} className="relative" style={at(index)}>
                   <CardView
                     name={event.name}
                     art={event.art}
@@ -438,7 +442,7 @@ function MarketSection({
             const catalog = resolveCard(entry.cardId);
             const takeable = takeableIds?.has(entry.instanceId) ?? false;
             return (
-              <li key={entry.instanceId}>
+              <li key={entry.instanceId} style={at(index)}>
                 <CardView
                   name={catalog.name}
                   art={catalog.art}
@@ -461,7 +465,8 @@ function MarketSection({
             );
           })}
         </ol>
-        ))}
+        );
+        })}
         </div>
       )}
     </Section>

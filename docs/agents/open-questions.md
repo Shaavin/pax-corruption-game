@@ -63,6 +63,12 @@ Card text is in `lib/cards/expansion.ts`; the rulebook summary is in [game-rules
 | Legacy "Activate a Victory Condition" | The **buyer** chooses any one inactive victory (Military, Popularity, Ideological, Cultural, Diplomatic) and flips it active. |
 | Events played as civil cards | **Fully civil cards** of the event's district, with the printed value: influence, electors, Civil Service, Diet of Saints, Currency Ballots, Urban Aristocrats swaps, conspiracies, and so on. The only difference: when discarded, they leave the game (see "Discarding events" above). |
 
+### 2026-11-16 (Ian)
+
+| Topic | Decision |
+| --- | --- |
+| Market flow (expansion) | Cards flow **left to right like a conveyor**. New cards enter on the left; older cards slide right to close gaps, so a short row sits in its right-most spots. At the income refill: events that started the turn in the last 2 spots leave, the rest slide right, a new event (if fewer than 2 and there's room) takes **spot 1**, and main cards fill the gap. An event therefore starts expensive and gets cheaper as it drifts right, until it leaves. During an election a row without an event gets one on its left only if that isn't one of the last 2 spots (the row holds 2+ cards). When election rows open, a row without an event gets its new event in spot 1, consistent with the post-election ruling. |
+
 ### 2026-11-14 (Ian)
 
 | Topic | Decision |
