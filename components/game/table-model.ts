@@ -1,7 +1,7 @@
 import { DISTRICTS, type DecreeIdValue, type DistrictId, type PartyIdValue, type PolicyIdValue } from "@/lib/cards/schema";
 import { policyFrozen } from "@/lib/game/abilities";
 import { victoryRace, type VictoryStanding } from "@/lib/game/progress";
-import { meetsDecree } from "@/lib/game/decrees";
+import { decreeShowsActive, meetsDecree } from "@/lib/game/decrees";
 import { civilElectorsInDistrict, lordsSymbols, tallyElection } from "@/lib/game/election";
 import { playerDistrictInfluence, type DistrictInfluence } from "@/lib/game/influence";
 import { senateTotalVotes, senateVotesNeeded } from "@/lib/game/senate";
@@ -152,12 +152,16 @@ export function tableModel(state: GameState, viewer: PlayerId): TableModel {
     senate: state.senate,
     senateVotes: senateTotalVotes(state),
     senateVotesNeeded: senateVotesNeeded(state),
-    decrees: state.decrees.map((decree) => ({
-      id: decree.id,
-      active: decree.active,
-      youMeet: inPlay && decree.active && meetsDecree(state, viewer, decree.id),
-      theyMeet: inPlay && decree.active && meetsDecree(state, opponentId, decree.id),
-    })),
+    // The side each decree shows now: a North event ("Flip over Pax <decree>") turns it over.
+    decrees: state.decrees.map((decree) => {
+      const active = decreeShowsActive(state, decree);
+      return {
+        id: decree.id,
+        active,
+        youMeet: inPlay && active && meetsDecree(state, viewer, decree.id),
+        theyMeet: inPlay && active && meetsDecree(state, opponentId, decree.id),
+      };
+    }),
     market: state.market,
     availableMonuments: state.availableMonuments,
     deckCount: state.deck.length,
