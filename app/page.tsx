@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { HomeLauncher } from "@/components/home/HomeLauncher";
+import { InstallAppButton } from "@/components/home/InstallAppButton";
 import { SeedForm } from "@/components/game/Troubleshooter";
 import { EXPANSION_RULEBOOK_URL, MARKETING_URL, RULEBOOK_URL, SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
 
@@ -84,10 +85,11 @@ export default function Home() {
             <span className="text-ember">Pax</span> <span className="text-stamp-blue">Corruption</span>
           </span>
         </span>
-        <nav aria-label="Site" className="flex items-center gap-5 text-sm text-stone-400">
+        <nav aria-label="Site" className="flex items-center gap-3 text-sm text-stone-400 sm:gap-5">
           <a href={MARKETING_SITE} className="hidden transition hover:text-stone-100 sm:inline">
             About the game
           </a>
+          <InstallAppButton />
           <a
             href={GET_A_COPY}
             className="rounded-full border border-white/15 px-3.5 py-1.5 font-medium whitespace-nowrap text-stone-100 transition hover:border-white/30 hover:bg-white/[0.06]"
