@@ -48,6 +48,8 @@ export type TablePlayerView = {
   monuments: string[];
   partisans: number;
   electionWins: number;
+  /** Wins a tied election: the last election's winner (the first player before any). */
+  incumbent: boolean;
   /** Electorates this player would win if the election were scored now. */
   electorates: number;
   lords: number;
@@ -251,6 +253,7 @@ function playerView(state: GameState, player: PlayerId, isYou: boolean, electora
     monuments: seat.monuments.map((card) => card.cardId),
     partisans: seat.partisans,
     electionWins: seat.electionWins,
+    incumbent: (state.election.lastWinner ?? state.firstPlayer) === player,
     electorates,
     lords: lordsSymbols(state, player),
   };

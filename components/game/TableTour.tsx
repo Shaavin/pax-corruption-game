@@ -110,7 +110,7 @@ const STEP_DEFS: StepDef[] = [
     target: "partisans",
     desktop: {
       title: "Lords and electorates",
-      body: "Lords (alliance handshakes) decides the Council of Lords, the fifth electorate. Elect. is how many of the 5 you'd win if an election were scored now.",
+      body: "Lords (alliance handshakes) decides the Council of Lords, the fifth electorate. Electorates is how many of the 5 you'd win if an election were scored now.",
     },
   },
   {

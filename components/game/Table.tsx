@@ -362,7 +362,7 @@ function TableView({
 
         <main className="flex min-w-0 flex-1 flex-col overflow-clip">
           {/* Opponent strip: portrait and numbers on the left, face-down hand in the middle. */}
-          <div className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-start gap-3 border-b border-[var(--line)] bg-black/20 px-3 py-2">
+          <div className="grid shrink-0 grid-cols-[minmax(max-content,1fr)_auto_1fr] items-start gap-3 border-b border-[var(--line)] bg-black/20 px-3 py-2">
             <PlayerBar
               seat="opponent"
               name={playerLabel(model.opponent.id)}
@@ -370,6 +370,7 @@ function TableView({
               monuments={model.opponent.monuments}
               setAside={model.opponent.setAside}
               electionWins={model.opponent.electionWins}
+              incumbent={model.opponent.incumbent}
               electorates={model.opponent.electorates}
               lords={model.opponent.lords}
               active={!yourTurn && live}
@@ -455,6 +456,7 @@ function TableView({
               monuments={model.you.monuments}
               setAside={model.you.setAside}
               electionWins={model.you.electionWins}
+              incumbent={model.you.incumbent}
               electorates={model.you.electorates}
               lords={model.you.lords}
               active={yourTurn && live}
@@ -579,6 +581,7 @@ function CompactTable({
           monuments={model.opponent.monuments}
           setAside={model.opponent.setAside}
           electionWins={model.opponent.electionWins}
+          incumbent={model.opponent.incumbent}
           electorates={model.opponent.electorates}
           lords={model.opponent.lords}
           active={!yourTurn && live}
@@ -660,6 +663,7 @@ function CompactTable({
         monuments={model.you.monuments}
         setAside={model.you.setAside}
         electionWins={model.you.electionWins}
+        incumbent={model.you.incumbent}
         electorates={model.you.electorates}
         lords={model.you.lords}
         active={yourTurn && live}

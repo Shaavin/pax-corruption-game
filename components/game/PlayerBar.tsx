@@ -13,6 +13,8 @@ type PlayerBarProps = {
   monuments: readonly string[];
   setAside: FixtureCard[];
   electionWins: number;
+  /** Wins a tied election: the last election's winner (the first player before any). */
+  incumbent?: boolean;
   /** Electorates this player would win if the election were scored now (of 5). */
   electorates: number;
   /** Council of Lords handshake symbols in play. */
@@ -33,6 +35,7 @@ export function PlayerBar({
   monuments,
   setAside,
   electionWins,
+  incumbent = false,
   electorates,
   lords,
   active,
@@ -44,8 +47,9 @@ export function PlayerBar({
   const party = partyId ? resolveCard(partyId) : null;
 
   return (
-    <div className={["flex min-w-0 items-center", compact ? "w-max gap-2.5" : "gap-3"].join(" ")}>
-      <div className="flex shrink-0 items-center gap-2">
+    <div className={["flex min-w-0 items-center", compact ? "w-full gap-1.5 min-[360px]:gap-2.5" : "gap-3"].join(" ")}>
+      {/* On phones the name and party shorten (…) before the numbers get pushed off-screen. */}
+      <div className={["flex items-center", compact ? "min-w-[4.5rem] shrink gap-1.5 min-[360px]:gap-2" : "shrink-0 gap-2"].join(" ")}>
         <div className="relative">
           {party ? (
             <CardView name={party.name} art={party.art} back={CardBack.party} size="mini" cardId={partyId ?? undefined} />
@@ -62,15 +66,17 @@ export function PlayerBar({
             />
           ) : null}
         </div>
-        <div className="leading-tight">
-          <div className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full" style={{ background: color }} aria-hidden />
-            <span className={["font-semibold whitespace-nowrap text-stone-100", compact ? "text-xs" : "text-sm"].join(" ")}>
+        <div className="min-w-0 leading-tight">
+          <div className="flex min-w-0 items-center gap-1.5">
+            <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: color }} aria-hidden />
+            <span className={["truncate font-semibold whitespace-nowrap text-stone-100", compact ? "text-xs" : "text-sm"].join(" ")}>
               {name}
             </span>
           </div>
-          <div className="text-[0.6rem] tracking-wide whitespace-nowrap text-stone-400">
-            {party ? party.name : "Choosing a party"}
+          <div className={["text-[0.6rem] tracking-wide whitespace-nowrap text-stone-400", compact ? "truncate" : ""].join(" ")}>
+            {/* Phones: the badge takes the party name's place (the party card beside it shows the party). */}
+            {compact && incumbent ? null : party ? party.name : "Choosing a party"}
+            {incumbent ? <IncumbentBadge electionWon={electionWins > 0} compact={compact} /> : null}
             {active ? (
               <span className="ml-1.5 font-semibold" style={{ color }}>
                 · {seat === "you" ? "your turn" : "their turn"}
@@ -81,7 +87,7 @@ export function PlayerBar({
       </div>
 
       <dl
-        className={["flex shrink-0 items-center", compact ? "gap-2" : "gap-2 xl:gap-3"].join(" ")}
+        className={["flex shrink-0 items-center", compact ? "gap-1.5 min-[400px]:gap-2" : "gap-2 xl:gap-3"].join(" ")}
         data-tour={seat === "you" ? "partisans" : undefined}
       >
         {handCount !== undefined ? <Stat label="Hand" value={handCount} title="Hand: cards in their hand." /> : null}
@@ -92,16 +98,7 @@ export function PlayerBar({
           title="Lords: alliance handshake symbols in play. More than the other player wins the Council of Lords, the 5th electorate."
         />
         <Stat
-          label={
-            compact ? (
-              "Elect."
-            ) : (
-              <>
-                <span className="2xl:hidden">Elect.</span>
-                <span className="hidden 2xl:inline">Electorates</span>
-              </>
-            )
-          }
+          label="Electorates"
           value={`${electorates}/5`}
           title="Electorates: how many of the 5 (4 districts + Council of Lords) this player would win if the election were scored now."
           color={electorates >= 3 ? color : undefined}
@@ -165,10 +162,35 @@ function Stat({
       title={title}
       onClick={title ? () => notify(title) : undefined}
     >
-      <dt className="label !text-[0.5rem]">{label}</dt>
+      {/* Narrow phones: tighter letter-spacing so every label fits whole. */}
+      <dt className="label !text-[0.5rem] max-[400px]:!tracking-[0.06em]">{label}</dt>
       <dd className="mt-1 text-base font-semibold tabular-nums text-stone-100" style={color ? { color } : undefined}>
         {value}
       </dd>
     </div>
+  );
+}
+
+/** Marks the player who wins a tied election, with a tap or hover note on why. */
+function IncumbentBadge({ electionWon, compact }: { electionWon: boolean; compact: boolean }) {
+  const notify = useNotice();
+  const text = electionWon
+    ? "Incumbent: won the last election. If an election ends tied on electorates and on cards in them, the incumbent wins it."
+    : "Incumbent: no election has been won yet, so the first player holds this. If an election ends tied on electorates and on cards in them, the incumbent wins it.";
+  return (
+    <button
+      type="button"
+      onClick={() => notify(text)}
+      title={text}
+      aria-label={text}
+      className={[
+        compact ? "" : "ml-1.5",
+        "relative cursor-help rounded-full bg-[var(--brass)]/15 px-1.5 align-[0.05em] font-semibold tracking-[0.08em] whitespace-nowrap text-[var(--brass)] uppercase ring-1 ring-[var(--brass)]/40 after:absolute after:-inset-2 after:content-['']",
+        // Narrow phones: a touch smaller, so it fits whole beside the party card.
+        "text-[0.5rem] max-[400px]:px-1 max-[400px]:text-[0.45rem] max-[400px]:tracking-[0.02em]",
+      ].join(" ")}
+    >
+      Incumbent
+    </button>
   );
 }
