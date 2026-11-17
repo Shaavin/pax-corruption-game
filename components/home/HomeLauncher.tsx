@@ -147,20 +147,22 @@ export function HomeLauncher({ onlineOnly = false }: { onlineOnly?: boolean } = 
         {computer ? (
           <fieldset>
             <legend className="mb-2 text-[0.7rem] font-semibold tracking-[0.14em] text-stone-500 uppercase">Difficulty</legend>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="flex flex-col gap-2">
               {AI_LEVELS.map((level) => (
                 <label
                   key={level.id}
-                  className="group relative flex cursor-pointer flex-col rounded-2xl border border-white/[0.08] bg-white/[0.03] px-3.5 py-3 transition hover:border-white/20 hover:bg-white/[0.05] has-[:checked]:border-stamp-blue/70 has-[:checked]:bg-stamp-blue/[0.08] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-stamp-blue"
+                  className="group relative flex cursor-pointer items-start gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.03] px-3.5 py-2.5 transition hover:border-white/20 hover:bg-white/[0.05] has-[:checked]:border-stamp-blue/70 has-[:checked]:bg-stamp-blue/[0.08] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-stamp-blue"
                 >
                   <input type="radio" name="ai" value={level.id} defaultChecked={level.id === "normal"} className="peer sr-only" />
-                  <span className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-semibold text-stone-100">{level.persona.name}</span>
-                    <span className="h-3.5 w-3.5 rounded-full border border-white/25 transition group-has-[:checked]:border-[4px] group-has-[:checked]:border-stamp-blue" />
+                  <span className="min-w-0 flex-1">
+                    <span className="flex flex-wrap items-baseline gap-x-2">
+                      <span className="text-sm font-semibold text-stone-100">{level.persona.name}</span>
+                      <span className="text-[0.7rem] font-medium tracking-wide text-stone-500 uppercase">{level.name}</span>
+                    </span>
+                    <span className="mt-0.5 block text-xs leading-snug text-stone-300 italic">&ldquo;{level.persona.tagline}&rdquo;</span>
+                    <span className="mt-0.5 block text-xs leading-snug text-stone-400">{level.blurb}</span>
                   </span>
-                  <span className="mt-0.5 text-[0.7rem] font-medium tracking-wide text-stone-500 uppercase">{level.name}</span>
-                  <span className="mt-1.5 text-xs leading-snug text-stone-300 italic">&ldquo;{level.persona.tagline}&rdquo;</span>
-                  <span className="mt-1 text-xs leading-snug text-stone-400">{level.blurb}</span>
+                  <span className="mt-1 h-3.5 w-3.5 shrink-0 rounded-full border border-white/25 transition group-has-[:checked]:border-[4px] group-has-[:checked]:border-stamp-blue" />
                 </label>
               ))}
             </div>

@@ -2,7 +2,9 @@
  * A computer opponent that plays any seat, using only the engine's legal moves.
  *
  * - "easy": usually does something rather than passing, picked at random; takes a win when offered.
- * - "normal": plans its whole turn ahead (a short search over its own decisions) and plays
+ * - "normal": plays the move that looks best one step ahead, and now and then settles for
+ *   one of its next best.
+ * - "hard": plans its whole turn ahead (a short search over its own decisions) and plays
  *   the first move of the best plan.
  *
  * Fair play: moves are tried on a copy whose hidden piles (draw deck, monument deck, event
@@ -19,7 +21,7 @@ import type { Rng } from "./rng.ts";
 import { type Action, type GameState, type PlayerId, type VictoryKindId } from "./types.ts";
 import { otherPlayer } from "./zones.ts";
 
-export type AiLevel = "easy" | "normal";
+export type AiLevel = "easy" | "normal" | "hard";
 
 /** Each level is a character: a name for the table and lines to show while it decides. */
 export type AiPersona = {
@@ -51,7 +53,7 @@ export const AI_LEVELS: readonly { id: AiLevel; name: string; blurb: string; per
   {
     id: "normal",
     name: "Normal",
-    blurb: "Weighs every move toward a victory.",
+    blurb: "Solid play, with the odd slip.",
     persona: {
       name: "Chancellor Crane",
       tagline: "Patient, precise, and always one vote ahead.",
@@ -64,6 +66,22 @@ export const AI_LEVELS: readonly { id: AiLevel; name: string; blurb: string; per
       ],
     },
   },
+  {
+    id: "hard",
+    name: "Hard",
+    blurb: "Plans its whole turn before it moves.",
+    persona: {
+      name: "Grand Vizier Vex",
+      tagline: "Three moves ahead, and counting yours.",
+      thinking: [
+        "Grand Vizier Vex is pulling some strings…",
+        "Grand Vizier Vex is rehearsing the next three moves…",
+        "Grand Vizier Vex is consulting the archives…",
+        "Grand Vizier Vex is smiling at the Senate…",
+        "Grand Vizier Vex is rearranging the ballots…",
+      ],
+    },
+  },
 ];
 
 export function aiPersona(level: AiLevel): AiPersona {
@@ -71,7 +89,7 @@ export function aiPersona(level: AiLevel): AiPersona {
 }
 
 export function isAiLevel(value: unknown): value is AiLevel {
-  return value === "easy" || value === "normal";
+  return value === "easy" || value === "normal" || value === "hard";
 }
 
 /** Which seat the computer plays, and how well. */
@@ -97,23 +115,32 @@ export function chooseAiAction(state: GameState, seat: PlayerId, level: AiLevel,
     const pool = busy.length > 0 && rng.nextInt(5) > 0 ? busy : options;
     return pool[rng.nextInt(pool.length)]!;
   }
+  if (level === "normal") {
+    // The best-looking move one step ahead; now and then one of the next best instead.
+    const ranked = rankActions(state, seat, options, rng);
+    return rng.nextInt(SLIP_ONE_IN) === 0 ? ranked[rng.nextInt(Math.min(3, ranked.length))]! : ranked[0]!;
+  }
   return planTurn(state, seat, rng) ?? bestAction(state, seat, options, rng);
 }
 
-/** How many partial turns to keep at each step, and how many decisions ahead to look. */
+/** Normal: how often it settles for one of its top three moves instead of the best. */
+const SLIP_ONE_IN = 4;
+
+/** Hard: how many partial turns to keep at each step, and how many decisions ahead to look. */
 const BEAM = 6;
 const DEPTH = 8;
 
 /**
- * Normal: plan the rest of this turn. Grow sequences of its own decisions (main action,
- * free actions, politics, income) step by step, keeping the most promising few, until the
- * turn passes or the game ends; then return the first move of the best finished sequence.
+ * Hard: plan the rest of this turn. Grow sequences of its own decisions (main action, free
+ * actions, politics, income) step by step, keeping the most promising few, until the turn
+ * passes or the game ends; then return the first move of the best finished sequence.
  */
 function planTurn(state: GameState, seat: PlayerId, rng: Rng): Action | null {
+  const size = { beam: BEAM, depth: DEPTH };
   type Node = { state: GameState; first: Action | null; score: number };
   let beam: Node[] = [{ state: withHiddenPilesShuffled(state, rng), first: null, score: 0 }];
   const finished: Node[] = [];
-  for (let depth = 0; depth < DEPTH && beam.length > 0; depth++) {
+  for (let depth = 0; depth < size.depth && beam.length > 0; depth++) {
     const next: Node[] = [];
     for (const node of beam) {
       for (const action of legalActions(node.state, seat)) {
@@ -130,7 +157,7 @@ function planTurn(state: GameState, seat: PlayerId, rng: Rng): Action | null {
       }
     }
     next.sort((a, b) => b.score - a.score);
-    beam = next.slice(0, BEAM);
+    beam = next.slice(0, size.beam);
   }
   finished.push(...beam);
   let best: Node | null = null;
@@ -139,20 +166,23 @@ function planTurn(state: GameState, seat: PlayerId, rng: Rng): Action | null {
 }
 
 function bestAction(state: GameState, seat: PlayerId, options: readonly Action[], rng: Rng): Action {
+  return rankActions(state, seat, options, rng)[0]!;
+}
+
+/** Options from best to worst, judged one step ahead (never empty when `options` isn't). */
+function rankActions(state: GameState, seat: PlayerId, options: readonly Action[], rng: Rng): Action[] {
   const fair = withHiddenPilesShuffled(state, rng);
-  let best: { action: Action; score: number } | null = null;
+  const scored: { action: Action; score: number }[] = [];
   for (const action of options) {
-    let score: number;
     try {
-      score = positionScore(apply(fair, action, rng).state, seat);
+      // A hair of noise so equal moves don't always resolve the same way.
+      scored.push({ action, score: positionScore(apply(fair, action, rng).state, seat) + rng.nextInt(1000) / 1e6 });
     } catch {
       continue;
     }
-    // A hair of noise so equal moves don't always resolve the same way.
-    score += rng.nextInt(1000) / 1e6;
-    if (!best || score > best.score) best = { action, score };
   }
-  return best?.action ?? options[0]!;
+  if (scored.length === 0) return [options[0]!];
+  return scored.sort((a, b) => b.score - a.score).map((entry) => entry.action);
 }
 
 /** A copy for trying moves on, with the piles nobody can see reshuffled. */

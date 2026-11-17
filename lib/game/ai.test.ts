@@ -1,4 +1,4 @@
-/** The computer opponent: always legal, finishes games, and Normal beats Easy and random play. */
+/** The computer opponent: always legal, finishes games, and each level beats the one below it. */
 import { chooseAiAction, positionScore, type AiLevel } from "./ai.ts";
 import { currentActor, legalActions } from "./engine.ts";
 import { newReplay, stepReplay } from "./record.ts";
@@ -32,12 +32,12 @@ function game(seed: number, players: Record<PlayerId, Player>, expansion = false
 let finished = 0;
 for (const seed of [1, 2, 3]) {
   for (const expansion of [false, true]) {
-    if (game(seed, { 0: "normal", 1: "normal" }, expansion) !== null) finished++;
+    if (game(seed, { 0: "hard", 1: "normal" }, expansion) !== null) finished++;
   }
 }
-assert(finished === 6, `Normal vs Normal finished ${finished}/6 games`);
+assert(finished === 6, `Hard vs Normal finished ${finished}/6 games`);
 
-// Normal should clearly beat weaker play (seats alternate so going first doesn't decide it).
+// Each level should clearly beat the one below (seats alternate so going first doesn't decide it).
 function wins(level: Player, against: Player, games: number): number {
   let won = 0;
   for (let seed = 1; seed <= games; seed++) {
@@ -47,10 +47,12 @@ function wins(level: Player, against: Player, games: number): number {
   }
   return won;
 }
-const vsRandom = wins("normal", "random", 20);
-const vsEasy = wins("normal", "easy", 20);
-assert(vsRandom >= 15, `Normal beat random play ${vsRandom}/20`);
-assert(vsEasy >= 12, `Normal beat Easy ${vsEasy}/20`);
+const vsRandom = wins("easy", "random", 20);
+const normalVsEasy = wins("normal", "easy", 20);
+const hardVsNormal = wins("hard", "normal", 20);
+assert(vsRandom >= 12, `Easy beat random play ${vsRandom}/20`);
+assert(normalVsEasy >= 12, `Normal beat Easy ${normalVsEasy}/20`);
+assert(hardVsNormal >= 11, `Hard beat Normal ${hardVsNormal}/20`);
 
 // The score reads the board, not the opponent's hidden hand.
 {
@@ -63,4 +65,6 @@ assert(vsEasy >= 12, `Normal beat Easy ${vsEasy}/20`);
   assert(positionScore(swapped, 0) === before, "Reordering the opponent's hand doesn't change the score");
 }
 
-report(`AI ok: legal and finishes games; Normal beat random play ${vsRandom}/20 and Easy ${vsEasy}/20.`);
+report(
+  `AI ok: legal and finishes games; Easy beat random play ${vsRandom}/20, Normal beat Easy ${normalVsEasy}/20, Hard beat Normal ${hardVsNormal}/20.`,
+);
