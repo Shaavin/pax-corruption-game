@@ -99,8 +99,10 @@ export default function Home() {
         </nav>
       </header>
 
-      <main className="mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)] items-center gap-12 px-5 py-12 sm:px-8 lg:min-h-[calc(100dvh-9rem)] lg:grid-cols-[minmax(0,1fr)_27rem] lg:gap-x-16 lg:gap-y-8 lg:py-10">
-        <div className="max-w-xl lg:self-end">
+      {/* Desktop: the title block sits in an auto-height first row and everything is top-aligned,
+          so the launcher can grow (difficulty picker, saved game) without moving the left side. */}
+      <main className="mx-auto grid max-w-6xl grid-cols-[minmax(0,1fr)] items-start gap-12 px-5 py-12 sm:px-8 lg:grid-cols-[minmax(0,1fr)_27rem] lg:grid-rows-[auto_1fr] lg:gap-x-16 lg:gap-y-8 lg:py-16">
+        <div className="max-w-xl">
           <p className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs font-medium text-stone-300 backdrop-blur">
             <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-ember" />
             A two-player political card game
