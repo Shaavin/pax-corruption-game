@@ -305,6 +305,12 @@ export type EndPoliticsAction = {
   player: PlayerId;
 };
 
+/** Income at the hand limit: decline to buy an event (the only income choice then). */
+export type PassIncomeAction = {
+  type: "passIncome";
+  player: PlayerId;
+};
+
 export type TakeMarketAction = {
   type: "takeMarket";
   player: PlayerId;
@@ -393,6 +399,7 @@ export type Action =
   | ProposePolicyAction
   | DeclareVictoryAction
   | EndPoliticsAction
+  | PassIncomeAction
   | TakeMarketAction
   | ActivateDecreeAction
   | FreeActionAction

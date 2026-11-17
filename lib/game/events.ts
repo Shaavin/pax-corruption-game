@@ -14,7 +14,7 @@ import {
   type WorldPowerId,
 } from "../cards/expansion.ts";
 import type { DistrictId } from "../cards/schema.ts";
-import { handLimit, martialLawBlocks } from "./abilities.ts";
+import { martialLawBlocks } from "./abilities.ts";
 import { discardCards } from "./discard.ts";
 import { drawToHand, eventCost, removeFromMarket } from "./draw.ts";
 import { IllegalActionError } from "./errors.ts";
@@ -86,7 +86,10 @@ export function setUpExpansion(state: GameState, rng: Rng, foreignInfluence: boo
 
 // --- Buying ------------------------------------------------------------------------------
 
-/** Market events `player` could buy right now (income step, under the hand limit). */
+/**
+ * Market events `player` could buy right now (income step). Events are played at once, so
+ * they never sit in the hand: buying one needs no room under the hand limit (Ian, 2026-11-16).
+ */
 export function buyableEvents(state: GameState, player: PlayerId): CardInstance[] {
   return canBuyNow(state, player) ? affordableEvents(state, player) : [];
 }
@@ -103,8 +106,7 @@ function canBuyNow(state: GameState, player: PlayerId): boolean {
     state.expansion !== null &&
     state.phase === Phase.Income &&
     state.activePlayer === player &&
-    state.pending.length === 0 &&
-    state.players[player].hand.length < handLimit(state, player)
+    state.pending.length === 0
   );
 }
 
@@ -155,7 +157,7 @@ function districtOf(card: CardInstance): DistrictId | null {
  */
 export function applyBuyEvent(state: GameState, action: BuyEventAction, events: GameEvent[]): void {
   const { player } = action;
-  if (!canBuyNow(state, player)) throw new IllegalActionError("You can buy an event only at income, under your hand limit");
+  if (!canBuyNow(state, player)) throw new IllegalActionError("You can buy an event only at income");
   const expansion = state.expansion!;
   const card = state.market.find((entry) => entry.instanceId === action.instanceId);
   if (!card || !isEventCard(card)) throw new IllegalActionError("That event is not in the Market");

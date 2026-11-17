@@ -144,6 +144,13 @@ export function apply(state: GameState, action: Action, rng: Rng): ApplyResult {
       }
       takeMarketCard(next, action.instanceId, events);
       break;
+    case "passIncome":
+      requirePhase(next, Phase.Income);
+      if (underHandLimit(next, action.player)) {
+        throw new IllegalActionError("Take a Market card (or buy an event) at income");
+      }
+      completeIncome(next, events);
+      break;
     case "buyEvent":
       requirePhase(next, Phase.Income);
       applyBuyEvent(next, action, events);
@@ -232,12 +239,18 @@ export function legalActions(state: GameState, viewer: PlayerId): Action[] {
   }
 
   if (state.phase === Phase.Income) {
+    const room = underHandLimit(state, viewer);
     return [
-      ...state.market
-        .filter((card) => !isEventCard(card))
-        .map((card) => ({ type: "takeMarket" as const, player: viewer, instanceId: card.instanceId })),
+      // Taking a Market card needs room in hand; buying an event (played at once) doesn't.
+      ...(room ? state.market.filter((card) => !isEventCard(card)) : []).map((card) => ({
+        type: "takeMarket" as const,
+        player: viewer,
+        instanceId: card.instanceId,
+      })),
       ...buyEventActions(state, viewer),
       ...setAsideActions(state, viewer),
+      // At the hand limit buying an event is optional: the player may pass.
+      ...(room ? [] : [{ type: "passIncome" as const, player: viewer }]),
     ];
   }
 
@@ -504,6 +517,7 @@ function actionsEqual(a: Action, b: Action): boolean {
   }
   if (a.type === "endAction" && b.type === "endAction") return true;
   if (a.type === "endPolitics" && b.type === "endPolitics") return true;
+  if (a.type === "passIncome" && b.type === "passIncome") return true;
   return JSON.stringify(a) === JSON.stringify(b);
 }
 

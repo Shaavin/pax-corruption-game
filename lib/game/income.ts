@@ -89,7 +89,11 @@ export function enterPolitics(state: GameState, events: GameEvent[]): void {
   }
 }
 
-/** Income step 1: under the limit, take one Market card (a choice); otherwise skip ahead. */
+/**
+ * Income step 1: under the limit, take one Market card (a choice). At the limit no card can
+ * be taken, but an event can still be bought (it's played at once), so stop only if one is
+ * affordable; the player may also pass.
+ */
 export function beginIncome(state: GameState, events: GameEvent[]): void {
   if (state.phase === Phase.GameOver) return;
   // Kybernetik Inc.: no income at all, so no Market refill or draws either.
@@ -98,7 +102,10 @@ export function beginIncome(state: GameState, events: GameEvent[]): void {
     return;
   }
   const player = state.activePlayer;
-  if (underHandLimit(state, player) && hasIncomeChoice(state, player)) {
+  const choice = underHandLimit(state, player)
+    ? hasIncomeChoice(state, player)
+    : affordableEvents(state, player).length > 0;
+  if (choice) {
     state.phase = Phase.Income;
     events.push({ type: "incomeStarted", player });
     return;

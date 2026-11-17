@@ -95,7 +95,7 @@ export function isAiLevel(value: unknown): value is AiLevel {
 /** Which seat the computer plays, and how well. */
 export type AiOpponent = { seat: PlayerId; level: AiLevel };
 
-const QUIET = new Set<Action["type"]>(["endAction", "endPolitics"]);
+const QUIET = new Set<Action["type"]>(["endAction", "endPolitics", "passIncome"]);
 
 /** The computer's move for `seat` (which must be the current actor), or null if it has none. */
 export function chooseAiAction(state: GameState, seat: PlayerId, level: AiLevel, rng: Rng): Action | null {

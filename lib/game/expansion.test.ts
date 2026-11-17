@@ -327,16 +327,42 @@ const civilOf = (district: DistrictId, value?: number) => (id: string) => {
   );
 }
 
-// Buying needs room in hand.
+// Events are played at once, so buying one needs no room in hand (Ian, 2026-11-16). At the
+// limit, income stops only for an affordable event; the player may buy it or pass, but not
+// take a Market card.
 {
   const { state } = start(10);
   const def = event("Magic Realms");
   state.market.push(inst(def));
   snapshotMarket(state);
-  state.phase = Phase.Income;
   const me = state.activePlayer;
-  while (state.players[me].hand.length < 5) state.players[me].hand.push(state.deck.shift()!);
-  assert(buyEventActions(state, me).length === 0, "No buying at the hand limit");
+  while (state.players[me].hand.length < handLimit(state, me)) state.players[me].hand.push(state.deck.shift()!);
+  state.phase = Phase.Politics;
+  const atIncome = apply(state, { type: "endPolitics", player: me }, rng).state;
+  assert(atIncome.phase === Phase.Income && atIncome.activePlayer === me, "Full hand, affordable event: income stops for it");
+  const options = legalActions(atIncome, me).filter((a) => a.type !== "setAside");
+  assert(options.some((a) => a.type === "buyEvent"), "…an event can be bought at the hand limit");
+  assert(options.some((a) => a.type === "passIncome"), "…or passed on");
+  assert(!options.some((a) => a.type === "takeMarket"), "…but no Market card can be taken");
+  const marketCard = atIncome.market.find((c) => !isEventCard(c))!;
+  expectIllegal(() => apply(atIncome, { type: "takeMarket", player: me, instanceId: marketCard.instanceId }, rng), "Market take at the hand limit");
+  const bought = apply(atIncome, options.find((a) => a.type === "buyEvent")!, rng).state;
+  assert(bought.activePlayer !== me || bought.phase !== Phase.Income, "Buying at the limit finishes income");
+  const passed = apply(atIncome, { type: "passIncome", player: me }, rng).state;
+  assert(passed.activePlayer !== me, "Passing at the limit ends the turn");
+  assert(passed.players[me].hand.length === handLimit(passed, me), "…with no draw (the hand is full)");
+
+  // Under the limit nothing changes: no passing.
+  const roomy = structuredClone(atIncome);
+  roomy.players[me].hand.pop();
+  assert(!legalActions(roomy, me).some((a) => a.type === "passIncome"), "With room in hand there's no pass");
+  expectIllegal(() => apply(roomy, { type: "passIncome", player: me }, rng), "Passing with room in hand");
+
+  // Full hand and nothing affordable: income skips straight past, as before.
+  const broke = structuredClone(state);
+  broke.market = broke.market.filter((c) => !isEventCard(c));
+  const skipped = apply(broke, { type: "endPolitics", player: me }, rng).state;
+  assert(skipped.activePlayer !== me, "Full hand, no event: income is skipped");
 }
 
 // --- East ---------------------------------------------------------------------------------------

@@ -11,6 +11,7 @@ import { GameOverOverlay } from "./GameOverOverlay";
 import { PassDeviceGate } from "./PassDeviceGate";
 import { playerLabel, PlayerNamesContext } from "./players";
 import { NO_NAMES, type PlayerNames } from "@/lib/game/names";
+import { handLimit } from "@/lib/game/abilities";
 import { aiPersona, chooseAiAction, type AiOpponent } from "@/lib/game/ai";
 import { createSeededRng, randomUint32 } from "@/lib/game/rng";
 import { ReportDialog } from "./ReportDialog";
@@ -294,7 +295,7 @@ export function HotseatSession(props: HotseatSessionProps) {
       return () => window.clearTimeout(done);
     }
     const action = playback.actions[playback.index]!;
-    const quiet = action.type === "endAction" || action.type === "endPolitics";
+    const quiet = action.type === "endAction" || action.type === "endPolitics" || action.type === "passIncome";
     const timer = window.setTimeout(
       () => {
         captureCards(action.player);
@@ -315,7 +316,7 @@ export function HotseatSession(props: HotseatSessionProps) {
     if (!ai || !aiTurn) return;
     const action = chooseAiAction(session.replay.state, ai.seat, ai.level, aiRng);
     if (!action) return;
-    const quiet = action.type === "endAction" || action.type === "endPolitics";
+    const quiet = action.type === "endAction" || action.type === "endPolitics" || action.type === "passIncome";
     const pace = getSettings().motion === "fast" ? 0.6 : 1;
     const timer = window.setTimeout(() => dispatchRef.current(action), (quiet ? 350 : 950) * pace);
     return () => window.clearTimeout(timer);
@@ -719,6 +720,15 @@ export function HotseatSession(props: HotseatSessionProps) {
         onClick: () => dispatch(action),
       });
     }
+    // Full hand: no Market card to take, but an event can still be bought (it's played at once).
+    if (legal.some((action) => action.type === "passIncome")) {
+      extraActions.push({
+        label: "Don't buy an event",
+        title: "Your hand is full, so you can't take a Market card. You may still buy an event: it's played at once.",
+        tone: "neutral",
+        onClick: () => dispatch({ type: "passIncome", player: viewer }),
+      });
+    }
   }
 
   // "Why can't I?" for every hand card that can't be chosen right now (tapping it says so).
@@ -1106,6 +1116,10 @@ function turnPrompt(
 ): string {
   const election = state.election.active ? "Election · " : "";
   if (state.phase === Phase.Income) {
+    // Full hand: only an event can be bought (it's played at once, so it needs no room).
+    if (state.players[state.activePlayer].hand.length >= handLimit(state, state.activePlayer)) {
+      return `${state.election.active ? "Election income" : "Income"} · hand full: buy an event (◆ cost), or don't`;
+    }
     const buy = state.expansion ? ", or buy an event (◆ cost)" : "";
     return state.election.active
       ? `Election income · take one market card${buy} (the market does not refill)`
