@@ -113,8 +113,13 @@ function freeOf(state: GameState, player: PlayerId, ability: string) {
     () => run(state, { type: "freeAction", player: me, source: source.instanceId, ability: "foreignInc", instanceId: other.instanceId }, rng),
     "Foreign Inc. of Horsard seats only a Horsard card",
   );
+  const displaced = state.senate[state.senate.length - 1]!;
   const next = run(state, { type: "freeAction", player: me, source: source.instanceId, ability: "foreignInc", instanceId: horsard.instanceId }, rng).state;
   assert(next.senate[0]?.instanceId === horsard.instanceId, "Seated leftmost");
+  const supportIds = Object.values(next.players[me].support).flat().map((card) => card.instanceId);
+  const routing = next.pending.some((choice) => choice.kind === "routeDiscards");
+  assert(supportIds.includes(displaced.instanceId) || routing, "The displaced Senator goes to the support pile");
+  assert(!next.players[me].hand.some((card) => card.instanceId === displaced.instanceId), "…not back to the hand");
   assert(next.players[me].hand.length === 2, "…then drew a card");
   assert(next.phase === "action" && !next.turn.mainActionDone, "The main action is still to come");
   assert(freeOf(next, me, "foreignInc").length === 0, "Once per turn");
