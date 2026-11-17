@@ -256,7 +256,7 @@ export const POLICIES: PolicyCard[] = [
         when: TriggerWhen.PlayInDistrict,
       },
     ],
-    art: "/cards/policies/dragonara-a.png",
+    art: "/cards/policies/dragonara-a-v2.png",
   },
   {
     id: PolicyId.DragonaraB,
@@ -267,7 +267,7 @@ export const POLICIES: PolicyCard[] = [
     symbol: Symbol.Chart,
     text: "Each discard in Dragonara now provides 2 influence each.",
     effects: [{ type: EffectType.Static, id: EffectId.PopulistForum }],
-    art: "/cards/policies/dragonara-b.png",
+    art: "/cards/policies/dragonara-b-v2.png",
   },
   {
     id: PolicyId.HorsardA,
