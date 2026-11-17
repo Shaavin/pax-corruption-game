@@ -215,7 +215,7 @@ Four double-sided cards. Each starts on its grey **inactive** side ("Win an elec
 | Inactive side | Active side | Symbol | Condition (when active) |
 | --- | --- | --- | --- |
 | Unruly Clans | Imperium | crown | Have more partisans than the opponent. |
-| Turmoil Land | Profectus | chart | Have 7+ more **total** support than the opponent. |
+| Turmoil Land | Profectus | chart | Have 4+ more **total** support than the opponent. (Joe, 2026-11-16; was 7+.) |
 | Emigration | Academia | atom | Have 20+ more influence than the opponent in a district. |
 | Class Schism | De Jures | scales | Have the lowest (or tied for lowest) civil card in all 4 districts. See below. |
 

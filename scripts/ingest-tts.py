@@ -79,6 +79,9 @@ DECREES = {  # deck: (inactive face, active back)
     19: ("emigration", "academia"),
     20: ("turmoil-land", "profectus"),
 }
+# Deck 20 in the TTS save still shows "7+ more total support". Joe updated Profectus to 4+
+# (2026-11-16); the app uses his new faces, saved as turmoil-land-v2.png / profectus-v2.png,
+# so re-running this script doesn't overwrite them. Point the app back here once TTS has them.
 
 
 def main() -> None:

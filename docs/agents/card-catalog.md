@@ -167,7 +167,7 @@ Unchanged. Each district has 18 civil cards valued 3–9. `lib/cards/deck.ts` (`
 | Id (suggested) | Inactive | Active | Symbol | Condition |
 | --- | --- | --- | --- | --- |
 | `decree-imperium` | Unruly Clans | Imperium | crown | Have more partisans than opponent does. |
-| `decree-profectus` | Turmoil Land | Profectus | chart | Have 7+ more total support than opponent does. |
+| `decree-profectus` | Turmoil Land | Profectus | chart | Have 4+ more total support than opponent does. (Updated by Joe, 2026-11-16; was 7+. New faces: `public/cards/decrees/turmoil-land-v2.png` and `profectus-v2.png`; the TTS save still has the old ones.) |
 | `decree-academia` | Emigration | Academia | atom | Have 20+ more influence than opponent in a district. |
 | `decree-de-jures` | Class Schism | De Jures | scales | Have the lowest (or tie for lowest) civil card in all 4 districts. |
 

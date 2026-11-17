@@ -206,4 +206,20 @@ function runElection(state: GameState, rng: Rng): GameState {
   void d4;
 }
 
-report("Election ok: GE opens phase (Market 8, order unchanged), resolution, decree choice, tie-breaks, final Civil, Roman Basilica, De Jures.");
+// --- Profectus: 4+ more total support (Joe's updated card, 2026-11-16) ---------------------
+{
+  const { state } = playToTurnOne(262);
+  const [d1, d2] = state.districtOrder as [DistrictId, DistrictId];
+  for (const player of [0, 1] as const) for (const district of DISTRICTS) state.players[player].support[district] = [];
+  // Any cards count toward support; take them from the deck.
+  const pile = (count: number) => state.deck.splice(0, count).map((card) => ({ ...card, faceUp: true }));
+  state.players[0].support[d1] = pile(2);
+  state.players[0].support[d2] = pile(2);
+  state.players[1].support[d1] = pile(1);
+  assert(!meetsDecree(state, 0, DecreeId.Profectus), "A lead of 3 isn't enough");
+  state.players[0].support[d2].push(...pile(1));
+  assert(meetsDecree(state, 0, DecreeId.Profectus), "A lead of 4 across districts meets Profectus");
+  assert(!meetsDecree(state, 1, DecreeId.Profectus), "…and the trailing player doesn't");
+}
+
+report("Election ok: GE opens phase (Market 8, order unchanged), resolution, decree choice, tie-breaks, final Civil, Roman Basilica, De Jures, Profectus.");
