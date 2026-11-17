@@ -60,8 +60,10 @@ const GET_A_COPY = `${MARKETING_URL}/#request`;
 export default function Home() {
   return (
     <div className="relative isolate min-h-dvh overflow-x-clip bg-[#0a0c10] text-stone-100">
-      {/* Backdrop: the box art, darkened toward the reading side. */}
-      <div aria-hidden className="absolute inset-0 -z-10">
+      {/* Backdrop: the box art, darkened toward the reading side. Sized to the screen, not the
+          page, so a taller launcher (vs Computer, a saved game) doesn't rescale or recrop it;
+          it fades into the page color at its bottom edge. */}
+      <div aria-hidden className="absolute inset-x-0 top-0 -z-10 h-[max(100dvh,56rem)]">
         <Image
           src="/art/box-cover.jpg"
           alt=""
