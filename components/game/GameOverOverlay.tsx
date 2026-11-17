@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { usePlayerLabel } from "./players";
-import type { DistrictId } from "@/lib/cards/schema";
+import { SYMBOL_NAME, type DistrictId } from "@/lib/cards/schema";
 import { MILITARY_LEAD, POPULARITY_LEAD, VictoryKind, type Victory } from "@/lib/game";
 
 const KIND_LABEL: Record<Victory["kind"], string> = {
@@ -30,7 +30,9 @@ function victoryReason(victory: Victory): string {
     case VictoryKind.Popularity:
       return `Led by ${POPULARITY_LEAD} or more support${victory.district ? ` in ${DISTRICT_NAME[victory.district]}` : ""}.`;
     case VictoryKind.Ideological:
-      return `More ${victory.symbol ?? "ideology"} symbols, the ideology with the most total copies.`;
+      return victory.symbol
+        ? `More ${SYMBOL_NAME[victory.symbol]} symbols, the ideology with the most total copies.`
+        : "More symbols of the ideology with the most total copies.";
     case VictoryKind.Political:
       return "Met two active decree objectives at once.";
     case VictoryKind.Civil:

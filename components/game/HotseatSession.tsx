@@ -24,7 +24,7 @@ import { getEvent, isEventId } from "@/lib/cards/expansion";
 import { Table, type DockBanner, type ExtraAction } from "./Table";
 import { tableModel } from "./table-model";
 import { getCard } from "@/lib/cards/catalog";
-import { CardKind, type DistrictId, type PolicyIdValue } from "@/lib/cards/schema";
+import { CardKind, SYMBOL_NAME, type DistrictId, type PolicyIdValue } from "@/lib/cards/schema";
 import {
   alliancesInPlay,
   ARCHITECTURE_COST,
@@ -1038,7 +1038,7 @@ function victoryLabel(victory: Victory): string {
     case VictoryKind.Popularity:
       return `Popularity Victory${victory.district ? ` (${DISTRICT_NAME[victory.district]})` : ""}`;
     case VictoryKind.Ideological:
-      return `Ideological Victory${victory.symbol ? ` (${victory.symbol})` : ""}`;
+      return `Ideological Victory${victory.symbol ? ` (${SYMBOL_NAME[victory.symbol]})` : ""}`;
     case VictoryKind.Cultural:
       return "Cultural Victory";
     case VictoryKind.Diplomatic:

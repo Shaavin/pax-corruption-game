@@ -5,7 +5,7 @@ import { useNotice } from "./notice";
 import type { SymbolsView } from "./table-model";
 import { TugBar, tugStateText } from "./TugBar";
 import { howToWin, type SeatVictory } from "./victory-marks";
-import { SYMBOLS, type SymbolId } from "@/lib/cards/schema";
+import { SYMBOL_NAME, SYMBOLS, type SymbolId } from "@/lib/cards/schema";
 import type { PlayerId } from "@/lib/game/types";
 import { usePlayerLabel } from "./players";
 
@@ -128,7 +128,6 @@ function PoliticalPips({ you, opponent }: { you: SeatVictory; opponent: SeatVict
 
 // --- Ideological: symbol tally ----------------------------------------------------------------
 
-const SYMBOL_NAME: Record<SymbolId, string> = { atom: "Science", chart: "Economy", crown: "Authority", scales: "Justice" };
 const IDEOLOGICAL_COUNT = 4;
 
 /** "copy" for 1, "copies" otherwise. */

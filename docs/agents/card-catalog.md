@@ -81,6 +81,8 @@ District face colors: Dragonara yellow, Horsard blue, Shavvinne green, Smarbbit 
 | `crown` | Three-point crown | authority |
 | `scales` | Balance scale | justice |
 
+The ids name the icons. Anything a player reads uses the rulebook names (Authority, Economy, Science, Justice) through `SYMBOL_NAME` in `lib/cards/schema.ts`, never the raw ids.
+
 Color is cosmetic. Sources: party and monuments (private, owner only), active policies and active decrees (shared). Smart Doctrine adds private copies matching active decrees. Scoring rules: [game-rules.md#ideological-victory](game-rules.md#ideological-victory).
 
 ## Data shape

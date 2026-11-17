@@ -18,6 +18,14 @@ export const Symbol = {
 export type SymbolId = (typeof Symbol)[keyof typeof Symbol];
 export const SYMBOLS = Object.values(Symbol);
 
+/** The rulebook's names for the political symbols (the ids above name the icons). */
+export const SYMBOL_NAME: Record<SymbolId, string> = {
+  crown: "Authority",
+  chart: "Economy",
+  atom: "Science",
+  scales: "Justice",
+};
+
 export const CardKind = {
   Civil: "civil",
   Alliance: "alliance",

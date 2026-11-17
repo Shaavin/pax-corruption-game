@@ -55,7 +55,7 @@ export const TERMS: Term[] = [
   {
     term: "Symbols",
     meaning:
-      "Chart, crown, atom, and scales. Private copies come from your party and monuments; shared copies from policies and active decrees. Ideological Victory: the most copies of one symbol (at least 4), with more private copies of it than the other player.",
+      "Authority (crown), Economy (chart), Science (atom), and Justice (scales). Private copies come from your party and monuments; shared copies from policies and active decrees. Ideological Victory: the most copies of one symbol (at least 4), with more private copies of it than the other player.",
   },
   {
     term: "Main action / free action",
