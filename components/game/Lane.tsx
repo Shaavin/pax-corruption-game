@@ -223,7 +223,8 @@ function Plate({
             : `A card effect wins this district for ${leader === "you" ? "you" : "your opponent"}, whatever the influence`
           : undefined
       }
-      className="relative z-10 mx-1.5 flex shrink-0 items-center gap-2 overflow-hidden rounded-xl bg-[rgb(12_15_20/0.85)] px-2 pt-2 pb-1.5 shadow-[0_6px_18px_rgba(0,0,0,0.45)] @max-[15rem]:mx-0.5 @max-[15rem]:flex-col @max-[15rem]:items-stretch @max-[15rem]:gap-1 @max-[15rem]:rounded-lg @max-[15rem]:px-1 @max-[15rem]:py-1"
+      // The policy card stays beside the stats; only phone-narrow lanes (under 9rem) stack it below.
+      className="relative z-10 mx-1.5 flex shrink-0 items-center gap-2 overflow-hidden rounded-xl bg-[rgb(12_15_20/0.85)] px-2 pt-2 pb-1.5 shadow-[0_6px_18px_rgba(0,0,0,0.45)] @max-[15rem]:mx-0.5 @max-[15rem]:gap-1.5 @max-[15rem]:rounded-lg @max-[15rem]:px-1.5 @max-[15rem]:py-1 @max-[9rem]:flex-col @max-[9rem]:items-stretch @max-[9rem]:gap-1 @max-[9rem]:px-1"
       style={{ boxShadow: `0 0 0 1px ${ring}, 0 6px 18px rgba(0,0,0,0.45)` }}
     >
       {/* The district's color along the top edge (the ring around the plate is who leads). */}
@@ -264,11 +265,13 @@ function Plate({
         <InfluenceRow you={you} opponent={opponent} leader={leader} />
         <PopularityTug you={you.support} opponent={opponent.support} rule={popularityRule} district={district} />
       </div>
-      <div className="flex shrink-0 flex-col items-center gap-0.5 @max-[15rem]:items-stretch">
+      <div className="flex shrink-0 flex-col items-center gap-0.5 @max-[9rem]:items-stretch">
         {policy ? (
-          <CardView name={policy.name} art={policy.art} size="mini" cardId={policyId ?? undefined} />
+          <span className="flex justify-center">
+            <CardView name={policy.name} art={policy.art} size="mini" cardId={policyId ?? undefined} />
+          </span>
         ) : (
-          <div className="flex aspect-[825/1125] w-[var(--card-mini)] items-center justify-center rounded-[0.32em] border border-dashed border-white/20 text-[0.5rem] font-medium tracking-wide text-stone-400 @max-[15rem]:aspect-auto @max-[15rem]:w-full @max-[15rem]:py-0.5 @max-[15rem]:text-[0.45rem]">
+          <div className="flex aspect-[825/1125] w-[var(--card-mini)] items-center justify-center overflow-hidden rounded-[0.32em] border border-dashed border-white/20 text-[0.5rem] font-medium tracking-wide text-stone-400 [writing-mode:vertical-rl] @max-[15rem]:text-[0.45rem] @max-[15rem]:tracking-normal @max-[9rem]:aspect-auto @max-[9rem]:w-full @max-[9rem]:py-0.5 @max-[9rem]:[writing-mode:horizontal-tb]">
             Neutral
           </div>
         )}
@@ -300,7 +303,8 @@ function InfluenceRow({ you, opponent, leader }: { you: Side; opponent: Side; le
     const explain = text(seat === "you" ? "Your" : "Their", side);
     const label = (
       <span
-        className="text-[0.55rem] font-semibold tracking-[0.1em] uppercase @max-[15rem]:text-[0.45rem] @max-[15rem]:tracking-normal"
+        // The tiniest lanes (small phones) keep the side, color, and ▲; the word won't fit.
+        className="text-[0.55rem] font-semibold tracking-[0.1em] uppercase @max-[15rem]:text-[0.45rem] @max-[15rem]:tracking-normal @max-[6rem]:hidden"
         style={{ color }}
       >
         {seat === "you" ? "You" : "Opp"}
@@ -340,7 +344,7 @@ function InfluenceRow({ you, opponent, leader }: { you: Side; opponent: Side; le
   return (
     <div className="flex items-center justify-between gap-1 leading-none">
       {cell("opponent")}
-      <span className="text-[0.5rem] tracking-[0.12em] text-stone-500 uppercase @max-[15rem]:hidden">influence</span>
+      <span className="text-[0.5rem] tracking-[0.12em] text-stone-500 uppercase @max-[20rem]:hidden">influence</span>
       {cell("you")}
     </div>
   );

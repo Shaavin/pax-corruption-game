@@ -76,14 +76,14 @@ export function HomeLauncher({ onlineOnly = false }: { onlineOnly?: boolean } = 
     >
       {onlineOnly ? null : <ContinueGame />}
 
-      <div className="flex items-center justify-between gap-3">
-        <h2 id="launcher-title" className="text-base font-semibold text-stone-100">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+        <h2 id="launcher-title" className="text-base font-semibold whitespace-nowrap text-stone-100">
           {onlineOnly ? "New online game" : "New game"}
         </h2>
         <div
           role="tablist"
           aria-label="Where to play"
-          className={onlineOnly ? "hidden" : "flex rounded-full bg-white/[0.06] p-1 ring-1 ring-white/10"}
+          className={onlineOnly ? "hidden" : "flex w-full rounded-full bg-white/[0.06] p-1 ring-1 ring-white/10 min-[26rem]:w-auto"}
         >
           <Tab selected={where === "local"} onClick={() => setWhere("local")}>
             Pass &amp; play
@@ -231,7 +231,7 @@ function Tab({ selected, onClick, children }: { selected: boolean; onClick: () =
       aria-selected={selected}
       onClick={onClick}
       className={[
-        "cursor-pointer rounded-full px-3.5 py-1.5 text-xs font-semibold transition",
+        "flex-1 cursor-pointer rounded-full px-2.5 py-1.5 text-xs font-semibold whitespace-nowrap transition min-[26rem]:flex-none sm:px-3.5",
         selected ? "bg-stone-100 text-stone-950 shadow" : "text-stone-400 hover:text-stone-200",
       ].join(" ")}
     >

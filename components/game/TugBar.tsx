@@ -53,7 +53,7 @@ export function TugBar({
         <span className="@max-[15rem]:hidden">Opp </span>
         {opponent}
       </span>
-      <div className="relative h-3 min-w-[2rem] flex-1">
+      <div className="relative h-3 min-w-[2rem] flex-1 @max-[6rem]:min-w-[1.25rem]">
         <div className="absolute inset-x-0 top-1/2 h-[3px] -translate-y-1/2 rounded-full bg-white/12" />
         <Tick at={pct(-target)} color="var(--opp)" />
         <Tick at={pct(0)} color="rgb(255 255 255 / 0.35)" short />

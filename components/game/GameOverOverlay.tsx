@@ -42,6 +42,14 @@ function victoryReason(victory: Victory): string {
   }
 }
 
+const STAT_COLUMNS = [
+  { key: "districts", label: "Districts", short: "Dist.", title: "Districts each player led at the end" },
+  { key: "elections", label: "Elections", short: "Elec.", title: "Elections won" },
+  { key: "partisans", label: "Partisans", short: "Part.", title: "Partisans" },
+  { key: "monuments", label: "Monuments", short: "Mon.", title: "Monuments built" },
+  { key: "support", label: "Support", short: "Supp.", title: "Cards in all support piles" },
+] as const satisfies readonly { key: keyof GameSummaryRow; label: string; short: string; title: string }[];
+
 export type GameSummaryRow = {
   name: string;
   winner: boolean;
@@ -85,11 +93,11 @@ export function GameOverOverlay({
   }
 
   return (
-    <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center bg-black/75 px-4">
+    <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/75 px-3 py-4 sm:px-4">
       <div
         role="dialog"
         aria-labelledby="game-over-title"
-        className="pointer-events-auto max-w-md rounded-2xl glass-strong px-6 py-8 text-center shadow-2xl ring-1 ring-[var(--brass)]/40"
+        className="pointer-events-auto m-auto w-full max-w-lg min-w-0 rounded-2xl glass-strong px-4 py-6 text-center shadow-2xl ring-1 ring-[var(--brass)]/40 sm:px-6 sm:py-8"
       >
         <p className="text-[0.65rem] font-semibold tracking-[0.18em] text-[var(--brass)] uppercase">
           Game over
@@ -101,30 +109,35 @@ export function GameOverOverlay({
         <p className="mt-1 text-sm text-stone-300">{victoryReason(victory)}</p>
         {rematch?.note ? <p className="mt-3 text-sm font-semibold text-[var(--brass)]">{rematch.note}</p> : null}
         {summary && summary.length > 0 ? (
-          <table className="mt-5 w-full text-xs">
+          <table className="mt-5 w-full table-auto text-xs">
             <caption className="sr-only">Final standings</caption>
             <thead>
-              <tr className="text-[0.6rem] tracking-[0.1em] text-stone-400 uppercase">
-                <th scope="col" className="pb-1 text-left font-semibold">Player</th>
-                <th scope="col" className="pb-1 font-semibold" title="Districts each player led at the end">Districts</th>
-                <th scope="col" className="pb-1 font-semibold">Elections</th>
-                <th scope="col" className="pb-1 font-semibold">Partisans</th>
-                <th scope="col" className="pb-1 font-semibold">Monuments</th>
-                <th scope="col" className="pb-1 font-semibold" title="Cards in all support piles">Support</th>
+              <tr className="text-[0.6rem] tracking-[0.06em] text-stone-400 uppercase">
+                <th scope="col" className="pr-2 pb-1.5 text-left font-semibold">Player</th>
+                {STAT_COLUMNS.map((column) => (
+                  <th key={column.key} scope="col" className="px-1 pb-1.5 text-center font-semibold" title={column.title}>
+                    {/* Full words where there's room; short ones on phones. */}
+                    <span className="hidden sm:inline">{column.label}</span>
+                    <abbr className="no-underline sm:hidden" title={column.title}>
+                      {column.short}
+                    </abbr>
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody className="tabular-nums">
               {summary.map((row) => (
                 <tr key={row.name} className={row.winner ? "font-semibold text-stone-50" : "text-stone-300"}>
-                  <th scope="row" className="py-1 text-left font-semibold">
+                  <th scope="row" className="py-1 pr-2 text-left font-semibold break-words">
                     {row.winner ? "★ " : ""}
                     {row.name}
                   </th>
-                  <td>{row.districts}/4</td>
-                  <td>{row.elections}</td>
-                  <td>{row.partisans}</td>
-                  <td>{row.monuments}</td>
-                  <td>{row.support}</td>
+                  {STAT_COLUMNS.map((column) => (
+                    <td key={column.key} className="px-1 text-center">
+                      {row[column.key]}
+                      {column.key === "districts" ? "/4" : ""}
+                    </td>
+                  ))}
                 </tr>
               ))}
             </tbody>
