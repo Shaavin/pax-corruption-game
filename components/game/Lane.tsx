@@ -304,7 +304,7 @@ function InfluenceRow({ you, opponent, leader }: { you: Side; opponent: Side; le
     const label = (
       <span
         // The tiniest lanes (small phones) keep the side, color, and ▲; the word won't fit.
-        className="text-[0.55rem] font-semibold tracking-[0.1em] uppercase @max-[15rem]:text-[0.45rem] @max-[15rem]:tracking-normal @max-[6rem]:hidden"
+        className="text-[0.6rem] font-semibold tracking-[0.02em] @max-[15rem]:text-[0.5rem] @max-[15rem]:tracking-normal @max-[6rem]:hidden"
         style={{ color }}
       >
         {seat === "you" ? "You" : "Opp"}
@@ -321,7 +321,7 @@ function InfluenceRow({ you, opponent, leader }: { you: Side; opponent: Side; le
     const tag = leads ? (
       // Not color alone: say who leads.
       <span
-        className="rounded-sm px-1 text-[0.5rem] font-bold tracking-[0.08em] uppercase @max-[15rem]:px-0 @max-[15rem]:text-[0.55rem]"
+        className="rounded-sm px-1 text-[0.55rem] font-bold @max-[15rem]:px-0 @max-[15rem]:text-[0.55rem]"
         style={{ color, background: "color-mix(in srgb, currentColor 14%, transparent)" }}
         aria-label={seat === "you" ? "You lead here" : "They lead here"}
       >

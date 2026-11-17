@@ -451,7 +451,7 @@ function TableView({
           <div className="shrink-0 border-t border-[var(--line)] bg-black/20 px-3 pt-1.5">
             <PlayerBar
               seat="you"
-              name={`${playerLabel(model.you.id)} (you)`}
+              name={`${playerLabel(model.you.id)} (You)`}
               partyId={model.you.partyId}
               monuments={model.you.monuments}
               setAside={model.you.setAside}
@@ -658,7 +658,7 @@ function CompactTable({
       <PlayerBar
         compact
         seat="you"
-        name={`${playerLabel(model.you.id)} (you)`}
+        name={`${playerLabel(model.you.id)} (You)`}
         partyId={model.you.partyId}
         monuments={model.you.monuments}
         setAside={model.you.setAside}

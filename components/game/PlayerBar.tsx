@@ -79,7 +79,7 @@ export function PlayerBar({
             {incumbent ? <IncumbentBadge electionWon={electionWins > 0} compact={compact} /> : null}
             {active ? (
               <span className="ml-1.5 font-semibold" style={{ color }}>
-                · {seat === "you" ? "your turn" : "their turn"}
+                · {seat === "you" ? "Your turn" : "Their turn"}
               </span>
             ) : null}
           </div>

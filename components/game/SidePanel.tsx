@@ -295,7 +295,7 @@ function CivilOutlook({ civil }: { civil: RaceView["civil"] }) {
     >
       Civil: {civil.electionsLeft} left ·{" "}
       <span className="font-semibold" style={{ color }}>
-        {civil.projected === "you" ? "you lead" : civil.projected === "opponent" ? "they lead" : "—"}
+        {civil.projected === "you" ? "You lead" : civil.projected === "opponent" ? "They lead" : "—"}
       </span>
       {civil.basilica ? (
         <>
@@ -502,7 +502,7 @@ function WorldSection({ expansion }: { expansion: ExpansionView }) {
                 <CardView name={event.name} art={event.art} size="panel" cardId={entry.card.cardId} motionKey={entry.card.instanceId} />
                 <span
                   className={[
-                    "pointer-events-none absolute -bottom-1 left-1/2 -translate-x-1/2 rounded px-1 text-[0.5rem] font-bold uppercase ring-1 ring-black/40",
+                    "pointer-events-none absolute -bottom-1 left-1/2 -translate-x-1/2 rounded px-1 text-[0.55rem] font-bold ring-1 ring-black/40",
                     entry.owner === "you"
                       ? "bg-[var(--you)] text-stone-950"
                       : entry.owner === "opponent"
@@ -577,8 +577,8 @@ function RelationsTable({ expansion }: { expansion: ExpansionView }) {
               ))}
             </tr>
           ))}
-          <tr className="text-[0.55rem] tracking-wide uppercase">
-            <td className="text-left text-stone-500">Leads</td>
+          <tr className="text-[0.6rem]">
+            <td className="text-left text-[0.55rem] tracking-wide text-stone-500 uppercase">Leads</td>
             {expansion.relations.map((entry) => {
               const who = lead(entry);
               return (
