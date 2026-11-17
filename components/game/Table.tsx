@@ -373,6 +373,7 @@ function TableView({
               incumbent={model.opponent.incumbent}
               electorates={model.opponent.electorates}
               lords={model.opponent.lords}
+              lordsLead={lordsLead(model.opponent.lords, model.you.lords)}
               active={!yourTurn && live}
             />
             <Hand cards={model.opponent.hand} variant="opponent" />
@@ -459,6 +460,7 @@ function TableView({
               incumbent={model.you.incumbent}
               electorates={model.you.electorates}
               lords={model.you.lords}
+              lordsLead={lordsLead(model.you.lords, model.opponent.lords)}
               active={yourTurn && live}
             />
           </div>
@@ -584,6 +586,7 @@ function CompactTable({
           incumbent={model.opponent.incumbent}
           electorates={model.opponent.electorates}
           lords={model.opponent.lords}
+          lordsLead={lordsLead(model.opponent.lords, model.you.lords)}
           active={!yourTurn && live}
           handCount={model.opponent.hand.length}
         />
@@ -666,6 +669,7 @@ function CompactTable({
         incumbent={model.you.incumbent}
         electorates={model.you.electorates}
         lords={model.you.lords}
+        lordsLead={lordsLead(model.you.lords, model.opponent.lords)}
         active={yourTurn && live}
       />
     </div>
@@ -765,3 +769,8 @@ function MenuButton({ onClick, children }: { onClick: () => void; children: Reac
 }
 
 /** A seat's Popularity pill for this district: only where its best lead is, and only once it leads there. */
+
+/** The Council of Lords: more Lords symbols holds it; a tie gives it to nobody. */
+function lordsLead(mine: number, theirs: number): "lead" | "tie" | "behind" {
+  return mine > theirs ? "lead" : mine === theirs ? "tie" : "behind";
+}

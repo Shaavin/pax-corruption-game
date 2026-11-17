@@ -19,6 +19,8 @@ type PlayerBarProps = {
   electorates: number;
   /** Council of Lords handshake symbols in play. */
   lords: number;
+  /** Who holds the Council of Lords (more Lords symbols; a tie gives it to nobody). */
+  lordsLead?: "lead" | "tie" | "behind";
   active: boolean;
   /** Phone layout: tighter spacing, smaller labels. */
   compact?: boolean;
@@ -38,6 +40,7 @@ export function PlayerBar({
   incumbent = false,
   electorates,
   lords,
+  lordsLead,
   active,
   compact = false,
   handCount,
@@ -95,7 +98,16 @@ export function PlayerBar({
         <Stat
           label="Lords"
           value={lords}
-          title="Lords: alliance handshake symbols in play. More than the other player wins the Council of Lords, the 5th electorate."
+          title={`Lords: alliance handshake symbols in play. More than the other player wins the Council of Lords, the 5th electorate.${
+            lordsLead === "lead"
+              ? ` ${seat === "you" ? "You hold" : "They hold"} it now.`
+              : lordsLead === "tie"
+                ? " Tied now: nobody holds it."
+                : ""
+          }`}
+          // Boxed like a district plate: ringed in the color of whoever holds the Council.
+          box={lordsLead === undefined ? undefined : { color: lordsLead === "lead" ? color : null }}
+          color={lordsLead === "lead" ? color : undefined}
         />
         <Stat
           label="Electorates"
@@ -148,17 +160,33 @@ function Stat({
   value,
   title,
   color,
+  box,
 }: {
   label: ReactNode;
   value: ReactNode;
   title?: string;
   color?: string;
+  /** A plate-style box: ringed and tinted in `color`, or a neutral ring when null. */
+  box?: { color: string | null };
 }) {
   const notify = useNotice();
   // Tapping a number explains it (touch screens have no hover tooltips).
   return (
     <div
-      className={["text-center leading-none", title ? "cursor-help" : ""].join(" ")}
+      className={[
+        "text-center leading-none",
+        title ? "cursor-help" : "",
+        // Padding cancelled by negative margin: the box never widens the row (phones have no room).
+        box ? "-mx-0.5 -my-1 rounded-md px-0.5 py-1 transition-[box-shadow,background-color] duration-300 min-[400px]:-mx-1.5 min-[400px]:px-1.5" : "",
+      ].join(" ")}
+      style={
+        box
+          ? {
+              boxShadow: `0 0 0 1px ${box.color ?? "rgb(255 255 255 / 0.12)"}`,
+              background: box.color ? `color-mix(in srgb, ${box.color} 12%, transparent)` : undefined,
+            }
+          : undefined
+      }
       title={title}
       onClick={title ? () => notify(title) : undefined}
     >
