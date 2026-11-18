@@ -140,8 +140,7 @@ state.players.forEach((player, seat) => {
     if (tableau.length + support.length > 0) console.log(`  ${district}: ${names(tableau)} | support: ${names(support)}`);
   }
   if (player.monuments.length > 0) console.log(`  Monuments: ${names(player.monuments)}`);
-  if (player.consultativeOffice.length > 0) console.log(`  Consultative Office: ${names(player.consultativeOffice)}`);
-  if (player.planetNextBank.length > 0) console.log(`  Planet Next bank: ${names(player.planetNextBank)}`);
+  if (player.network.length > 0) console.log(`  Network: ${names(player.network)}`);
 });
 if (state.expansion) console.log(`\nExpansion: ${JSON.stringify(state.expansion)}`);
 

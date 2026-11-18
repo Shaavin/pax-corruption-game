@@ -1,6 +1,6 @@
 /**
  * Pending choices raised by abilities (Currency Ballots, Urban Aristocrats,
- * Intel Network, People's Press, Space Agency). The front of the queue must be
+ * Intel Network, People's Press, Space Academy). The front of the queue must be
  * resolved before anything else happens; then the turn resumes.
  */
 import { getCard } from "../cards/catalog.ts";
@@ -133,8 +133,9 @@ export function choosePress(state: GameState, player: PlayerId, instanceId: stri
 }
 
 /**
- * Space Agency: move just-discarded cards to your other support piles, at most
- * one card into each pile (and never back into the pile it's already in).
+ * Space Academy (was Space Agency; card updated 2026-11-18): "You may discard up
+ * to 1 of the cards to another support pile each time you discard." At most one
+ * of the just-discarded cards moves, to another of your piles.
  */
 export function routeDiscards(
   state: GameState,
@@ -143,12 +144,8 @@ export function routeDiscards(
   events: GameEvent[],
 ): void {
   const choice = requireChoice(state, player, "routeDiscards");
-  const targets = moves.map((move) => move.district);
-  if (new Set(targets).size !== targets.length) {
-    throw new IllegalActionError("Space Agency moves at most one card into each pile");
-  }
-  if (new Set(moves.map((move) => move.instanceId)).size !== moves.length) {
-    throw new IllegalActionError("Move each card at most once");
+  if (moves.length > 1) {
+    throw new IllegalActionError("Space Academy moves at most one card each time you discard");
   }
   const moved: { cardId: string; district: DistrictId }[] = [];
   for (const move of moves) {

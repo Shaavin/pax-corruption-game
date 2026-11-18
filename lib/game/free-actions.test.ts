@@ -5,6 +5,7 @@ import { printedDistrict } from "./main.ts";
 import { resolveElection } from "./election.ts";
 import { apply, legalActions } from "./engine.ts";
 import { freeActions } from "./free-actions.ts";
+import { networkDistricts } from "./network.ts";
 import { playerDistrictInfluence } from "./influence.ts";
 import type { Action, CardInstance, GameEvent, GameState, PlayerId } from "./types.ts";
 import { assert, expectIllegal, playToTurnOne, report, stripElections } from "./test-helpers.ts";
@@ -224,7 +225,7 @@ function freeOf(state: GameState, player: PlayerId, ability: string) {
   assert(next.activePlayer !== me, "Then the turn ends");
 }
 
-// --- Space Agency ------------------------------------------------------------------
+// --- Space Academy (was Space Agency): one card per discard (card updated 2026-11-18) ----
 {
   const { state, rng, me } = fresh(510);
   state.players[me].monuments.push(monument(MonumentId.SpaceAgency));
@@ -232,42 +233,62 @@ function freeOf(state: GameState, player: PlayerId, ability: string) {
   const three = ["Veterans", "Masons Guild", "Urban Planners"].map((name) => take(state, name, District.Horsard));
   state.players[me].hand = [...three];
   let next = run(state, { type: "recruit", player: me, instanceIds: three.map((c) => c.instanceId) }, rng).state;
-  assert(next.pending[0]?.kind === "routeDiscards", "Space Agency offers to route the discards");
+  assert(next.pending[0]?.kind === "routeDiscards", "Space Academy offers to move a discard");
   expectIllegal(
     () => run(next, { type: "routeDiscards", player: me, moves: [
       { instanceId: three[0]!.instanceId, district: District.Dragonara },
-      { instanceId: three[1]!.instanceId, district: District.Dragonara },
+      { instanceId: three[1]!.instanceId, district: District.Shavvinne },
     ] }, rng),
-    "At most one card into each pile",
+    "At most one card each time you discard, even into different piles",
   );
   next = run(next, { type: "routeDiscards", player: me, moves: [
     { instanceId: three[0]!.instanceId, district: District.Dragonara },
-    { instanceId: three[1]!.instanceId, district: District.Shavvinne },
   ] }, rng).state;
   assert(next.players[me].support[District.Dragonara].length === 1, "One moved to Dragonara");
-  assert(next.players[me].support[District.Shavvinne].length === 1, "One moved to Shavvinne");
-  assert(next.players[me].support[District.Horsard].length === 2, "The rest stay in Horsard");
+  assert(next.players[me].support[District.Horsard].length === 3, "The rest stay in Horsard");
 }
 
-// --- Planet Next, Consultative Office, State Enterprise -------------------------------
+// --- Network: Planet Next, Consultative Office (Joe via Ian, 2026-11-18) --------------
 {
-  const { state, rng, me } = fresh(511);
+  const { state, rng, me, them } = fresh(511);
   state.players[me].monuments.push(monument(MonumentId.PlanetNext));
   state.policy[District.Smarbbit] = PolicyId.SmarbbitB;
   const horsard = take(state, "Veterans", District.Horsard);
   const smarbbit = take(state, "Anarchists", District.Smarbbit);
   state.players[me].hand = [horsard, smarbbit];
-  let next = run(state, { type: "setAside", player: me, zone: "planetNextBank", instanceIds: [horsard.instanceId] }, rng).state;
-  next = run(next, { type: "setAside", player: me, zone: "consultativeOffice", instanceIds: [smarbbit.instanceId] }, rng).state;
-  assert(next.players[me].hand.length === 0, "Both set aside");
-  assert(playerDistrictInfluence(next, me, District.Horsard).bank === 1, "Planet Next: +1 Horsard influence per banked card");
-  expectIllegal(
-    () => run(next, { type: "setAside", player: me, zone: "planetNextBank", instanceIds: [smarbbit.instanceId] }, rng),
-    "Only Horsard cards go to the bank",
+  assert(
+    networkDistricts(state, me).join() === "horsard,smarbbit" && networkDistricts(state, them).join() === "smarbbit",
+    "Planet Next enables Horsard for its owner only; Consultative Office enables Smarbbit for both",
   );
+  let next = run(state, { type: "toNetwork", player: me, instanceIds: [horsard.instanceId] }, rng).state;
+  next = run(next, { type: "toNetwork", player: me, instanceIds: [smarbbit.instanceId] }, rng).state;
+  assert(next.players[me].hand.length === 0 && next.players[me].network.length === 2, "Both moved into the network");
+  assert(next.players[me].network.every((card) => card.faceUp), "Network cards are revealed");
+  assert(playerDistrictInfluence(next, me, District.Horsard).bank === 1, "Planet Next: +1 Horsard influence per card in your Horsard network");
+  expectIllegal(
+    () => run(next, { type: "toNetwork", player: them, instanceIds: [horsard.instanceId] }, rng),
+    "Only the active player moves cards, and only their own",
+  );
+
+  // Out and back in, freely, during your turn.
+  const out = run(next, { type: "fromNetwork", player: me, instanceIds: [horsard.instanceId] }, rng).state;
+  assert(out.players[me].hand.some((card) => card.instanceId === horsard.instanceId), "fromNetwork: back into hand");
+  assert(playerDistrictInfluence(out, me, District.Horsard).bank === 0, "…and its +1 goes with it");
+
   next = run(next, { type: "playCivil", player: me, instanceId: horsard.instanceId }, rng).state;
-  assert(next.players[me].tableau[District.Horsard].some((card) => card.instanceId === horsard.instanceId), "Banked cards play as if in hand");
-  assert(playerDistrictInfluence(next, me, District.Horsard).bank === 0, "…and stop counting once used");
+  assert(next.players[me].tableau[District.Horsard].some((card) => card.instanceId === horsard.instanceId), "Network cards play as if in hand");
+
+  // Joe's report (seed 4285140960): Consultative Office proposed away, cards stayed "in office".
+  const closed = structuredClone(next);
+  closed.policy[District.Smarbbit] = null;
+  const after = run(closed, { type: closed.phase === "politics" ? "endPolitics" : "endAction", player: me }, rng);
+  assert(after.state.players[me].network.length === 0, "Office gone: the Smarbbit network empties");
+  assert(after.state.players[me].hand.some((card) => card.instanceId === smarbbit.instanceId), "…its cards go back to hand");
+  assert(after.events.some((event) => event.type === "networkReturned"), "…with a networkReturned event");
+
+  // Records from before the network: setAside replays as toNetwork.
+  const legacy = run(state, { type: "setAside", player: me, zone: "planetNextBank", instanceIds: [horsard.instanceId] }, rng).state;
+  assert(legacy.players[me].network.some((card) => card.instanceId === horsard.instanceId), "Legacy setAside replays into the network");
 }
 
 {
@@ -354,4 +375,4 @@ function freeOf(state: GameState, player: PlayerId, ability: string) {
   assert(next.players[me].hand.length === handLimit(state, me) + 1, "Stuck draw goes past the hand limit");
 }
 
-report("Free actions and choices ok: Currency Ballots, Urban Aristocrats, Kybernetik, Foreign Inc., Century Inc., Architecture Inc., Rebel Inc., Capitol Inc., Intel Network, People's Press, Space Agency, Planet Next, Consultative Office, State Enterprise, Diet of Saints, main-action ruling (no dead ends, stuck draw).");
+report("Free actions and choices ok: Currency Ballots, Urban Aristocrats, Kybernetik, Foreign Inc., Century Inc., Architecture Inc., Rebel Inc., Capitol Inc., Intel Network, People's Press, Space Academy, network (Planet Next, Consultative Office), State Enterprise, Diet of Saints, main-action ruling (no dead ends, stuck draw).");

@@ -247,11 +247,11 @@ export const MAIN_DECK: MainDeckCard[] = [
     "shavvinne-a-6",
     "Divine Inquisitors",
     s,
-    "You win Shavvinne during elections if this is the only alliance card in the district.",
+    "You win Shavvinne during elections if opponent also has an alliance card in Shavvinne.",
     [
       {
         type: EffectType.Static,
-        id: EffectId.WinIfOnlyAlliance,
+        id: EffectId.WinIfOpponentAlliance,
         params: { district: s },
       },
     ],

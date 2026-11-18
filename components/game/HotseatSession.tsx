@@ -33,7 +33,7 @@ import {
   playableFreeActions,
   freeActionSources,
   handLikeCards,
-  setAsideActions,
+  networkActions,
   type FreeActionAction,
   convincedSenators,
   convincedVotes,
@@ -103,10 +103,14 @@ const FREE_LABEL: Record<FreeActionAction["ability"], (name: string, district: D
 
 type PolicyTarget = { district: DistrictId; policyId: PolicyIdValue | null };
 
-const SET_ASIDE_LABEL = {
-  planetNextBank: "Bank in Planet Next",
-  consultativeOffice: "Move to Consultative Office",
-  eastReveal: "Reveal (outside the hand limit)",
+const NETWORK_LABEL = {
+  toNetwork: "Move to network",
+  fromNetwork: "Back to hand",
+} as const;
+
+const NETWORK_TITLE = {
+  toNetwork: "Reveal it into your network: it stays usable as if in hand and doesn't count toward your hand limit",
+  fromNetwork: "Take it back into your hand: it counts toward your hand limit again",
 } as const;
 
 const START_OF_TURN = new Set<Action["type"]>([
@@ -364,7 +368,8 @@ export function HotseatSession(props: HotseatSessionProps) {
         action.type === "playAlliance" ||
         action.type === "playConspiracy" ||
         action.type === "influenceSenate" ||
-        action.type === "setAside"
+        action.type === "toNetwork" ||
+        action.type === "fromNetwork"
       ) {
         ids.add("instanceId" in action ? action.instanceId : action.instanceIds[0]!);
       }
@@ -427,9 +432,9 @@ export function HotseatSession(props: HotseatSessionProps) {
     if (spendKind === "century") {
       return new Set(revealPool.filter((card) => getCard(card.cardId).kind === CardKind.Alliance).map((card) => card.instanceId));
     }
-    if (inPolitics || inAction) return playableHandIds;
+    if (inPolitics || inAction || state.phase === Phase.Income) return playableHandIds;
     return new Set<string>();
-  }, [spendKind, pool, revealPool, selectedHandIds, spendCost, proposeTarget, foreignSource, inPolitics, inAction, playableHandIds]);
+  }, [spendKind, pool, revealPool, selectedHandIds, spendCost, proposeTarget, foreignSource, inPolitics, inAction, state.phase, playableHandIds]);
 
   const selectedCard = selectedHandIds.length === 1 ? pool.find((card) => card.instanceId === selectedHandIds[0]) : undefined;
   const playDistrict =
@@ -481,8 +486,8 @@ export function HotseatSession(props: HotseatSessionProps) {
   const constructReason = constructBlockReason(state, viewer);
   const declarable = inPolitics ? declarableVictories(state, viewer) : [];
   const seatArmed = inPolitics && !spendKind && selectedCard !== undefined && !state.market.includes(selectedCard);
-  const setAsideFor = selectedCard
-    ? setAsideActions(state, viewer).filter((action) => action.instanceIds[0] === selectedCard.instanceId)
+  const networkFor = selectedCard
+    ? networkActions(state, viewer).filter((action) => action.instanceIds[0] === selectedCard.instanceId)
     : [];
 
   function startMode(kind: SpendKind, source: string | null = null) {
@@ -678,9 +683,10 @@ export function HotseatSession(props: HotseatSessionProps) {
       });
     }
   } else if (inAction) {
-    for (const action of setAsideFor) {
+    for (const action of networkFor) {
       extraActions.push({
-        label: SET_ASIDE_LABEL[action.zone],
+        label: NETWORK_LABEL[action.type],
+        title: NETWORK_TITLE[action.type],
         tone: "neutral",
         onClick: () => dispatch(action),
       });
@@ -700,9 +706,10 @@ export function HotseatSession(props: HotseatSessionProps) {
         onClick: () => dispatch({ type: "influenceSenate", player: viewer, instanceId: selectedCard.instanceId }),
       });
     }
-    for (const action of setAsideFor) {
+    for (const action of networkFor) {
       extraActions.push({
-        label: SET_ASIDE_LABEL[action.zone],
+        label: NETWORK_LABEL[action.type],
+        title: NETWORK_TITLE[action.type],
         tone: "neutral",
         onClick: () => dispatch(action),
       });
@@ -713,9 +720,10 @@ export function HotseatSession(props: HotseatSessionProps) {
       onClick: () => dispatch({ type: "endPolitics", player: viewer }),
     });
   } else if (state.phase === Phase.Income) {
-    for (const action of setAsideFor) {
+    for (const action of networkFor) {
       extraActions.push({
-        label: SET_ASIDE_LABEL[action.zone],
+        label: NETWORK_LABEL[action.type],
+        title: NETWORK_TITLE[action.type],
         tone: "neutral",
         onClick: () => dispatch(action),
       });

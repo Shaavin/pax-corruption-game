@@ -39,7 +39,7 @@ export function discardCards(
       pileOwner,
     });
   }
-  // Space Agency: the discarder may move their own just-discarded cards to other piles.
+  // Space Academy: the discarder may move one of their own just-discarded cards to another pile.
   const own = entries.filter((entry) => entry.owner === discarder).map((entry) => entry.card.instanceId);
   if ((opts.reroutable ?? true) && own.length > 0 && ownsMonument(state, discarder, MonumentId.SpaceAgency)) {
     state.pending.push({ kind: "routeDiscards", player: discarder, instanceIds: own });

@@ -58,8 +58,7 @@ function collectIds(state: GameState): string[] {
   };
   for (const player of state.players) {
     add(player.hand);
-    add(player.consultativeOffice);
-    add(player.planetNextBank);
+    add(player.network);
     add(player.monuments);
     for (const district of DISTRICTS) {
       add(player.tableau[district]);

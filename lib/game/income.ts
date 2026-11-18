@@ -6,6 +6,7 @@ import { affordableEvents } from "./events.ts";
 import { finishTurn } from "./election.ts";
 import { Phase, type Continuation, type GameEvent, type GameState, type PlayerId } from "./types.ts";
 import { marketNonEvents } from "./world.ts";
+import { syncNetworks } from "./network.ts";
 
 export function handSize(state: GameState, player: PlayerId): number {
   return state.players[player].hand.length;
@@ -45,6 +46,9 @@ export function resumeAfterChoice(state: GameState, events: GameEvent[]): void {
 }
 
 function run(state: GameState, next: Continuation, events: GameEvent[]): void {
+  // A network disabled during the step (e.g. Consultative Office proposed away) returns
+  // its cards before the next step checks the hand limit.
+  syncNetworks(state, events);
   switch (next) {
     case "action":
       return;

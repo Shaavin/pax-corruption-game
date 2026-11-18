@@ -10,6 +10,16 @@ import {
   type ElectionCard,
 } from "./schema.ts";
 
+/**
+ * Faces changed after first ingest get a new file name (`-v2`), so offline caches never
+ * serve a stale face (see app/sw.js). 2026-11-18: Divine Inquisitors' new text.
+ */
+const REVISED_DECK_ART = new Set(["shavvinne-a-6"]);
+
+function deckArt(id: string): string {
+  return `/cards/deck/${id}${REVISED_DECK_ART.has(id) ? "-v2" : ""}.png`;
+}
+
 export function civil(
   id: string,
   name: string,
@@ -22,7 +32,7 @@ export function civil(
     name,
     district,
     influence,
-    art: `/cards/deck/${id}.png`,
+    art: deckArt(id),
   };
 }
 
@@ -43,7 +53,7 @@ export function alliance(
     senateVotes: 2,
     text,
     effects,
-    art: `/cards/deck/${id}.png`,
+    art: deckArt(id),
   };
 }
 
@@ -66,7 +76,7 @@ export function conspiracy(
         params: { district },
       },
     ],
-    art: `/cards/deck/${id}.png`,
+    art: deckArt(id),
   };
 }
 

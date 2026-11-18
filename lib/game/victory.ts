@@ -10,7 +10,6 @@ export const MILITARY_LEAD = 3;
 export const POPULARITY_LEAD = 9;
 export const IDEOLOGICAL_COUNT = 4;
 export const POLITICAL_DECREES = 2;
-export const ROMAN_BASILICA_WINS = 3;
 /** Expansion: Cultural Victory needs this many more monuments than the opponent. */
 export const CULTURAL_LEAD = 2;
 /** Expansion: Diplomatic Victory needs a higher relation with this many World Powers. */
@@ -102,12 +101,6 @@ export function declarableVictories(state: GameState, player: PlayerId): Victory
   const opponent = otherPlayer(player);
   const victories: Victory[] = [];
 
-  if (
-    ownsMonument(state, player, MonumentId.RomanBasilica) &&
-    state.players[player].electionWins >= ROMAN_BASILICA_WINS
-  ) {
-    victories.push({ kind: VictoryKind.Civil, player });
-  }
   if (satisfiedDecrees(state, player).length >= POLITICAL_DECREES) {
     victories.push({ kind: VictoryKind.Political, player });
   }

@@ -123,13 +123,12 @@ function RouteChoice({
       return null;
     })
     .filter((entry) => entry !== null);
-  const used = new Set(Object.values(moves));
 
   return (
     <Frame
-      kicker="Space Agency"
-      title="Move any discards?"
-      body="You may send the cards you just discarded to your other support piles, at most one card into each pile."
+      kicker="Space Academy"
+      title="Move a discard?"
+      body="You may send one of the cards you just discarded to another of your support piles."
     >
       <ul className="flex flex-col gap-2">
         {cards.map(({ card, district }) => {
@@ -140,20 +139,12 @@ function RouteChoice({
               <div className="flex flex-wrap gap-1">
                 {DISTRICTS.filter((target) => target !== district).map((target) => {
                   const chosen = moves[card.instanceId] === target;
-                  const taken = used.has(target) && !chosen;
                   return (
                     <button
                       key={target}
                       type="button"
-                      disabled={taken}
-                      onClick={() =>
-                        setMoves((current) => {
-                          const next = { ...current };
-                          if (chosen) delete next[card.instanceId];
-                          else next[card.instanceId] = target;
-                          return next;
-                        })
-                      }
+                      // One card per discard: picking a new move replaces the old one.
+                      onClick={() => setMoves(chosen ? {} : { [card.instanceId]: target })}
                       className={[
                         "cursor-pointer rounded-lg px-2 py-1 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-30",
                         chosen ? "bg-[var(--act)] text-stone-950" : "bg-white/8 text-stone-200 hover:bg-white/14",
@@ -169,7 +160,7 @@ function RouteChoice({
         })}
       </ul>
       <div className="mt-4 flex justify-center gap-2">
-        <GhostButton onClick={() => onAction({ type: "routeDiscards", player: viewer, moves: [] })}>Keep them all</GhostButton>
+        <GhostButton onClick={() => onAction({ type: "routeDiscards", player: viewer, moves: [] })}>Keep them where they are</GhostButton>
         <PrimaryButton
           disabled={Object.keys(moves).length === 0}
           onClick={() =>
@@ -180,7 +171,7 @@ function RouteChoice({
             })
           }
         >
-          Move {Object.keys(moves).length || ""}
+          Move it
         </PrimaryButton>
       </div>
     </Frame>

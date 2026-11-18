@@ -6,7 +6,8 @@ import { simulate } from "./diagnostics.ts";
 import { eventCost, liveEventCost, marketRows, openElectionIfNeeded, removeFromMarket, replenishMarket, resetMarketAfterElection, snapshotMarket } from "./draw.ts";
 import { apply, currentActor, legalActions } from "./engine.ts";
 import { handLimit } from "./abilities.ts";
-import { buyEventActions, returnUnrevealedCards } from "./events.ts";
+import { buyEventActions } from "./events.ts";
+import { networkDistricts, syncNetworks } from "./network.ts";
 import { freeActions } from "./free-actions.ts";
 import { playerDistrictInfluence } from "./influence.ts";
 import { canRecruitIn, recruitBlockReason } from "./main.ts";
@@ -301,7 +302,7 @@ const civilOf = (district: DistrictId, value?: number) => (id: string) => {
     const { state, me, ev } = setUp(18, 3);
     const out = apply(state, { type: "endPolitics", player: me }, rng).state;
     assert(out.phase === Phase.Income, "Only events, one affordable: income stops for the purchase");
-    const options = legalActions(out, me).filter((a) => a.type !== "setAside");
+    const options = legalActions(out, me).filter((a) => a.type !== "toNetwork" && a.type !== "fromNetwork");
     assert(options.length > 0 && options.every((a) => a.type === "buyEvent" && a.instanceId === ev.instanceId), "…and buying it is the only way on");
   }
   {
@@ -348,7 +349,7 @@ const civilOf = (district: DistrictId, value?: number) => (id: string) => {
   state.phase = Phase.Politics;
   const atIncome = apply(state, { type: "endPolitics", player: me }, rng).state;
   assert(atIncome.phase === Phase.Income && atIncome.activePlayer === me, "Full hand, affordable event: income stops for it");
-  const options = legalActions(atIncome, me).filter((a) => a.type !== "setAside");
+  const options = legalActions(atIncome, me).filter((a) => a.type !== "toNetwork" && a.type !== "fromNetwork");
   assert(options.some((a) => a.type === "buyEvent"), "…an event can be bought at the hand limit");
   assert(options.some((a) => a.type === "passIncome"), "…or passed on");
   assert(!options.some((a) => a.type === "takeMarket"), "…but no Market card can be taken");
@@ -377,24 +378,26 @@ const civilOf = (district: DistrictId, value?: number) => (id: string) => {
 {
   const { state } = start(11);
   const me = state.activePlayer;
-  inEffect(state, "Private Islands", me); // Horsard revealed cards outside the hand limit
+  inEffect(state, "Private Islands", me); // Enable network in Horsard
   const horsardCard = card(state, civilOf(District.Horsard));
   state.players[me].hand.push(horsardCard);
-  const setAside = legalActions(state, me).find((a) => a.type === "setAside" && a.zone === "eastReveal");
-  assert(setAside, "East: Horsard cards can be revealed (set aside)");
-  const out = apply(state, setAside!, rng).state;
-  assert(out.expansion!.revealed[me].length === 1, "Revealed zone holds the card");
+  const toNetwork = legalActions(state, me).find((a) => a.type === "toNetwork" && a.instanceIds[0] === horsardCard.instanceId);
+  assert(toNetwork, "East: Horsard cards can go into the network");
+  const out = apply(state, toNetwork!, rng).state;
+  assert(out.players[me].network.length === 1, "The network holds the card");
   assert(legalActions(out, me).some((a) => a.type === "playCivil" && a.instanceId === horsardCard.instanceId), "Revealed cards are usable as if in hand");
   // Not the opponent's: East is exclusive.
-  assert(!legalActions(out, me === 0 ? 1 : 0).some((a) => a.type === "setAside" && a.zone === "eastReveal"), "East is exclusive to its buyer");
+  const other = me === 0 ? 1 : 0;
+  out.players[other].hand.push(card(out, civilOf(District.Horsard)));
+  assert(!networkDistricts(out, other).includes(District.Horsard), "East's network is exclusive to its buyer");
 
   // Confirmed with Joe (2026-11-14): if the East event leaves play, revealed cards go straight
   // back to the hand, even past the hand limit. No discard; income draws wait until under it.
   const over = structuredClone(out);
   while (over.players[me].hand.length < handLimit(over, me)) over.players[me].hand.push(over.deck.shift()!);
   over.expansion!.commonArea = [];
-  returnUnrevealedCards(over);
-  assert(over.expansion!.revealed[me].length === 0, "East gone: revealed zone empties");
+  syncNetworks(over, []);
+  assert(over.players[me].network.length === 0, "East gone: the network empties");
   assert(over.players[me].hand.some((c) => c.instanceId === horsardCard.instanceId), "…back into hand");
   assert(over.players[me].hand.length === handLimit(over, me) + 1, "…past the hand limit, with no discard");
   over.phase = Phase.Income;

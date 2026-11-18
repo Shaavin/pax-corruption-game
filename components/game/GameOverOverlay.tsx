@@ -36,7 +36,7 @@ function victoryReason(victory: Victory): string {
     case VictoryKind.Political:
       return "Met two active decree objectives at once.";
     case VictoryKind.Civil:
-      return "Won the final election, or three elections with Roman Basilica.";
+      return "Won the final election, or by Roman Basilica (the 3rd election, or the end of the final one).";
     case VictoryKind.Cultural:
       return "Had 2 or more monuments than the opponent.";
     case VictoryKind.Diplomatic:

@@ -39,7 +39,7 @@ export type TablePlayerView = {
   tableau: PlayerState["tableau"];
   support: Record<DistrictId, number>;
   influence: Record<DistrictId, DistrictInfluence>;
-  /** Consultative Office + Planet Next bank: face-up, usable as if in hand. */
+  /** The opponent's network: face-up, usable as if in hand (yours shows in your hand, tagged). */
   setAside: CardInstance[];
   /** Your own set-aside cards show in your hand with a tag (they work as hand cards). */
   handTags: Record<string, string>;
@@ -62,7 +62,7 @@ export type RaceView = {
   civil: {
     electionsLeft: number;
     projected: "you" | "opponent" | null;
-    basilica: { who: "you" | "opponent"; wins: number; target: number } | null;
+    basilica: { who: "you" | "opponent"; thirdOpen: boolean } | null;
   };
 };
 
@@ -226,27 +226,17 @@ function phaseStep(state: GameState): PhaseStep {
 
 function playerView(state: GameState, player: PlayerId, isYou: boolean, electorates: number): TablePlayerView {
   const seat = state.players[player];
-  const revealed = state.expansion?.revealed[player] ?? [];
   const partyId = isYou ? (seat.partyId ?? state.setup?.chosenParty[player] ?? null) : seat.partyId;
   return {
     id: player,
     hand: isYou
-      ? [...seat.hand, ...seat.consultativeOffice, ...seat.planetNextBank, ...revealed].map((card) => ({ ...card, faceUp: true }))
+      ? [...seat.hand, ...seat.network].map((card) => ({ ...card, faceUp: true }))
       : seat.hand,
     revealedIds: isYou
-      ? [
-          ...seat.hand.filter((card) => card.faceUp),
-          ...seat.consultativeOffice,
-          ...seat.planetNextBank,
-          ...revealed,
-        ].map((card) => card.instanceId)
+      ? [...seat.hand.filter((card) => card.faceUp), ...seat.network].map((card) => card.instanceId)
       : [],
     handTags: isYou
-      ? Object.fromEntries([
-          ...seat.consultativeOffice.map((card) => [card.instanceId, "Office"]),
-          ...seat.planetNextBank.map((card) => [card.instanceId, "Banked"]),
-          ...revealed.map((card) => [card.instanceId, "Revealed"]),
-        ])
+      ? Object.fromEntries(seat.network.map((card) => [card.instanceId, "Network"]))
       : {},
     tableau: seat.tableau,
     support: Object.fromEntries(
@@ -255,7 +245,7 @@ function playerView(state: GameState, player: PlayerId, isYou: boolean, electora
     influence: Object.fromEntries(
       DISTRICTS.map((district) => [district, playerDistrictInfluence(state, player, district)]),
     ) as Record<DistrictId, DistrictInfluence>,
-    setAside: isYou ? [] : [...seat.consultativeOffice, ...seat.planetNextBank, ...revealed],
+    setAside: isYou ? [] : seat.network,
     partyId,
     monuments: seat.monuments.map((card) => card.cardId),
     partisans: seat.partisans,

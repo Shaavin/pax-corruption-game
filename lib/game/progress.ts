@@ -1,7 +1,7 @@
 import { MonumentId, SYMBOLS, type DistrictId, type SymbolId } from "../cards/schema.ts";
 import { ownsMonument } from "./abilities.ts";
 import { activeDecrees, satisfiedDecrees } from "./decrees.ts";
-import { GENERAL_ELECTION_COUNT, tallyElection } from "./election.ts";
+import { GENERAL_ELECTION_COUNT, ROMAN_BASILICA_ELECTION, tallyElection } from "./election.ts";
 import { VictoryKind, type GameState, type PlayerId, type VictoryKindId } from "./types.ts";
 import {
   CULTURAL_LEAD,
@@ -11,7 +11,6 @@ import {
   POLITICAL_DECREES,
   POPULARITY_LEAD,
   privateSymbols,
-  ROMAN_BASILICA_WINS,
   totalSymbols,
 } from "./victory.ts";
 import { relationLeads, supportCount, victoryActive } from "./world.ts";
@@ -47,8 +46,12 @@ export type VictoryRace = {
     electionsLeft: number;
     /** Who would win the election if it were scored now (null: setup). */
     projected: PlayerId | null;
-    /** Roman Basilica owner's election wins toward declaring Civil Victory early. */
-    basilica: { player: PlayerId; wins: number; target: number } | null;
+    /**
+     * Roman Basilica owner. `thirdOpen`: the 3rd election (the one featuring the 3rd General
+     * Election card) is still ahead or under way, so winning it wins Civil; otherwise only the
+     * final election's end does.
+     */
+    basilica: { player: PlayerId; thirdOpen: boolean } | null;
   };
 };
 
@@ -140,7 +143,12 @@ export function victoryRace(state: GameState): VictoryRace {
       basilica:
         basilicaOwner === undefined
           ? null
-          : { player: basilicaOwner, wins: state.players[basilicaOwner].electionWins, target: ROMAN_BASILICA_WINS },
+          : {
+              player: basilicaOwner,
+              thirdOpen:
+                state.electionsOut.length - (state.election.active ? state.election.generalElections : 0) <
+                ROMAN_BASILICA_ELECTION,
+            },
     },
   };
 }

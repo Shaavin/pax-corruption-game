@@ -13,7 +13,7 @@ export const EffectId = {
   RecruitPartisansFree: "recruit-partisans-free",
   AlwaysHigherInfluenceDiscardCivilAfterElection:
     "always-higher-influence-discard-civil-after-election",
-  WinIfOnlyAlliance: "win-if-only-alliance",
+  WinIfOpponentAlliance: "win-if-opponent-alliance",
   ProposePolicyFree: "propose-policy-free",
   DrawFromOwnSupportPile: "draw-from-own-support-pile",
   ConspiracyKeepsYourCivil: "conspiracy-keeps-your-civil",

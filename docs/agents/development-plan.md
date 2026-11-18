@@ -73,7 +73,7 @@ lib/
     engine.ts               # apply / legalActions
     setup.ts                # modes, piles, starting hands, Senate, Market, decrees
     influence.ts            # district influence, Lords symbols
-    zones.ts / discard.ts   # move helpers, discard-to-support (routing: Space Agency, United Front)
+    zones.ts / discard.ts   # move helpers, discard-to-support (routing: Space Academy, United Front)
     main.ts                 # the 5 main actions
     senate.ts               # NEW: influence Senate, propose policy, vote math
     income.ts / draw.ts
@@ -97,7 +97,7 @@ Keep the engine importable from Node tests: no `"use client"` in `lib/game`.
 
 - `phase`: `setup` | `action` | `politics` | `income` | `gameOver`, plus `election: { active: boolean, generalElectionsSetAside: number } | null`
 - `activePlayer`, `firstPlayer`, `incumbent` (winner of the last election, or null)
-- Per player: `hand`, `tableau[district]`, `support[district]`, `partyId`, `monuments[]`, `partisans`, `handLimit`, `consultativeOffice` and `planetNextBank` (face-up set-aside zones; both usable as if in hand; the bank adds +1 Horsard influence per card), `electionWins`
+- Per player: `hand`, `tableau[district]`, `support[district]`, `partyId`, `monuments[]`, `partisans`, `handLimit`, `network` (face-up, outside the hand limit, per enabled district; see `network.ts`; both usable as if in hand; the bank adds +1 Horsard influence per card), `electionWins`
 - Shared: `districtOrder`, `policy[district]` (`"a" | "b" | null`), `senate` (5 card instances, left → right), `market`, `deck`, `availableMonuments`, `monumentDeck`, `decrees[]` (`{ id, active }`), `generalElectionsOut`
 - `turn`: main action taken, free actions used (per source), monument constructed this turn (for the Politics draw), politics option used
 - Card instance: `{ instanceId, cardId, occupiedDistrict? }` (`occupiedDistrict` for Century Inc. cross-district replacements)
@@ -128,12 +128,13 @@ Implement handlers in dependency order:
 | Module | What lives there |
 | --- | --- |
 | `abilities.ts` | Continuous effects: silencing (District Governor, Financial Bankers), live-effect lookups, hand and alliance limits, Market Regulation, Martial Law, Order of Knights blocks, policy freeze, United Front |
-| `influence.ts` | Secularism, Populist Forum, Economic Reform, Order of Knights +1, Planet Next bank |
+| `influence.ts` | Secularism, Populist Forum, Economic Reform, Order of Knights +1, Planet Next (+1 per Horsard network card) |
 | `election.ts` | Diet of Saints (wins Shavvinne; discards Shavvinne civils after the election), Divine Inquisitors, Civil Service veto |
 | `plays.ts` | Shared building blocks for plays, recruiting, building, Senate, proposals; lane-entry triggers (Model Society, Currency Ballots, Urban Aristocrats); Project Habitat |
-| `free-actions.ts` | Kybernetik, Foreign Inc., Century Inc., Architecture Inc., Rebel Inc., Capitol Inc., Intel Network; setting cards aside (Planet Next, Consultative Office) |
-| `choices.ts` | Pending choices: Currency Ballots discard, Urban Aristocrats swap, Intel Network pick, People's Press draw, Space Agency routing |
-| `main.ts` | "As if in hand" zones: hand, Consultative Office, Planet Next bank, and Market Dragonara civils with State Enterprise |
+| `free-actions.ts` | Kybernetik, Foreign Inc., Century Inc., Architecture Inc., Rebel Inc., Capitol Inc., Intel Network |
+| `network.ts` | The network (2026-11-18): which districts are enabled for whom (Consultative Office, Planet Next, East events), moves in and out, cards back to hand when disabled (`syncNetworks`, after every action and step) |
+| `choices.ts` | Pending choices: Currency Ballots discard, Urban Aristocrats swap, Intel Network pick, People's Press draw, Space Academy routing (one card) |
+| `main.ts` | "As if in hand" zones: hand, network, and Market Dragonara civils with State Enterprise |
 | `income.ts` | Turn flow with `proceed` / `resumeAfterChoice`: a pending choice pauses the turn and it resumes where it left off; the action step stays open after the main action while a free action is available |
 
 Tests: `abilities.test.ts` (continuous) and `free-actions.test.ts` (free actions and choices).
@@ -222,10 +223,10 @@ Must-have cases:
 - Election: Market fills to 8; second General Election in the same phase is counted, not a new phase; resolution after Market empties; tie-breaks; decree activation count
 - Political Victory with 2 satisfied active decrees
 - Ideological: rulebook example (Player 2 wins with scales 4 vs atom 3); private copies counted only from the player with more; no ties allowed
-- Civil Victory at the final election; Roman Basilica owner can declare Civil after 3 election wins (and not before)
+- Civil Victory at the final election; Roman Basilica owner wins Civil at once by winning the 3rd election (3rd General Election card), or at the final election whoever wins it
 - Turn order unchanged across an election (GE revealed in A's income → B's turn opens the phase)
 - De Jures: lower or tied per district; no civil cards = fail, even when neither player has any (2026-11-17)
-- Planet Next bank: +1 Horsard influence per banked card; spending a banked card removes its +1; banked cards ignore hand limit
+- Network: moves in and out during your turn, cards back to hand when disabled (Joe's Consultative Office report), Planet Next +1 per Horsard network card, exclusivity
 - Dragon Gate extra draw at end of income; General Election there does not interrupt
 - United Front sends Smarbbit discards to the non-discarding player
 

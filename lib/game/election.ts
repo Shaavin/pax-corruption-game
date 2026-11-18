@@ -23,6 +23,8 @@ import { marketNonEvents } from "./world.ts";
 import { emptyTurn, otherPlayer } from "./zones.ts";
 
 export const GENERAL_ELECTION_COUNT = 4;
+/** Roman Basilica: winning the election in which this General Election card came up wins Civil. */
+export const ROMAN_BASILICA_ELECTION = 3;
 
 export function createEmptyElection(): ElectionRuntime {
   return {
@@ -150,13 +152,13 @@ export function districtOverride(
         claims.add(player);
       }
     }
-    // Divine Inquisitors: "You win Shavvinne during elections if this is the only alliance card in the district."
+    // Divine Inquisitors (card updated 2026-11-18): "You win Shavvinne during elections if
+    // opponent also has an alliance card in Shavvinne." Any alliance card in their Shavvinne lane.
     const inShavvinne = activeAlliances(state).filter((alliance) => alliance.occupied === District.Shavvinne);
-    const allInShavvinne = PLAYERS.flatMap((player) =>
-      state.players[player].tableau[District.Shavvinne].filter((card) => getCard(card.cardId).kind === CardKind.Alliance),
-    );
-    const inquisitor = inShavvinne.find((alliance) => alliance.effectIds.includes(EffectId.WinIfOnlyAlliance));
-    if (inquisitor && allInShavvinne.length === 1) claims.add(inquisitor.owner);
+    for (const inquisitor of inShavvinne.filter((alliance) => alliance.effectIds.includes(EffectId.WinIfOpponentAlliance))) {
+      const opponentLane = state.players[otherPlayer(inquisitor.owner)].tableau[District.Shavvinne];
+      if (opponentLane.some((card) => getCard(card.cardId).kind === CardKind.Alliance)) claims.add(inquisitor.owner);
+    }
     // Conflicting claims (both players) cancel out: nobody wins the district.
     if (claims.size === 1) winner = [...claims][0]!;
     else if (claims.size === 2) winner = null;
@@ -256,6 +258,19 @@ export function resolveElection(state: GameState, nextPlayer: PlayerId, events: 
   state.election.active = false;
   state.election.needsOpening = false;
   state.election.generalElections = 0;
+
+  // Roman Basilica (card updated 2026-11-18): "You immediately win Civil Victory when
+  // 1) you win the 3rd election or 2) the final election is over." The 3rd election is
+  // the one in which the game's 3rd General Election card came up (Joe via Ian).
+  const basilicaOwner = PLAYERS.find((player) => ownsMonument(state, player, MonumentId.RomanBasilica));
+  if (basilicaOwner !== undefined) {
+    const before = state.electionsOut.length - generalElections;
+    const third = before < ROMAN_BASILICA_ELECTION && state.electionsOut.length >= ROMAN_BASILICA_ELECTION;
+    if ((third && winner === basilicaOwner) || isFinalElection(state)) {
+      endGame(state, { kind: VictoryKind.Civil, player: basilicaOwner }, events);
+      return;
+    }
+  }
 
   if (isFinalElection(state)) {
     endGame(state, { kind: VictoryKind.Civil, player: winner }, events);

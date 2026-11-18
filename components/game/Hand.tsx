@@ -10,7 +10,7 @@ type HandProps = {
   /** "you": large fanned hand that bleeds off the bottom edge. "opponent": small backs. */
   variant: "you" | "opponent";
   tourId?: string;
-  /** Small labels on specific cards (e.g. "Banked"). */
+  /** Small labels on specific cards (e.g. "Network"). */
   tags?: Record<string, string>;
   playableIds?: ReadonlySet<string>;
   selectableIds?: ReadonlySet<string>;

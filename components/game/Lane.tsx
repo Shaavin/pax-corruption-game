@@ -250,7 +250,7 @@ function Plate({
           <span className="contents @max-[15rem]:hidden">
           <InfoTip label="How to read a district">
             The top row is <b>influence</b>, theirs on the left and yours on the right: civil card
-            values + 1 per support-pile card (+1 per Planet Next banked card in Horsard). The higher
+            values + 1 per support-pile card (+1 per Horsard network card with Planet Next). The higher
             total wins the district at an election; the plate border shows who leads. Below,
             the <b>support piles</b> pull a tug-of-war: lead by 9 in one district to declare
             Popularity Victory.
@@ -322,7 +322,7 @@ function InfluenceRow({
       ? ` (${side.support} ${side.support === 1 ? "card" : "cards"} in the pile, but ${zeroedBy} makes ${DISTRICT_LABEL[district]} support count as 0)`
       : "";
   const text = (who: "Your" | "Their", side: Side) =>
-    `${who} influence here: ${side.influence.total} (${side.influence.civil} from civil cards + ${side.influence.support} from the support pile${zeroNote(side)}${side.influence.bank ? ` + ${side.influence.bank} banked` : ""}${side.influence.bonus ? ` + ${side.influence.bonus} from abilities` : ""}). More influence wins the district at an election.`;
+    `${who} influence here: ${side.influence.total} (${side.influence.civil} from civil cards + ${side.influence.support} from the support pile${zeroNote(side)}${side.influence.bank ? ` + ${side.influence.bank} from the network (Planet Next)` : ""}${side.influence.bonus ? ` + ${side.influence.bonus} from abilities` : ""}). More influence wins the district at an election.`;
   const cell = (seat: "you" | "opponent") => {
     const side = seat === "you" ? you : opponent;
     const color = seat === "you" ? "var(--you)" : "var(--opp)";

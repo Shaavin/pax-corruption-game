@@ -275,11 +275,20 @@ function buildEntries(events: readonly GameEvent[], viewer: PlayerId): ActionLog
           absorb: "cost",
         });
         break;
-      case "cardsSetAside":
+      case "networkMoved":
         push({
           kind: ActionLogKind.Ability,
           player: event.player,
-          summary: `${who(event.player, viewer)} set aside ${event.cardIds.map(cardName).join(", ")} (${event.zone === "planetNextBank" ? "Planet Next" : "Consultative Office"}).`,
+          summary: `${who(event.player, viewer)} moved ${event.cardIds.map(cardName).join(", ")} ${event.direction === "in" ? "into their network" : "from their network back to hand"}.`,
+          primary: face(event.cardIds[0]!),
+          related: event.cardIds.slice(1).map(face),
+        });
+        break;
+      case "networkReturned":
+        push({
+          kind: ActionLogKind.Ability,
+          player: event.player,
+          summary: `${who(event.player, viewer)}'s network closed: ${event.cardIds.map(cardName).join(", ")} went back to hand.`,
           primary: face(event.cardIds[0]!),
           related: event.cardIds.slice(1).map(face),
         });
@@ -319,7 +328,7 @@ function buildEntries(events: readonly GameEvent[], viewer: PlayerId): ActionLog
         push({
           kind: ActionLogKind.Ability,
           player: event.player,
-          summary: `${who(event.player, viewer)} rerouted ${event.moves.length} discard${event.moves.length === 1 ? "" : "s"} (Space Agency).`,
+          summary: `${who(event.player, viewer)} rerouted ${event.moves.length} discard${event.moves.length === 1 ? "" : "s"} (Space Academy).`,
           primary: face(event.moves[0]!.cardId),
           related: event.moves.slice(1).map((move) => face(move.cardId)),
         });

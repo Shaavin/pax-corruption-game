@@ -291,7 +291,13 @@ function CivilOutlook({ civil }: { civil: RaceView["civil"] }) {
   return (
     <div
       className="text-stone-400"
-      title={`${leader ? `If the election were scored right now, ${leader} would win it. ` : ""}Civil Victory goes to whoever wins the final election.`}
+      title={`${leader ? `If the election were scored right now, ${leader} would win it. ` : ""}${
+        civil.basilica
+          ? `Roman Basilica: its owner (${civil.basilica.who === "you" ? "you" : "your opponent"}) wins Civil Victory ${
+              civil.basilica.thirdOpen ? "by winning the 3rd election, or " : ""
+            }when the final election is over, whoever wins it.`
+          : "Civil Victory goes to whoever wins the final election."
+      }`}
     >
       Civil: {civil.electionsLeft} left ·{" "}
       <span className="font-semibold" style={{ color }}>
@@ -300,7 +306,8 @@ function CivilOutlook({ civil }: { civil: RaceView["civil"] }) {
       {civil.basilica ? (
         <>
           {" "}
-          · Basilica {civil.basilica.who === "you" ? "(yours)" : "(theirs)"} {civil.basilica.wins}/{civil.basilica.target}
+          · Basilica {civil.basilica.who === "you" ? "(yours)" : "(theirs)"}
+          {civil.basilica.thirdOpen ? ": wins the 3rd election or at the end" : ": wins at the end"}
         </>
       ) : null}
     </div>

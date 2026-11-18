@@ -550,8 +550,7 @@ function HiddenInfo({ state, events, issues }: { state: GameState; events: reado
             {currentActor(state) === seat ? " · to act" : ""}
           </h3>
           <Field label={`Hand (${player.hand.length})`} value={names(player.hand)} />
-          <Field label="Consultative Office" value={names(player.consultativeOffice)} />
-          <Field label="Planet Next bank" value={names(player.planetNextBank)} />
+          <Field label="Network" value={names(player.network)} />
           <Field label="Monuments" value={names(player.monuments)} />
           <Field label="Partisans · wins · limit" value={`${player.partisans} · ${player.electionWins} · ${player.handLimit}`} />
         </section>

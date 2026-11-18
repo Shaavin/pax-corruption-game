@@ -15,6 +15,7 @@ export * from "./discard.ts";
 export * from "./action-log.ts";
 export * from "./plays.ts";
 export * from "./free-actions.ts";
+export * from "./network.ts";
 export * from "./choices.ts";
 export * from "./abilities.ts";
 export * from "./record.ts";

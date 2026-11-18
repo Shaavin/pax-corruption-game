@@ -31,7 +31,8 @@ import {
   type GameState,
   type PlayerId,
 } from "./types.ts";
-import { isEventCard, revealDistricts } from "./world.ts";
+import { isEventCard } from "./world.ts";
+import { syncNetworks } from "./network.ts";
 
 export type ExpansionOptions = { expansion?: boolean; foreignInfluence?: boolean };
 
@@ -75,7 +76,6 @@ export function setUpExpansion(state: GameState, rng: Rng, foreignInfluence: boo
     commonArea,
     relations: { 0: zeros(), 1: zeros() },
     activeVictories: [],
-    revealed: { 0: [], 1: [] },
     turnMarket: [],
     eventCosts: {},
     rowBreak: null,
@@ -238,25 +238,6 @@ function removePowerEvents(state: GameState, power: WorldPowerId, events: GameEv
     expansion.box.push(...removed.map((card) => ({ ...card, occupiedDistrict: undefined })));
     events.push({ type: "eventsRemoved", cardIds: removed.map((card) => card.cardId), reason: "legacy" });
   }
-  returnUnrevealedCards(state);
+  syncNetworks(state, events);
 }
 
-/**
- * East "Revealed <district> cards do not occupy hand limit": once no event lets a
- * player keep a district face-up, those cards go back to their hand, even past the
- * hand limit (confirmed with Joe, 2026-11-14). Income takes and draws wait until under it.
- */
-export function returnUnrevealedCards(state: GameState): void {
-  if (!state.expansion) return;
-  for (const player of [0, 1] as const) {
-    const allowed = new Set(revealDistricts(state, player));
-    const zone = state.expansion.revealed[player];
-    const back = zone.filter((card) => {
-      const district = districtOf(card);
-      return district === null || !allowed.has(district);
-    });
-    if (back.length === 0) continue;
-    state.expansion.revealed[player] = zone.filter((card) => !back.includes(card));
-    state.players[player].hand.push(...back);
-  }
-}

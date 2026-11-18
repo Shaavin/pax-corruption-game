@@ -8,6 +8,7 @@ import {
   meetsDecree,
   otherPlayer,
   passesDeJuresIn,
+  resolveElection,
   tallyElection,
   VictoryKind,
   type CardInstance,
@@ -160,28 +161,56 @@ function runElection(state: GameState, rng: Rng): GameState {
   assert(state.victory?.kind === VictoryKind.Civil && state.victory.player === winner, "Final election winner takes Civil");
 }
 
-// --- Roman Basilica: Civil after 3 election wins --------------------------------------
+// --- Roman Basilica (card updated 2026-11-18, Joe via Ian) ---------------------------------
+// "You immediately win Civil Victory when 1) you win the 3rd election or 2) the final election
+// is over." The 3rd election is the one in which the game's 3rd General Election card came up.
 {
-  const { state } = playToTurnOne(251);
-  const owner = state.activePlayer;
-  state.players[owner].monuments = [
-    { instanceId: MonumentId.RomanBasilica, cardId: MonumentId.RomanBasilica, faceUp: true },
-  ];
-  state.phase = "politics";
-  state.players[owner].electionWins = 2;
+  const basilicaGame = (seed: number, winner: "owner" | "rival", outBefore: number, thisElection: number) => {
+    const { state } = playToTurnOne(seed);
+    const owner = state.activePlayer;
+    const rival = otherPlayer(owner);
+    state.players[owner].monuments = [
+      { instanceId: MonumentId.RomanBasilica, cardId: MonumentId.RomanBasilica, faceUp: true },
+    ];
+    sweepDistricts(state, winner === "owner" ? owner : rival);
+    const ges = stripElections(state);
+    state.electionsOut = ges.slice(0, outBefore + thisElection).map((card) => ({ ...card, faceUp: true }));
+    state.election.active = true;
+    state.election.generalElections = thisElection;
+    resolveElection(state, rival, []);
+    return { state, owner, rival };
+  };
+
+  let game = basilicaGame(251, "owner", 2, 1);
   assert(
-    !declarableVictories(state, owner).some((v) => v.kind === VictoryKind.Civil),
-    "Two wins is not enough",
+    game.state.victory?.kind === VictoryKind.Civil && game.state.victory.player === game.owner,
+    "Owner wins the election featuring the 3rd General Election: Civil Victory at once",
   );
+  game = basilicaGame(252, "owner", 1, 1);
+  assert(game.state.victory === null, "Winning the 2nd election is not enough");
+  game = basilicaGame(253, "owner", 1, 2);
+  assert(
+    game.state.victory?.player === game.owner,
+    "2nd and 3rd General Elections in one election: winning it counts as the 3rd",
+  );
+  game = basilicaGame(254, "rival", 2, 1);
+  assert(game.state.victory === null, "The opponent wins the 3rd election: no Basilica victory");
+  game = basilicaGame(255, "owner", 3, 0);
+  assert(game.state.victory === null, "An election after the 3rd (no new card in it) doesn't count");
+  game = basilicaGame(256, "rival", 3, 1);
+  assert(
+    game.state.victory?.kind === VictoryKind.Civil && game.state.victory.player === game.owner,
+    "Final election over: the Basilica owner wins Civil, whoever won the election",
+  );
+
+  const { state } = playToTurnOne(257);
+  const owner = state.activePlayer;
+  state.players[owner].monuments = [{ instanceId: MonumentId.RomanBasilica, cardId: MonumentId.RomanBasilica, faceUp: true }];
+  state.phase = "politics";
   state.players[owner].electionWins = 3;
   assert(
-    declarableVictories(state, owner).some((v) => v.kind === VictoryKind.Civil),
-    "Three wins: the Basilica owner may declare Civil",
-  );
-  state.players[otherPlayer(owner)].electionWins = 3;
-  assert(
-    !declarableVictories(state, otherPlayer(owner)).some((v) => v.kind === VictoryKind.Civil),
-    "Without the Basilica, wins don't declare Civil",
+    !declarableVictories(state, owner).some((v) => v.kind === VictoryKind.Civil),
+    "Nothing to declare: the Basilica wins automatically",
   );
 }
 

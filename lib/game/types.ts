@@ -99,10 +99,12 @@ export type PlayerState = {
   hand: CardInstance[];
   tableau: Record<DistrictId, CardInstance[]>;
   support: Record<DistrictId, CardInstance[]>;
-  /** Consultative Office (Smarbbit policy): face-up, usable as if in hand. */
-  consultativeOffice: CardInstance[];
-  /** Planet Next (monument): banked Horsard cards, +1 Horsard influence each. */
-  planetNextBank: CardInstance[];
+  /**
+   * Network: face-up cards from hand that don't count toward the hand limit, usable
+   * as if in hand. A card can sit here only while its district's network is enabled
+   * for this player (Consultative Office, Planet Next, East events); see `network.ts`.
+   */
+  network: CardInstance[];
   partyId: PartyIdValue | null;
   monuments: CardInstance[];
   partisans: number;
@@ -149,8 +151,6 @@ export type ExpansionState = {
   relations: Record<PlayerId, Record<WorldPowerId, number>>;
   /** Inactive expansion victories flipped active by legacy events. */
   activeVictories: ExpansionVictoryId[];
-  /** East "Revealed <district> cards do not occupy hand limit": face-up, usable as if in hand. */
-  revealed: Record<PlayerId, CardInstance[]>;
   /**
    * Market spots at the start of the turn (instance ids, left to right). Spots are
    * preserved until the income-step collapse, and event costs are fixed for the turn.
@@ -177,7 +177,7 @@ export type PendingChoice =
   | { kind: "intelNetwork"; player: PlayerId; instanceIds: string[] }
   /** People's Press: draw from the deck or take a card from your Smarbbit pile. */
   | { kind: "peoplesPress"; player: PlayerId }
-  /** Space Agency: optionally move just-discarded cards to your other piles (max 1 each). */
+  /** Space Academy: optionally move one just-discarded card to another of your piles. */
   | { kind: "routeDiscards"; player: PlayerId; instanceIds: string[] };
 
 /** Where the turn picks up once every pending choice is resolved. */
@@ -347,7 +347,17 @@ export type FreeActionAction = {
   | { ability: "eastTake"; instanceId: string }
 );
 
-/** Planet Next / Consultative Office: move cards from hand into a face-up zone (own turn only). */
+/** Move cards between hand and network, during your own turn. */
+export type NetworkAction = {
+  type: "toNetwork" | "fromNetwork";
+  player: PlayerId;
+  instanceIds: string[];
+};
+
+/**
+ * Legacy (records before the network, engine < 2026-11-18.1): replays as `toNetwork`.
+ * Never offered as a legal action.
+ */
 export type SetAsideAction = {
   type: "setAside";
   player: PlayerId;
@@ -403,6 +413,7 @@ export type Action =
   | TakeMarketAction
   | ActivateDecreeAction
   | FreeActionAction
+  | NetworkAction
   | SetAsideAction
   | ChooseDiscardAction
   | ChooseSwapAction
@@ -520,7 +531,9 @@ export type GameEvent =
   | { type: "electionEnded" }
   | { type: "turnEnded"; nextPlayer: PlayerId }
   | { type: "freeActionUsed"; player: PlayerId; sourceCardId: string; ability: FreeActionAction["ability"] }
-  | { type: "cardsSetAside"; player: PlayerId; zone: SetAsideAction["zone"]; cardIds: string[] }
+  | { type: "networkMoved"; player: PlayerId; direction: "in" | "out"; cardIds: string[] }
+  /** A network was disabled: its cards went back to the hand (even past the hand limit). */
+  | { type: "networkReturned"; player: PlayerId; cardIds: string[] }
   | { type: "civilsSwapped"; player: PlayerId; mineCardId: string; theirsCardId: string }
   | { type: "allianceReplaced"; player: PlayerId; owner: PlayerId; cardId: string; replacedCardId: string; district: DistrictId }
   | { type: "deckReordered"; player: PlayerId }

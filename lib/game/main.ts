@@ -6,11 +6,6 @@ import type { CardInstance, GameState, PlayerId } from "./types.ts";
 import { removeFromMarket } from "./draw.ts";
 import { isEventCard, supportCount, supportZeroedBy } from "./world.ts";
 
-/** East "Revealed … cards do not occupy hand limit" zone (expansion), or an empty list. */
-function revealedZone(state: GameState, player: PlayerId): CardInstance[] {
-  return state.expansion ? state.expansion.revealed[player] : [];
-}
-
 export const RECRUIT_COST = 3;
 export const CONSTRUCT_COST = 5;
 
@@ -47,8 +42,8 @@ export function canPlayAlliance(
 }
 
 /**
- * Cards usable "as if in hand": the hand itself, the Consultative Office and
- * Planet Next zones, and — for main and free actions with State Enterprise —
+ * Cards usable "as if in hand": the hand itself, the network (see `network.ts`),
+ * and — for main and free actions with State Enterprise —
  * Dragonara civil cards in the Market.
  */
 export function handLikeCards(
@@ -57,7 +52,7 @@ export function handLikeCards(
   opts: { market: boolean },
 ): CardInstance[] {
   const seat = state.players[player];
-  const cards = [...seat.hand, ...seat.consultativeOffice, ...seat.planetNextBank, ...revealedZone(state, player)];
+  const cards = [...seat.hand, ...seat.network];
   if (opts.market && hasActiveAlliance(state, player, EffectId.TreatMarketCivilAsHand, District.Dragonara)) {
     for (const card of state.market) {
       // Events can't be taken outside the income step (expansion rulebook).
@@ -80,7 +75,7 @@ export function takeHandLike(
     throw new Error("That card is not in your hand");
   }
   const seat = state.players[player];
-  for (const zone of [seat.hand, seat.consultativeOffice, seat.planetNextBank, revealedZone(state, player)]) {
+  for (const zone of [seat.hand, seat.network]) {
     const index = zone.findIndex((card) => card.instanceId === instanceId);
     if (index >= 0) return zone.splice(index, 1)[0]!;
   }

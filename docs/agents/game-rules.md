@@ -32,7 +32,7 @@ Five victories. Civil is checked at the end of the final election. **All others 
 
 | Victory | Condition (player aid wording) | Detail |
 | --- | --- | --- |
-| Civil | Win the final election of the game | Triggers at game end, not declared. Final election = the election phase in which the last General Election leaves the deck. Exception: the Roman Basilica owner may declare it after winning 3 elections. |
+| Civil | Win the final election of the game | Triggers at game end, not declared. Final election = the election phase in which the last General Election leaves the deck. Exception: Roman Basilica's owner wins it automatically by winning the 3rd election (the one featuring the 3rd General Election card), or when the final election is over, whoever won it. |
 | Political | Achieve 2 active decree objectives | You must currently satisfy the conditions of 2 **active** decrees. Decrees are shared; it does not matter who activated them. |
 | Military | Lead by 3+ partisans | You have recruited partisans 3+ more times than the opponent. |
 | Popularity | Lead by 9+ support in a district | 9+ more cards in **one** of your support piles than the opponent's pile for that district. |
@@ -49,7 +49,7 @@ Per player:
 - **Support piles.** Four, one per district. Always public. Each card is 1 influence for its owner in that district unless a card says otherwise.
 - **Party** (permanent) and **constructed monuments** (permanent, next to the party).
 - **Partisans.** Number of times you recruited. Victory uses the difference.
-- **Consultative Office zone** (only while that Smarbbit policy is active) and **Planet Next zone** (only if owned): face-up set-aside cards that do not count toward hand limit.
+- **Network** (only for districts an ability enables): a revealed part of your hand that doesn't count toward the hand limit. See [Network](#network).
 
 Shared:
 
@@ -171,7 +171,7 @@ Influence in a district electorate, per player:
 
 - Each of your civil cards there: its printed number
 - +1 per card in **your** support pile for that district
-- Horsard only: +1 per card in your Planet Next bank
+- Horsard only, with Planet Next: +1 per card in your Horsard network
 - Plus any policy, alliance, or monument modifiers
 
 Alliances are not district influence (Economic Reform is an exception: "each played card in Horsard, even alliance, gains +3 influence").
@@ -203,7 +203,8 @@ After a turn ends with **no cards in the Market**, decide the winner:
 ### Resolving an election
 
 1. The winner **chooses** and activates as many inactive decree objectives as the number of General Elections set aside during this phase (every General Election revealed during the election counts, including mid-turn ones; extras beyond the remaining inactive decrees are forgotten). (Beginner tip: by default, pick one whose symbol matches your party.)
-2. If this was the final election, the game ends with Civil Victory for its winner (unless Roman Basilica already ended it).
+2. Roman Basilica: if this election featured the game's 3rd General Election card and the Basilica owner won it, they win Civil Victory at once. If this was the final election, the Basilica owner wins Civil Victory whoever won it.
+3. Otherwise, if this was the final election, the game ends with Civil Victory for its winner.
 3. Otherwise replenish the Market to 5. Play resumes normally. A General Election revealed by this replenish starts a new phase.
 
 **Turn order never changes.** The election phase is only a state of the Market. If player A reveals a General Election during their income step, player B takes the next turn, which is the first turn of the phase. After resolution, play keeps alternating. Nobody chooses a first player.
@@ -237,7 +238,7 @@ You may declare Ideological Victory with symbol X when **all** of these hold:
 2. Total copies of X are **at least 4**.
 3. Total copies of X are **strictly more** than the total of every other symbol (no ties).
 
-Rulebook example: Player 1 has Innovative Party + Space Agency (2 atom private). Player 2 has Progressive Party + Model Society (1 atom, 1 scales private). Active policies: Secularism (scales), United Front (scales), Currency Ballots (atom). Active decrees: Profectus (chart), De Jures (scales). Totals: crown 0, chart 1, atom 2 + 1 = 3 (Player 2's atom is ignored), scales 1 + 3 = 4. Player 2 has more private scales, 4 ≥ 4, and 4 > 3, so Player 2 can declare.
+Rulebook example: Player 1 has Innovative Party + Space Academy (2 atom private). Player 2 has Progressive Party + Model Society (1 atom, 1 scales private). Active policies: Secularism (scales), United Front (scales), Currency Ballots (atom). Active decrees: Profectus (chart), De Jures (scales). Totals: crown 0, chart 1, atom 2 + 1 = 3 (Player 2's atom is ignored), scales 1 + 3 = 4. Player 2 has more private scales, 4 ≥ 4, and 4 > 3, so Player 2 can declare.
 
 ## Card types
 
@@ -268,13 +269,13 @@ All districts start neutral.
 | Shavvinne | Martial Law | crown | Each player gets −1 alliance limit and can only use actions that discard up to 1 card in Shavvinne. |
 | Shavvinne | Secularism | scales | Civil cards in Shavvinne of 5 or lower each count influence twice. |
 | Smarbbit | United Front | scales | Cards to be discarded in Smarbbit now go to the opponent's pile instead. |
-| Smarbbit | Consultative Office | atom | You may set aside face-up Smarbbit cards to be used in later turns. They don't count toward hand limit. |
+| Smarbbit | Consultative Office | atom | The network is enabled for both players in Smarbbit. |
 
 Rulings carried over from earlier play (still consistent with current text):
 
 - **Martial Law** applies only to Shavvinne: −1 alliance limit there; any action that would discard 2+ Shavvinne cards is illegal. A Shavvinne conspiracy is therefore illegal while it is active.
 - **United Front** looks at the **landing** pile. A card discarded to Smarbbit goes to the non-discarding player's Smarbbit pile. If Space Agency sends it elsewhere, the discarder keeps it. Applies to every discard source and can feed Popularity.
-- **Consultative Office**: a personal face-up zone. Move Smarbbit cards from hand into it; they are usable later as if in hand.
+- **Consultative Office**: enables the Smarbbit [network](#network) for **both** players. When the policy changes, everyone's Smarbbit network cards go back to hand.
 - **Currency Ballots**: a General Election drawn by this effect does not delay the mandatory discard. Finish draw-then-discard, then handle the election.
 
 ## Monument effects
@@ -283,20 +284,31 @@ Rulings carried over from earlier play (still consistent with current text):
 | --- | --- | --- | --- | --- |
 | Dragon Gate | Dragonara | Global (6) | scales | You now have +2 hand limit. Draw a card at the end of income step if you have exactly 4 cards. |
 | Intel Network | Dragonara | Progressive (3) | atom | As a free action, you may inspect the top 5 cards of the draw deck, then move one to the top of the deck. |
-| Planet Next | Horsard | Liberal (5) | chart | You may set aside face-up Horsard cards. They don't count toward hand limit and give +1 influence each. |
-| Space Agency | Horsard | Innovative (4) | atom | You may discard cards to other support piles as long as you only discard up to 1 in each of those. |
+| Planet Next | Horsard | Liberal (5) | chart | You enable network in Horsard. Each card in your Horsard network provides +1 influence in Horsard. |
+| Space Academy | Horsard | Innovative (4) | atom | You may discard up to 1 of the cards to another support pile each time you discard. |
 | Civil Service | Shavvinne | Republican (8) | chart | Opponent cannot win a district where they don't have more civil cards. |
-| Roman Basilica | Shavvinne | Trinity (1) | crown | You may declare Civil Victory either after 1) end of the final election, or 2) winning 3 elections cards. |
+| Roman Basilica | Shavvinne | Trinity (1) | crown | You immediately win Civil Victory when 1) you win the 3rd election or 2) the final election is over. |
 | Model Society | Smarbbit | Socialist (7) | scales | You can now have 2 alliances in a district. Draw a card when you play an alliance. |
 | Smart Doctrine | Smarbbit | Conservative (2) | all four, dotted (conditional) | This monument provides a matching ideological symbol for each active decree currently. |
 
 Notes:
 
-- **Space Agency**: owner only; routes your own discards to your other piles, at most 1 per other district. It never moves the opponent's discards and does not change which printed districts an action spent (Martial Law still checks printed district).
+- **Space Academy** (was Space Agency; revised 2026-11-18): owner only; each time you discard, you may move **one** of those cards to another of your piles. It never moves the opponent's discards and does not change which printed districts an action spent (Martial Law still checks printed district).
 - **Dragon Gate**: the extra draw is its own step at the end of income. A General Election drawn there is set aside as usual and does not interrupt the step.
 - **Smart Doctrine**: one private copy of each active decree's symbol (0–4 copies).
-- **Roman Basilica**: its owner may declare Civil Victory in their Politics step once they have won **3 elections** (election phases won, not General Election cards). This survives from the old rules, where winning elections was the main path; now only the final election decides Civil Victory for everyone else. The owner can also still win Civil normally at the final election.
-- **Planet Next** works as an **extension of your hand** (a "bank"): during your own turn, move Horsard cards from your hand into a face-up personal zone. They don't count toward hand limit, each gives you +1 influence in the Horsard electorate, and you can use them later as if in hand for any action (using one removes its +1). Nothing else interacts with banked cards: conspiracies don't wipe them, no policy, alliance, or decree counts them, and they are never discarded except when spent.
+- **Roman Basilica** (revised 2026-11-18): nothing to declare. Its owner wins Civil Victory **at once** when they win the 3rd election, meaning the election in which the game's 3rd General Election card came up (not the 3rd election phase). Separately, when the final election is over, the owner wins Civil Victory **whoever won it**. Only counts while they own the Basilica.
+- **Planet Next** (revised 2026-11-18): enables the Horsard [network](#network) for its owner. Each card in the owner's Horsard network gives +1 influence in Horsard (it goes when the card leaves the network).
+
+### Network
+
+Defined 2026-11-18 (Joe, via Ian). A **network** is a voluntarily revealed part of your hand that does **not** count toward your hand limit.
+
+- Disabled by default. An ability enables it for one district; only cards of that district can go into that network.
+- **Exclusive by default**: it belongs to the ability's owner (Planet Next's owner, an East event's buyer) unless the card says "both players" (Consultative Office). Foreign Influence setup events have no owner and apply to both.
+- During your own turn (action, politics, or income step) you may freely move cards from hand into an enabled network, and back out.
+- Network cards are usable **as if in hand** for any action. Nothing else interacts with them: conspiracies don't wipe them, and they are never discarded except when spent.
+- When a network is **disabled** (the policy changes, the event leaves play), its cards go straight back to the hand, even past the hand limit. No discard; you just can't take a Market card or draw at income until you're under the limit.
+- Enabled by: Consultative Office (Smarbbit, both players), Planet Next (Horsard, owner), East events Magic Realms / Private Islands / Rocky Bunkers / Unaccounted Pop. (their district, buyer).
 
 ## FAQ (rulebook)
 
@@ -321,7 +333,7 @@ Event effects by power (each district has one of each of its power's two effects
 
 | Power | Effects | Civil-side value |
 | --- | --- | --- |
-| East | Revealed <district> cards don't occupy the hand limit · As a free action, take a <district> card from the Market (both exclusive to the buyer) | 7–11 |
+| East | Enable network in <district> · As a free action, take a <district> card from the Market (both exclusive to the buyer) | 7–11 |
 | North | Military Victory needs +1 partisans (stacks) · Flip Pax <decree> to its other side while in effect | 10 |
 | South | Influence in <district> is reduced to support · <district> Senators are always convinced | 7–11 |
 | West | Disable all ideological icons in <district> · District support in <district> counts as zero | 2 |

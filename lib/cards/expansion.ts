@@ -30,6 +30,7 @@ export const WORLD_POWER_NAME: Record<WorldPowerId, string> = {
 /** What a regular event does while it sits in the common area. Wording is the printed text. */
 export type EventEffect =
   /** East: "Revealed <district> cards do not occupy hand limit." */
+  /** East: "Enable network in <district>." (Was "Revealed … cards do not occupy hand limit.") */
   | { type: "handLimitExempt"; district: DistrictId }
   /** East: "As a free action, take a <district> card from Market." */
   | { type: "takeFromMarket"; district: DistrictId }
@@ -99,6 +100,11 @@ const LEGACY_TEXT = (power: string) => `Discard played ${power} cards. — OR �
 
 const D = District;
 
+/** Faces revised 2026-11-18 ("Enable network in <district>"): new file names keep caches fresh. */
+const REVISED_EVENT_ART = new Set(["magic-realms", "private-islands", "rocky-bunkers", "unaccounted-pop"]);
+/** Victory faces revised 2026-11-18 (wording). */
+const REVISED_VICTORY_ART = new Set<string>(["cultural"]);
+
 function regular(
   power: WorldPowerId,
   slug: string,
@@ -115,7 +121,7 @@ function regular(
     legacy: false,
     power,
     name,
-    art: `/cards/expansion/events/${power}-${slug}.png`,
+    art: `/cards/expansion/events/${power}-${slug}${REVISED_EVENT_ART.has(slug) ? "-v2" : ""}.png`,
     district,
     effect,
     text,
@@ -138,7 +144,7 @@ function legacy(power: WorldPowerId, slug: string, name: string): LegacyEventCar
 }
 
 const exempt = (district: DistrictId, label: string) =>
-  [{ type: "handLimitExempt", district } as const, `Revealed ${label} cards do not occupy hand limit.`] as const;
+  [{ type: "handLimitExempt", district } as const, `Enable network in ${label}.`] as const;
 const take = (district: DistrictId, label: string) =>
   [{ type: "takeFromMarket", district } as const, `As a free action, take a ${label} card from Market.`] as const;
 const military = [{ type: "militaryLead" } as const, "Military victory now requires +1 partisans to declare."] as const;
@@ -206,7 +212,7 @@ export const VICTORY_CARDS: VictoryCardDef[] = [
   victory("military", "Military", "Have 3+ more partisans than opponent does.", "Crown of the Vida Vesta"),
   victory("ideological", "Ideological", "Have more symbols in the ideology that has most total copies (at least 4).", "Police State of Brotherhood"),
   victory("popularity", "Popularity", "Lead by 9+ more support in a district.", "Republics of Eastern Vitali"),
-  victory("cultural", "Cultural", "Have 2+ more monuments than opponent.", "Era of Vitalic Renaissance"),
+  victory("cultural", "Cultural", "Have 2+ more monuments than opponent does.", "Era of Vitalic Renaissance"),
   victory("diplomatic", "Diplomatic", "Have higher relationship with 3 of the 4 powers.", "Founder of the World Union"),
 ];
 
@@ -216,8 +222,8 @@ function victory(id: ExpansionVictoryId, name: string, text: string, title: stri
     name,
     text,
     title,
-    art: `/cards/expansion/victories/${id}.png`,
-    inactiveArt: `/cards/expansion/victories/${id}-inactive.png`,
+    art: `/cards/expansion/victories/${id}${REVISED_VICTORY_ART.has(id) ? "-v2" : ""}.png`,
+    inactiveArt: `/cards/expansion/victories/${id}-inactive${REVISED_VICTORY_ART.has(id) ? "-v2" : ""}.png`,
   };
 }
 

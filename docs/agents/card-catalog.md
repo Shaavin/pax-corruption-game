@@ -14,6 +14,8 @@ Marketing site: [pax-corruption-marketing.vercel.app](https://pax-corruption-mar
 
 When text in `lib/cards` disagrees with the TTS faces, the TTS faces win.
 
+**Card updates (2026-11-18, Joe via Ian).** Screenshots of 12 revised faces override the TTS save for these cards until the save is updated: Space Academy (was Space Agency; id `space-agency` unchanged), Roman Basilica, Planet Next, Consultative Office, Divine Inquisitors, Innovative Party, the East events Magic Realms / Private Islands / Rocky Bunkers / Unaccounted Pop., and both sides of the Cultural victory. Their images are `-v2` files (a changed face gets a new file name; see `app/sw.js`).
+
 ### TTS deck map
 
 `TS_Save_1.json` has 21 `CustomDeck` entries. Sheets are 10×7 grids of 880×1232 cards (8800×8624 px). Cached file name = the URL with every non-alphanumeric character removed. `CardID = deckId * 100 + index`.
@@ -110,7 +112,7 @@ Ability ids are a registry in the engine. New card text means a new handler or a
 | 1 | Trinity Party | crown | Architecture Inc. (S); Divine Inquisitors (S); 9 – Roman Church (S); 8 – Fundamentalists (M) | Roman Basilica |
 | 2 | Conservative Party | crown | Capitol Inc. (M); Project Habitat (M); 8 – Conservatives (M); 8 – Estate Moguls (H) | Smart Doctrine |
 | 3 | Progressive Party | atom | District Governor (D); Urban Aristocrats (D); 8 – Grand Justices (D); 5 – Royal Academy (S) | Intel Network |
-| 4 | Innovative Party | atom | Financial Bankers (H); Foreign Inc. (H); 8 – Professors (D); 7 – Regulators (H) | Space Agency |
+| 4 | Innovative Party | atom | Financial Bankers (H); Foreign Inc. (H); 8 – Professors (D); 7 – Regulators (H) | Space Academy (id `space-agency`) |
 | 5 | Liberal Party | chart | Rebel Inc. (S); 8 – Film Industry (H); 8 – Liberalists (M); 4 – Influencers (H) | Planet Next |
 | 6 | Global Party | scales | People's Press (M); 8 – Export Giants (H); 7 – Robot Factories (D); 6 – Export Bureau (D) | Dragon Gate |
 | 7 | Socialist Party | scales | State Enterprise (D); 9 – Communists (M); 8 – Socialists (M); 5 – Local Politicians (S) | Model Society |
@@ -141,7 +143,7 @@ Current printed text. Every alliance also prints `OR — It counts 2x many votes
 | `shavvinne-a-3` | Foreign Inc. ✱ | (Shavvinne version of Foreign Inc.) |
 | `shavvinne-a-4` | Rebel Inc. | As a free action, you may recruit partisans. |
 | `shavvinne-a-5` | Diet of Saints | You always have higher influence in Shavvinne. Discard ALL civil cards in Shavvinne after an election. |
-| `shavvinne-a-6` | Divine Inquisitors ✱ | You win Shavvinne during elections **if this is the only alliance card in the district**. |
+| `shavvinne-a-6` | Divine Inquisitors ✱ | You win Shavvinne during elections **if opponent also has an alliance card in Shavvinne**. (Revised 2026-11-18; was "if this is the only alliance card in the district".) |
 | `smarbbit-a-1`, `-a-3` | Foreign Inc. ✱ | (Smarbbit version of Foreign Inc.) |
 | `smarbbit-a-2` | Capitol Inc. ✱ | As a free action, you may **propose new policy**. |
 | `smarbbit-a-4` | People's Press | When drawing from deck, you may now draw from your Smarbbit support pile instead. |

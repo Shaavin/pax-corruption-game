@@ -1,11 +1,11 @@
 /**
  * Free actions (alliances and monuments, once per source per turn, action step
- * only) and setting cards aside (Planet Next, Consultative Office).
+ * only). Moving cards in and out of the network lives in `network.ts`.
  */
 import { getCard } from "../cards/catalog.ts";
 import { EffectId } from "../cards/effects.ts";
-import { CardKind, District, MonumentId, PolicyId, type DistrictId } from "../cards/schema.ts";
-import { activeAlliances, alliancesInPlay, handLimit, martialLawBlocks, ownsMonument, policyActive } from "./abilities.ts";
+import { CardKind, type DistrictId } from "../cards/schema.ts";
+import { activeAlliances, alliancesInPlay, handLimit, martialLawBlocks } from "./abilities.ts";
 import { discardCards } from "./discard.ts";
 import { drawToHand, removeFromMarket } from "./draw.ts";
 import { IllegalActionError } from "./errors.ts";
@@ -20,9 +20,8 @@ import {
   type GameEvent,
   type GameState,
   type PlayerId,
-  type SetAsideAction,
 } from "./types.ts";
-import { isEventCard, marketTakeSources, revealDistricts } from "./world.ts";
+import { isEventCard, marketTakeSources } from "./world.ts";
 
 export const ARCHITECTURE_COST = 4;
 
@@ -288,62 +287,4 @@ function replaceAlliance(
   });
   discardCards(state, player, [{ card: replaced, owner: target.owner }], events);
   laneEntryTriggers(state, player, placed, events);
-}
-
-// --- Setting cards aside -------------------------------------------------------------
-
-const ZONE_DISTRICT: Record<"planetNextBank" | "consultativeOffice", DistrictId> = {
-  planetNextBank: District.Horsard,
-  consultativeOffice: District.Smarbbit,
-};
-
-/** Districts a zone accepts for `player`. East reveal: districts named by their East events. */
-function zoneDistricts(state: GameState, player: PlayerId, zone: SetAsideAction["zone"]): DistrictId[] {
-  return zone === "eastReveal" ? revealDistricts(state, player) : [ZONE_DISTRICT[zone]];
-}
-
-/** Which set-aside zones `player` may use right now (own turn, no pending choice). */
-export function setAsideZones(state: GameState, player: PlayerId): SetAsideAction["zone"][] {
-  const ownTurn =
-    state.activePlayer === player &&
-    state.pending.length === 0 &&
-    (state.phase === Phase.Action || state.phase === Phase.Politics || state.phase === Phase.Income);
-  if (!ownTurn) return [];
-  const zones: SetAsideAction["zone"][] = [];
-  if (ownsMonument(state, player, MonumentId.PlanetNext)) zones.push("planetNextBank");
-  if (policyActive(state, PolicyId.SmarbbitB)) zones.push("consultativeOffice");
-  if (revealDistricts(state, player).length > 0) zones.push("eastReveal");
-  return zones.filter((zone) => {
-    const districts = zoneDistricts(state, player, zone);
-    return state.players[player].hand.some((card) => districts.includes(printedDistrictOrNull(card.cardId)!));
-  });
-}
-
-export function setAsideActions(state: GameState, player: PlayerId): SetAsideAction[] {
-  return setAsideZones(state, player).flatMap((zone) => {
-    const districts = zoneDistricts(state, player, zone);
-    return state.players[player].hand
-      .filter((card) => districts.includes(printedDistrictOrNull(card.cardId)!))
-      .map((card) => ({ type: "setAside" as const, player, zone, instanceIds: [card.instanceId] }));
-  });
-}
-
-export function applySetAside(state: GameState, action: SetAsideAction, events: GameEvent[]): void {
-  if (!setAsideZones(state, action.player).includes(action.zone)) {
-    throw new IllegalActionError("You can't set cards aside there right now");
-  }
-  const seat = state.players[action.player];
-  const districts = zoneDistricts(state, action.player, action.zone);
-  const cards = action.instanceIds.map((id) => {
-    const card = seat.hand.find((entry) => entry.instanceId === id);
-    if (!card || !districts.includes(printedDistrictOrNull(card.cardId)!)) {
-      throw new IllegalActionError(`Only ${districts.join(" or ")} cards from your hand can go there`);
-    }
-    return card;
-  });
-  seat.hand = seat.hand.filter((card) => !action.instanceIds.includes(card.instanceId));
-  const faceUp = cards.map((card) => ({ ...card, faceUp: true }));
-  if (action.zone === "eastReveal") state.expansion!.revealed[action.player].push(...faceUp);
-  else seat[action.zone].push(...faceUp);
-  events.push({ type: "cardsSetAside", player: action.player, zone: action.zone, cardIds: cards.map((card) => card.cardId) });
 }

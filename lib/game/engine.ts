@@ -6,7 +6,8 @@ import { inactiveDecrees } from "./decrees.ts";
 import { gameIsOver } from "./discard.ts";
 import { activateDecree } from "./election.ts";
 import { IllegalActionError, asIllegal } from "./errors.ts";
-import { applyFreeAction, applySetAside, freeActions, hasFreeAction, setAsideActions } from "./free-actions.ts";
+import { applyFreeAction, freeActions, hasFreeAction } from "./free-actions.ts";
+import { applyNetworkMove, networkActions, syncNetworks } from "./network.ts";
 import { drawToHand } from "./draw.ts";
 import { afterMainAction, completeIncome, proceed, setFreeActionCheck, takeMarketCard, underHandLimit } from "./income.ts";
 import { applyBuyEvent, buyEventActions } from "./events.ts";
@@ -110,8 +111,14 @@ export function apply(state: GameState, action: Action, rng: Rng): ApplyResult {
       }
       applyFreeAction(next, action, rng, events);
       break;
+    case "toNetwork":
+    case "fromNetwork":
+      applyNetworkMove(next, action, events);
+      break;
     case "setAside":
-      applySetAside(next, action, events);
+      // Records from before the network (engine < 2026-11-18.1): Planet Next bank,
+      // Consultative Office, and East reveals all became the network.
+      applyNetworkMove(next, { type: "toNetwork", player: action.player, instanceIds: action.instanceIds }, events);
       break;
     case "influenceSenate":
       requirePhase(next, Phase.Politics);
@@ -180,6 +187,7 @@ export function apply(state: GameState, action: Action, rng: Rng): ApplyResult {
       throw new IllegalActionError(`Unknown action ${(never as Action).type}`);
     }
   }
+  syncNetworks(next, events);
   return { state: next, events };
 }
 
@@ -226,7 +234,7 @@ export function legalActions(state: GameState, viewer: PlayerId): Action[] {
     const mainDone = state.turn.mainActionDone;
     const mains = mainDone ? [] : mainActions(state, viewer);
     const frees = playableFreeActions(state, viewer);
-    const actions: Action[] = [...mains, ...frees, ...setAsideActions(state, viewer)];
+    const actions: Action[] = [...mains, ...frees, ...networkActions(state, viewer)];
     // Before the main action, endAction is the stuck-turn draw: no main action reachable at all.
     if (mainDone || (mains.length === 0 && frees.length === 0)) {
       actions.push({ type: "endAction" as const, player: viewer });
@@ -235,7 +243,7 @@ export function legalActions(state: GameState, viewer: PlayerId): Action[] {
   }
 
   if (state.phase === Phase.Politics) {
-    return [...politicsActions(state, viewer), ...setAsideActions(state, viewer)];
+    return [...politicsActions(state, viewer), ...networkActions(state, viewer)];
   }
 
   if (state.phase === Phase.Income) {
@@ -248,7 +256,7 @@ export function legalActions(state: GameState, viewer: PlayerId): Action[] {
         instanceId: card.instanceId,
       })),
       ...buyEventActions(state, viewer),
-      ...setAsideActions(state, viewer),
+      ...networkActions(state, viewer),
       // At the hand limit buying an event is optional: the player may pass.
       ...(room ? [] : [{ type: "passIncome" as const, player: viewer }]),
     ];

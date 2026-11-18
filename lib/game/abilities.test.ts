@@ -187,11 +187,12 @@ function fresh(seed: number) {
 
 {
   const { state, me, them } = fresh(411);
+  // Card updated 2026-11-18: "You win Shavvinne during elections if opponent also has an alliance card in Shavvinne."
   place(state, them, "Roman Church", District.Shavvinne);
   place(state, me, "Divine Inquisitors", District.Shavvinne);
-  assert(districtOverride(state, District.Shavvinne, them) === me, "Divine Inquisitors wins as the only alliance there");
+  assert(districtOverride(state, District.Shavvinne, them) === them, "Divine Inquisitors: no opponent alliance in Shavvinne, no claim");
   place(state, them, "Rebel Inc.", District.Shavvinne);
-  assert(districtOverride(state, District.Shavvinne, them) === them, "…not once another alliance is there");
+  assert(districtOverride(state, District.Shavvinne, them) === me, "…wins once the opponent also has an alliance there");
 }
 
 {

@@ -100,8 +100,8 @@ export function decreeFlipped(state: GameState, decree: DecreeIdValue): boolean 
 
 // --- East ------------------------------------------------------------------------------
 
-/** Districts whose cards `player` may keep face-up outside the hand limit. */
-export function revealDistricts(state: GameState, player: PlayerId): DistrictId[] {
+/** East "Enable network in <district>": districts whose network `player` gets from events. */
+export function eastNetworkDistricts(state: GameState, player: PlayerId): DistrictId[] {
   return effectsOf(state, "handLimitExempt")
     .filter((entry) => benefits(entry.owner, player))
     .map((entry) => entry.effect.district);

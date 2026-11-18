@@ -1,7 +1,8 @@
 import { getCard } from "../cards/catalog.ts";
 import { EffectId } from "../cards/effects.ts";
-import { CardKind, District, PolicyId, type DistrictId } from "../cards/schema.ts";
-import { hasActiveAlliance, policyActive } from "./abilities.ts";
+import { CardKind, District, MonumentId, PolicyId, type DistrictId } from "../cards/schema.ts";
+import { hasActiveAlliance, ownsMonument, policyActive } from "./abilities.ts";
+import { networkCards } from "./network.ts";
 import type { GameState, PlayerId } from "./types.ts";
 import { influenceIsSupport, supportCount } from "./world.ts";
 
@@ -10,7 +11,7 @@ export type DistrictInfluence = {
   civil: number;
   /** Support-pile cards (Populist Forum makes Dragonara ones worth 2). */
   support: number;
-  /** Planet Next bank (Horsard only). */
+  /** Planet Next: +1 per card in the owner's Horsard network (Horsard only). */
   bank: number;
   /** Order of Knights +1s and Economic Reform +3s. */
   bonus: number;
@@ -19,7 +20,7 @@ export type DistrictInfluence = {
 
 /**
  * Plain influence: civil printed values, plus 1 per support-pile card, plus
- * banked cards. Used where no game state is at hand; prefer
+ * Planet Next network cards. Used where no game state is at hand; prefer
  * `playerDistrictInfluence`, which applies card abilities.
  */
 export function districtInfluence(
@@ -69,6 +70,10 @@ export function playerDistrictInfluence(
     const plain = supportCount(state, player, district);
     return { civil: 0, support: plain, bank: 0, bonus: 0, total: plain };
   }
-  const bank = district === District.Horsard ? seat.planetNextBank.length : 0;
+  // Planet Next: "Each card in your Horsard network provides +1 influence in Horsard."
+  const bank =
+    district === District.Horsard && ownsMonument(state, player, MonumentId.PlanetNext)
+      ? networkCards(state, player, District.Horsard).length
+      : 0;
   return { civil, support, bank, bonus, total: civil + support + bank + bonus };
 }

@@ -96,12 +96,20 @@ export function isAiLevel(value: unknown): value is AiLevel {
 /** Which seat the computer plays, and how well. */
 export type AiOpponent = { seat: PlayerId; level: AiLevel };
 
-const QUIET = new Set<Action["type"]>(["endAction", "endPolitics", "passIncome"]);
+const QUIET = new Set<Action["type"]>(["endAction", "endPolitics", "passIncome", "toNetwork"]);
+
+/**
+ * The moves the computer considers. It never takes cards back out of its network
+ * (they stay usable as if in hand), so in-and-out can't loop forever.
+ */
+function aiOptions(state: GameState, seat: PlayerId): Action[] {
+  return legalActions(state, seat).filter((action) => action.type !== "fromNetwork");
+}
 
 /** The computer's move for `seat` (which must be the current actor), or null if it has none. */
 export function chooseAiAction(state: GameState, seat: PlayerId, level: AiLevel, rng: Rng): Action | null {
   if (state.victory || currentActor(state) !== seat) return null;
-  const options = legalActions(state, seat);
+  const options = aiOptions(state, seat);
   if (options.length === 0) return null;
   if (options.length === 1) return options[0]!;
 
@@ -144,7 +152,7 @@ function planTurn(state: GameState, seat: PlayerId, rng: Rng): Action | null {
   for (let depth = 0; depth < size.depth && beam.length > 0; depth++) {
     const next: Node[] = [];
     for (const node of beam) {
-      for (const action of legalActions(node.state, seat)) {
+      for (const action of aiOptions(node.state, seat)) {
         let child: GameState;
         try {
           child = apply(node.state, action, rng).state;
