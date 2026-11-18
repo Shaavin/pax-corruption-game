@@ -170,6 +170,7 @@ How it works:
 | Records | `GameRecord` carries `engineVersion` (`ENGINE_VERSION` in `record.ts`) and `build` (git short hash, injected as `PAX_BUILD` by `next.config.ts`) |
 | Re-simulate | `/troubleshoot`: paste a code or JSON, open a file, or open this browser's saved game. Step with the slider, buttons, or ←/→/Home/End; view as either seat (both hands face up); tabs for the move list, hidden info (hands, set-aside zones, top of deck, turn and pending choices, the step's events), and the raw state |
 | Divergence checks | `simulate()` in `diagnostics.ts` keeps every state, stops at the first move that throws, and runs `invariantIssues()` after each step: no card in two places, card count constant after setup, Senate at 5, Market at most 8, partisans not negative, victory only in `gameOver` |
+| Command line | `node --experimental-strip-types --no-warnings scripts/inspect-report.ts <report.json \| PAX1:code \| ->` prints the report, replay health, the moves and events around the reported step, the board there (both hands), and the legal actions. `--step N`, `--around N\|all`, `--state`, `--record`. The `/bug-report` skill (`.claude/skills/bug-report/`) uses it |
 | Follow-up | **Play on from here** saves the record up to the current step as this browser's game and opens it in hotseat; **Download / Copy code to here** exports that prefix |
 
 **Bump `ENGINE_VERSION`** whenever a change can make an existing action list replay differently (a rule fix, a new choice, a changed legal action).
