@@ -44,14 +44,14 @@ function lowestCivil(state: GameState, player: PlayerId, district: DistrictId): 
 }
 
 /**
- * De Jures, per district: lower or tied lowest civil card passes. No civil
- * cards fails, unless neither player has any (a tie, so both pass).
- * Ruled 2026-11-11.
+ * De Jures, per district: you need a civil card there, and your lowest must be
+ * lower than or tied with theirs. No civil cards fails, even if neither player
+ * has any (Ian, 2026-11-17; this reverses the 2026-11-11 "both pass" ruling).
  */
 export function passesDeJuresIn(state: GameState, player: PlayerId, district: DistrictId): boolean {
   const mine = lowestCivil(state, player, district);
   const theirs = lowestCivil(state, otherPlayer(player), district);
-  if (mine === null) return theirs === null;
+  if (mine === null) return false;
   if (theirs === null) return true;
   return mine <= theirs;
 }

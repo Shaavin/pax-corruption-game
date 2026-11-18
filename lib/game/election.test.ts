@@ -185,11 +185,11 @@ function runElection(state: GameState, rng: Rng): GameState {
   );
 }
 
-// --- De Jures per district -----------------------------------------------------------
+// --- De Jures per district (empty districts fail for both: Ian, 2026-11-17) ------------------
 {
   const { state } = playToTurnOne(261);
   const [d1, d2, d3, d4] = state.districtOrder as [DistrictId, DistrictId, DistrictId, DistrictId];
-  assert(passesDeJuresIn(state, 0, d1) && passesDeJuresIn(state, 1, d1), "Nobody has civil cards: both pass");
+  assert(!passesDeJuresIn(state, 0, d1) && !passesDeJuresIn(state, 1, d1), "Nobody has civil cards: both fail");
   state.players[0].tableau[d1].push(civilWorth(state, 4, d1));
   assert(passesDeJuresIn(state, 0, d1), "Only you have civil cards: you pass");
   assert(!passesDeJuresIn(state, 1, d1), "No civil cards while the opponent has some: fail");
@@ -198,12 +198,14 @@ function runElection(state: GameState, rng: Rng): GameState {
   state.players[1].tableau[d1].push(civilWorth(state, 3, d1));
   assert(!passesDeJuresIn(state, 0, d1) && passesDeJuresIn(state, 1, d1), "Lower card wins the district");
 
-  assert(meetsDecree(state, 1, DecreeId.DeJures), "Player 2 passes all four (three empty districts)");
-  assert(!meetsDecree(state, 0, DecreeId.DeJures), "Player 1 fails d1");
-  state.players[0].tableau[d2].push(civilWorth(state, 5, d2));
-  assert(!meetsDecree(state, 1, DecreeId.DeJures), "Player 2 now fails d2");
-  void d3;
-  void d4;
+  assert(!meetsDecree(state, 1, DecreeId.DeJures), "Player 2 fails with three empty districts");
+  state.players[1].tableau[d2].push(civilWorth(state, 5, d2));
+  state.players[1].tableau[d3].push(civilWorth(state, 5, d3));
+  state.players[1].tableau[d4].push(civilWorth(state, 5, d4));
+  assert(meetsDecree(state, 1, DecreeId.DeJures), "Player 2 passes with a civil card in all four, lowest or tied");
+  assert(!meetsDecree(state, 0, DecreeId.DeJures), "Player 1 fails d1 (higher card) and the empty districts");
+  state.players[0].tableau[d2].push(civilWorth(state, 4, d2));
+  assert(!meetsDecree(state, 1, DecreeId.DeJures), "Player 2 now fails d2 (5 against 4)");
 }
 
 // --- Profectus: 4+ more total support (Joe's updated card, 2026-11-16) ---------------------

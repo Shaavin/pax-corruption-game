@@ -219,7 +219,7 @@ Four double-sided cards. Each starts on its grey **inactive** side ("Win an elec
 | Emigration | Academia | atom | Have 20+ more influence than the opponent in a district. |
 | Class Schism | De Jures | scales | Have the lowest (or tied for lowest) civil card in all 4 districts. See below. |
 
-**De Jures** is checked district by district. In each district, compare each player's lowest civil card. You pass that district if yours is lower or tied. A player with **no** civil cards in a district fails it, unless **neither** player has civil cards there (a tie, so both pass). You satisfy De Jures only if you pass all 4 districts.
+**De Jures** is checked district by district. In each district, compare each player's lowest civil card. You pass that district if yours is lower or tied. A player with **no** civil cards in a district fails it, even if **neither** player has any there (both fail; ruled 2026-11-17). You satisfy De Jures only if you pass all 4 districts.
 
 Political Victory = you satisfy 2 active decrees at the time you declare.
 

@@ -224,7 +224,7 @@ Must-have cases:
 - Ideological: rulebook example (Player 2 wins with scales 4 vs atom 3); private copies counted only from the player with more; no ties allowed
 - Civil Victory at the final election; Roman Basilica owner can declare Civil after 3 election wins (and not before)
 - Turn order unchanged across an election (GE revealed in A's income → B's turn opens the phase)
-- De Jures: lower or tied per district; no civil cards = fail unless both players have none
+- De Jures: lower or tied per district; no civil cards = fail, even when neither player has any (2026-11-17)
 - Planet Next bank: +1 Horsard influence per banked card; spending a banked card removes its +1; banked cards ignore hand limit
 - Dragon Gate extra draw at end of income; General Election there does not interrupt
 - United Front sends Smarbbit discards to the non-discarding player

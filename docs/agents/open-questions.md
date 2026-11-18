@@ -27,7 +27,7 @@ Nothing is open as of 2026-11-15. Add new questions here as a table: | Topic | C
 | Propose Policy matching | Revealed cards only convince Senators of the **same district**. A Horsard civil 6 can convince lower Horsard civil Senators, never Shavvinne, Smarbbit, or Dragonara ones. |
 | Election-phase income | The Market doesn't refill during an election, but a player under the hand limit **still draws from the deck**. (Expansion: event cards keep discarding and replenishing by their own rules, including disappearing from the last two spots of their row.) |
 | Tie-break cards | Tie-break 2 counts civil cards (both players) in each won district and alliance cards (both players) for a won Council of Lords. |
-| De Jures | Compare each district separately. A player with **no** civil cards in a district loses that district's comparison. If **neither** player has civil cards there, it's a tie, which satisfies "tie for lowest" for both. Satisfied only if the player passes in all 4 districts. |
+| De Jures | Compare each district separately. A player with **no** civil cards in a district loses that district's comparison. ~~If **neither** player has civil cards there, it's a tie, which satisfies "tie for lowest" for both.~~ **Superseded 2026-11-17:** an empty district fails for both. Satisfied only if the player passes in all 4 districts. |
 
 ### 2026-11-12 (Joe, via Ian)
 
@@ -62,6 +62,12 @@ Card text is in `lib/cards/expansion.ts`; the rulebook summary is in [game-rules
 | East "As a free action, take a <district> card from Market" | Like other free actions: the **buyer only**, once per turn per event, during the action step, and only while **under the hand limit**. Never an event card. The Market stays short until the next refill. |
 | Legacy "Activate a Victory Condition" | The **buyer** chooses any one inactive victory (Military, Popularity, Ideological, Cultural, Diplomatic) and flips it active. |
 | Events played as civil cards | **Fully civil cards** of the event's district, with the printed value: influence, electors, Civil Service, Diet of Saints, Currency Ballots, Urban Aristocrats swaps, conspiracies, and so on. The only difference: when discarded, they leave the game (see "Discarding events" above). |
+
+### 2026-11-17 (Ian)
+
+| Topic | Decision |
+| --- | --- |
+| De Jures with an empty district | You must **have** a civil card in each of the 4 districts, and your lowest must be lower than or tied with the opponent's. If **neither** player has a civil card in a district, **both fail** it (reverses the 2026-11-11 "tie, both pass" ruling). Raised by a player report: a Hub of Assassins wipe emptied Shavvinne and let the opponent claim De Jures there. |
 
 ### 2026-11-16 (Ian)
 
