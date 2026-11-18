@@ -44,6 +44,8 @@ type LaneProps = {
   popularityRule?: { active: boolean; target: number };
   /** West "support remains at zero": the event's name while both support piles here count as 0. */
   zeroedBy?: string | null;
+  /** Opens the support piles (both players' cards) for this district. */
+  onShowSupport?: () => void;
   /** Grid column (1–4): lanes share rows with the center band above the plates. */
   column: number;
 };
@@ -58,7 +60,7 @@ export type InPlayPick = {
  * One district, Snap-style: the opponent's cards hang down toward the district
  * plate, yours rise up toward it, and the plate shows who leads.
  */
-export function Lane({ district, policyId, you, opponent, electors, leader, tourAnchor, target, onShowPolicies, pickable, popularityRule, zeroedBy = null, column }: LaneProps) {
+export function Lane({ district, policyId, you, opponent, electors, leader, tourAnchor, target, onShowPolicies, pickable, popularityRule, zeroedBy = null, onShowSupport, column }: LaneProps) {
   const lane = { "--lane": `var(--${district})` } as CSSProperties;
   return (
     <section
@@ -83,6 +85,7 @@ export function Lane({ district, policyId, you, opponent, electors, leader, tour
         tourAnchor={tourAnchor}
         popularityRule={popularityRule}
         zeroedBy={zeroedBy}
+        onShowSupport={onShowSupport}
       />
       </div>
 
@@ -196,6 +199,7 @@ function Plate({
   onShowPolicies,
   popularityRule,
   zeroedBy,
+  onShowSupport,
 }: {
   district: DistrictId;
   policyId: PolicyIdValue | null;
@@ -208,6 +212,7 @@ function Plate({
   /** Popularity Victory: whether it's active, and the support lead it needs. */
   popularityRule?: { active: boolean; target: number };
   zeroedBy: string | null;
+  onShowSupport?: () => void;
 }) {
   const policy = policyId ? resolveCard(policyId) : null;
   const lead = you.influence.total - opponent.influence.total;
@@ -253,7 +258,7 @@ function Plate({
             values + 1 per support-pile card (+1 per Horsard network card with Planet Next). The higher
             total wins the district at an election; the plate border shows who leads. Below,
             the <b>support piles</b> pull a tug-of-war: lead by 9 in one district to declare
-            Popularity Victory.
+            Popularity Victory. Tap that bar to see every card in both piles.
           </InfoTip>
           </span>
           {electors !== null ? (
@@ -274,6 +279,7 @@ function Plate({
           rule={popularityRule}
           district={district}
           zeroedBy={zeroedBy}
+          onOpen={onShowSupport}
         />
       </div>
       <div className="flex shrink-0 flex-col items-center gap-0.5 @max-[9rem]:items-stretch">
@@ -384,12 +390,14 @@ function PopularityTug({
   rule,
   district,
   zeroedBy,
+  onOpen,
 }: {
   you: number;
   opponent: number;
   rule?: { active: boolean; target: number };
   district: DistrictId;
   zeroedBy: string | null;
+  onOpen?: () => void;
 }) {
   const target = rule?.target ?? 9;
   return (
@@ -400,6 +408,7 @@ function PopularityTug({
       target={target}
       active={rule?.active ?? true}
       voided={zeroedBy !== null}
+      onOpen={onOpen}
       explain={(lead, state) =>
         zeroedBy
           ? `${zeroedBy} is in play: ${DISTRICT_LABEL[district]} support counts as 0 for both players (piles: you ${you}, opponent ${opponent}). No Popularity lead, no influence from support, and no Recruit in ${DISTRICT_LABEL[district]} until it leaves play.`

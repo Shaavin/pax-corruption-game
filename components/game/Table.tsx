@@ -19,6 +19,7 @@ import { useCompact, useCompactLandscape } from "./use-compact";
 import type { TableModel } from "./table-model";
 import { ActionCards, type ActionCardSpec } from "./ActionCards";
 import { PolicyChooser } from "./PolicyChooser";
+import { SupportPiles } from "./SupportPiles";
 import { markTourSeen, TableTour, tableTourSteps, useTourSeen, type TourView } from "./TableTour";
 import { ZoomPreview } from "./ZoomPreview";
 import type { DistrictId } from "@/lib/cards/schema";
@@ -122,6 +123,8 @@ function TableView({
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [policyFocus, setPolicyFocus] = useState<DistrictId | null>(null);
   const closePolicies = useCallback(() => setPolicyFocus(null), []);
+  const [supportFocus, setSupportFocus] = useState<DistrictId | null>(null);
+  const closeSupport = useCallback(() => setSupportFocus(null), []);
   const closeAid = useCallback(() => setAidOpen(false), []);
   if (veiled && peek !== null) setPeek(null);
   const compact = useCompact();
@@ -222,6 +225,14 @@ function TableView({
           }
           leader={model.districtLeader?.[district]}
           zeroedBy={model.supportZeroedBy?.[district] ?? null}
+          onShowSupport={
+            veiled
+              ? undefined
+              : () => {
+                  setPeek(null);
+                  setSupportFocus(district);
+                }
+          }
           tourAnchor={index === 0}
           pickable={interaction?.inPlayPick ?? null}
           onShowPolicies={
@@ -299,6 +310,16 @@ function TableView({
           onChoose={null}
           focus={policyFocus}
           onClose={closePolicies}
+        />
+      ) : null}
+      {supportFocus && !veiled ? (
+        <SupportPiles
+          districtOrder={model.districtOrder}
+          you={model.you.supportCards}
+          opponent={model.opponent.supportCards}
+          zeroedBy={model.supportZeroedBy}
+          focus={supportFocus}
+          onClose={closeSupport}
         />
       ) : null}
       {tourOpen ? <TableTour steps={tourSteps} step={step} onStep={setTourStep} onClose={closeTour} /> : null}

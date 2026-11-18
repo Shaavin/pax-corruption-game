@@ -99,10 +99,10 @@ const STEP_DEFS: StepDef[] = [
     view: "districts",
     desktop: {
       title: "Districts",
-      body: "Yours below the plate, theirs above. The top row is influence (theirs left, yours right): civil card numbers plus 1 per support-pile card; more wins the district at an election. Below, support piles pull a tug-of-war: lead by 9 for Popularity Victory.",
+      body: "Yours below the plate, theirs above. The top row is influence (theirs left, yours right): civil card numbers plus 1 per support-pile card; more wins the district at an election. Below, support piles pull a tug-of-war: lead by 9 for Popularity Victory. Tap it to see every card in both players' piles.",
     },
     expansion: {
-      body: "Yours below the plate, theirs above. The top row is influence (theirs left, yours right): civil card numbers plus 1 per support-pile card; more wins the district at an election. Below, support piles pull a tug-of-war: lead by 9 for Popularity Victory, once it's active.",
+      body: "Yours below the plate, theirs above. The top row is influence (theirs left, yours right): civil card numbers plus 1 per support-pile card; more wins the district at an election. Below, support piles pull a tug-of-war: lead by 9 for Popularity Victory, once it's active. Tap it to see every card in both players' piles.",
     },
   },
   {

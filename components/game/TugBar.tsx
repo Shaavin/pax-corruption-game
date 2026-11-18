@@ -16,6 +16,7 @@ export function TugBar({
   active = true,
   voided = false,
   explain,
+  onOpen,
 }: {
   label: string;
   you: number;
@@ -31,6 +32,8 @@ export function TugBar({
   voided?: boolean;
   /** Tooltip and tap text, given the computed lead and state. */
   explain: (lead: number, state: TugState) => string;
+  /** Tapping opens this (e.g. the support piles) instead of showing the explanation. */
+  onOpen?: () => void;
 }) {
   const notify = useNotice();
   const lead = voided ? 0 : you - opponent; // + toward you (right), − toward them (left)
@@ -44,13 +47,25 @@ export function TugBar({
   return (
     <div
       className={[
-        "flex cursor-help items-center gap-1.5 text-[0.62rem] leading-none text-stone-300 @max-[15rem]:gap-1 @max-[15rem]:text-[0.55rem]",
+        "flex items-center gap-1.5 text-[0.62rem] leading-none text-stone-300 @max-[15rem]:gap-1 @max-[15rem]:text-[0.55rem]",
+        onOpen ? "-mx-1 cursor-pointer rounded px-1 hover:bg-white/6 focus-visible:outline focus-visible:outline-1 focus-visible:outline-white/40" : "cursor-help",
         state === "off" ? "opacity-50" : "",
       ].join(" ")}
-      title={text}
-      role="img"
-      aria-label={text}
-      onClick={() => notify(text)}
+      title={onOpen ? `${text} Tap to see the cards.` : text}
+      role={onOpen ? "button" : "img"}
+      tabIndex={onOpen ? 0 : undefined}
+      aria-label={onOpen ? `${text} Show the cards.` : text}
+      onClick={() => (onOpen ? onOpen() : notify(text))}
+      onKeyDown={
+        onOpen
+          ? (event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onOpen();
+              }
+            }
+          : undefined
+      }
     >
       <span className="font-semibold tracking-[0.12em] text-stone-200 uppercase @max-[15rem]:tracking-normal" aria-hidden>
         {label}

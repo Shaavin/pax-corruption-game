@@ -38,6 +38,8 @@ export type TablePlayerView = {
   hand: CardInstance[];
   tableau: PlayerState["tableau"];
   support: Record<DistrictId, number>;
+  /** The support piles' cards (public), oldest first. */
+  supportCards: Record<DistrictId, CardInstance[]>;
   influence: Record<DistrictId, DistrictInfluence>;
   /** The opponent's network: face-up, usable as if in hand (yours shows in your hand, tagged). */
   setAside: CardInstance[];
@@ -242,6 +244,7 @@ function playerView(state: GameState, player: PlayerId, isYou: boolean, electora
     support: Object.fromEntries(
       DISTRICTS.map((district) => [district, seat.support[district].length]),
     ) as Record<DistrictId, number>,
+    supportCards: seat.support,
     influence: Object.fromEntries(
       DISTRICTS.map((district) => [district, playerDistrictInfluence(state, player, district)]),
     ) as Record<DistrictId, DistrictInfluence>,
