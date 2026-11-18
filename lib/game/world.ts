@@ -55,7 +55,12 @@ export function marketNonEvents(state: GameState): CardInstance[] {
 
 /** West "District support in <district> remains at zero": support counts as 0 for both players. */
 export function supportZeroed(state: GameState, district: DistrictId): boolean {
-  return effectsOf(state, "supportZero").some((entry) => entry.effect.district === district);
+  return supportZeroedBy(state, district) !== null;
+}
+
+/** The name of the West event zeroing support in `district`, or null. For explaining blocked moves. */
+export function supportZeroedBy(state: GameState, district: DistrictId): string | null {
+  return effectsOf(state, "supportZero").find((entry) => entry.effect.district === district)?.def.name ?? null;
 }
 
 /** A player's support in a district, as every rule reads it. */

@@ -11,6 +11,7 @@ import { eventCost, marketRows } from "@/lib/game/draw";
 import { isEventId, VICTORY_CARDS, WORLD_POWERS, type ExpansionVictoryId, type WorldPowerId } from "@/lib/cards/expansion";
 import type { PhaseStep } from "./SidePanel";
 import { privateSymbols, sharedSymbols } from "@/lib/game/victory";
+import { supportZeroedBy } from "@/lib/game/world";
 import type { SymbolId } from "@/lib/cards/schema";
 
 /** Legacy & Diplomacy: what the table shows besides the base game. */
@@ -86,6 +87,8 @@ export type TableModel = {
   districtLeader: Record<DistrictId, "you" | "opponent" | null>;
   /** A District Governor protects the district's policy from proposals. */
   policyFrozen: Record<DistrictId, boolean>;
+  /** West "support remains at zero": the event's name per district (null when support counts normally). */
+  supportZeroedBy: Record<DistrictId, string | null>;
   you: TablePlayerView;
   opponent: TablePlayerView;
   activePlayer: PlayerId;
@@ -146,6 +149,10 @@ export function tableModel(state: GameState, viewer: PlayerId): TableModel {
     policyFrozen: Object.fromEntries(DISTRICTS.map((district) => [district, policyFrozen(state, district)])) as Record<
       DistrictId,
       boolean
+    >,
+    supportZeroedBy: Object.fromEntries(DISTRICTS.map((district) => [district, supportZeroedBy(state, district)])) as Record<
+      DistrictId,
+      string | null
     >,
     you: playerView(state, viewer, true, electorates[viewer]),
     opponent: playerView(state, opponentId, false, electorates[opponentId]),

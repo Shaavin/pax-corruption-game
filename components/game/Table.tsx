@@ -221,6 +221,7 @@ function TableView({
               : undefined
           }
           leader={model.districtLeader?.[district]}
+          zeroedBy={model.supportZeroedBy?.[district] ?? null}
           tourAnchor={index === 0}
           pickable={interaction?.inPlayPick ?? null}
           onShowPolicies={

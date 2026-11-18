@@ -42,6 +42,8 @@ type LaneProps = {
   /** Popularity Victory pills, for each seat whose best lead is in this district. */
   /** Popularity Victory: whether it's active, and the support lead it needs. */
   popularityRule?: { active: boolean; target: number };
+  /** West "support remains at zero": the event's name while both support piles here count as 0. */
+  zeroedBy?: string | null;
   /** Grid column (1–4): lanes share rows with the center band above the plates. */
   column: number;
 };
@@ -56,7 +58,7 @@ export type InPlayPick = {
  * One district, Snap-style: the opponent's cards hang down toward the district
  * plate, yours rise up toward it, and the plate shows who leads.
  */
-export function Lane({ district, policyId, you, opponent, electors, leader, tourAnchor, target, onShowPolicies, pickable, popularityRule, column }: LaneProps) {
+export function Lane({ district, policyId, you, opponent, electors, leader, tourAnchor, target, onShowPolicies, pickable, popularityRule, zeroedBy = null, column }: LaneProps) {
   const lane = { "--lane": `var(--${district})` } as CSSProperties;
   return (
     <section
@@ -80,6 +82,7 @@ export function Lane({ district, policyId, you, opponent, electors, leader, tour
         onShowPolicies={onShowPolicies}
         tourAnchor={tourAnchor}
         popularityRule={popularityRule}
+        zeroedBy={zeroedBy}
       />
       </div>
 
@@ -192,6 +195,7 @@ function Plate({
   tourAnchor,
   onShowPolicies,
   popularityRule,
+  zeroedBy,
 }: {
   district: DistrictId;
   policyId: PolicyIdValue | null;
@@ -203,6 +207,7 @@ function Plate({
   onShowPolicies?: () => void;
   /** Popularity Victory: whether it's active, and the support lead it needs. */
   popularityRule?: { active: boolean; target: number };
+  zeroedBy: string | null;
 }) {
   const policy = policyId ? resolveCard(policyId) : null;
   const lead = you.influence.total - opponent.influence.total;
@@ -262,8 +267,14 @@ function Plate({
             </span>
           ) : null}
         </div>
-        <InfluenceRow you={you} opponent={opponent} leader={leader} />
-        <PopularityTug you={you.support} opponent={opponent.support} rule={popularityRule} district={district} />
+        <InfluenceRow you={you} opponent={opponent} leader={leader} zeroedBy={zeroedBy} district={district} />
+        <PopularityTug
+          you={you.support}
+          opponent={opponent.support}
+          rule={popularityRule}
+          district={district}
+          zeroedBy={zeroedBy}
+        />
       </div>
       <div className="flex shrink-0 flex-col items-center gap-0.5 @max-[9rem]:items-stretch">
         {policy ? (
@@ -292,10 +303,26 @@ function Plate({
 }
 
 /** Influence side by side: the opponent on the left, you on the right (like the Military tug-of-war). */
-function InfluenceRow({ you, opponent, leader }: { you: Side; opponent: Side; leader: "you" | "opponent" | null }) {
+function InfluenceRow({
+  you,
+  opponent,
+  leader,
+  zeroedBy,
+  district,
+}: {
+  you: Side;
+  opponent: Side;
+  leader: "you" | "opponent" | null;
+  zeroedBy: string | null;
+  district: DistrictId;
+}) {
   const notify = useNotice();
+  const zeroNote = (side: Side) =>
+    zeroedBy && side.support > 0
+      ? ` (${side.support} ${side.support === 1 ? "card" : "cards"} in the pile, but ${zeroedBy} makes ${DISTRICT_LABEL[district]} support count as 0)`
+      : "";
   const text = (who: "Your" | "Their", side: Side) =>
-    `${who} influence here: ${side.influence.total} (${side.influence.civil} from civil cards + ${side.influence.support} from the support pile${side.influence.bank ? ` + ${side.influence.bank} banked` : ""}${side.influence.bonus ? ` + ${side.influence.bonus} from abilities` : ""}). More influence wins the district at an election.`;
+    `${who} influence here: ${side.influence.total} (${side.influence.civil} from civil cards + ${side.influence.support} from the support pile${zeroNote(side)}${side.influence.bank ? ` + ${side.influence.bank} banked` : ""}${side.influence.bonus ? ` + ${side.influence.bonus} from abilities` : ""}). More influence wins the district at an election.`;
   const cell = (seat: "you" | "opponent") => {
     const side = seat === "you" ? you : opponent;
     const color = seat === "you" ? "var(--you)" : "var(--opp)";
@@ -356,11 +383,13 @@ function PopularityTug({
   opponent,
   rule,
   district,
+  zeroedBy,
 }: {
   you: number;
   opponent: number;
   rule?: { active: boolean; target: number };
   district: DistrictId;
+  zeroedBy: string | null;
 }) {
   const target = rule?.target ?? 9;
   return (
@@ -370,10 +399,13 @@ function PopularityTug({
       opponent={opponent}
       target={target}
       active={rule?.active ?? true}
+      voided={zeroedBy !== null}
       explain={(lead, state) =>
-        `Popularity in ${DISTRICT_LABEL[district]}: support piles you ${you}, opponent ${opponent}${
-          lead === 0 ? " (even)" : ` (${lead > 0 ? "you" : "they"} lead by ${Math.abs(lead)})`
-        }. Lead by ${target} in one district for Popularity Victory.${tugStateText(state)}`
+        zeroedBy
+          ? `${zeroedBy} is in play: ${DISTRICT_LABEL[district]} support counts as 0 for both players (piles: you ${you}, opponent ${opponent}). No Popularity lead, no influence from support, and no Recruit in ${DISTRICT_LABEL[district]} until it leaves play.`
+          : `Popularity in ${DISTRICT_LABEL[district]}: support piles you ${you}, opponent ${opponent}${
+              lead === 0 ? " (even)" : ` (${lead > 0 ? "you" : "they"} lead by ${Math.abs(lead)})`
+            }. Lead by ${target} in one district for Popularity Victory.${tugStateText(state)}`
       }
     />
   );

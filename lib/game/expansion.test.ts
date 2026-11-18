@@ -9,14 +9,14 @@ import { handLimit } from "./abilities.ts";
 import { buyEventActions, returnUnrevealedCards } from "./events.ts";
 import { freeActions } from "./free-actions.ts";
 import { playerDistrictInfluence } from "./influence.ts";
-import { canRecruitIn } from "./main.ts";
+import { canRecruitIn, recruitBlockReason } from "./main.ts";
 import { newReplay, replayRecord, stepReplay, toRecord, type Replay } from "./record.ts";
 import { convincedSenators, proposalDistricts } from "./senate.ts";
 import { activeDecrees, inactiveDecrees } from "./decrees.ts";
 import { createSeededRng } from "./rng.ts";
 import { Phase, VictoryKind, type CardInstance, type GameEvent, type GameState, type PlayerId } from "./types.ts";
 import { declarableVictories, militaryLead, privateSymbols, sharedSymbols } from "./victory.ts";
-import { isEventCard, supportCount } from "./world.ts";
+import { isEventCard, supportCount, supportZeroedBy } from "./world.ts";
 import { assert, expectIllegal, report } from "./test-helpers.ts";
 
 const rng = createSeededRng(99);
@@ -123,6 +123,14 @@ const civilOf = (district: DistrictId, value?: number) => (id: string) => {
   assert(supportCount(state, 0, District.Horsard) === 0, "West: support counts as 0");
   assert(!canRecruitIn(state, 0, District.Horsard), "West: no Recruit precondition with zeroed support");
   assert(playerDistrictInfluence(state, 0, District.Horsard).total === before - 2, "West: influence loses the support");
+  // The player sees cards in the pile, so the block reason must name the event, not "needs a card".
+  assert(supportZeroedBy(state, District.Horsard) === "Agents in Power", "West: the zeroing event is named");
+  assert(supportZeroedBy(state, District.Dragonara) === null, "West: other districts are not zeroed");
+  const savedHand = state.players[0].hand;
+  state.players[0].hand = [card(state, civilOf(District.Horsard)), card(state, civilOf(District.Horsard)), card(state, civilOf(District.Horsard))];
+  const reason = recruitBlockReason(state, 0);
+  assert(reason !== null && reason.includes("Agents in Power") && reason.includes("Horsard"), `West: recruit reason names the event, got ${reason}`);
+  state.players[0].hand = savedHand;
   state.expansion!.commonArea = [];
   inEffect(state, "Migrant Voters"); // South: Horsard influence reduced to support
   assert(playerDistrictInfluence(state, 0, District.Horsard).total === 2, "South: influence equals support");

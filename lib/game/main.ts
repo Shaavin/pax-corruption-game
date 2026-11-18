@@ -4,7 +4,7 @@ import { CardKind, District, DISTRICTS, type DistrictId } from "../cards/schema.
 import { allianceLimit, hasActiveAlliance } from "./abilities.ts";
 import type { CardInstance, GameState, PlayerId } from "./types.ts";
 import { removeFromMarket } from "./draw.ts";
-import { isEventCard, supportCount } from "./world.ts";
+import { isEventCard, supportCount, supportZeroedBy } from "./world.ts";
 
 /** East "Revealed … cards do not occupy hand limit" zone (expansion), or an empty list. */
 function revealedZone(state: GameState, player: PlayerId): CardInstance[] {
@@ -175,6 +175,18 @@ export function recruitBlockReason(state: GameState, player: PlayerId): string |
   if (ready) return null;
   if (!sameDistrictCount(state, player, RECRUIT_COST)) {
     return `Discard ${RECRUIT_COST} cards of the same district from hand`;
+  }
+  // West "support remains at zero": the pile has cards, but they count as none.
+  for (const district of DISTRICTS) {
+    const zeroedBy = supportZeroedBy(state, district);
+    if (
+      zeroedBy &&
+      handCardsInDistrict(state, player, district).length >= RECRUIT_COST &&
+      state.players[player].support[district].length > 0
+    ) {
+      const name = district.charAt(0).toUpperCase() + district.slice(1);
+      return `${zeroedBy} makes ${name} support count as 0, so you can't recruit there`;
+    }
   }
   return "Needs a card in your support pile for that district";
 }
