@@ -16,6 +16,7 @@ import { CardKind, type DistrictId } from "../cards/schema.ts";
 import { apply, currentActor, legalActions } from "./engine.ts";
 import { isFinalElection, lordsSymbols, tallyElection } from "./election.ts";
 import { playerDistrictInfluence } from "./influence.ts";
+import { canRecruitIn } from "./main.ts";
 import { victoryRace } from "./progress.ts";
 import type { Rng } from "./rng.ts";
 import { type Action, type GameState, type PlayerId, type VictoryKindId } from "./types.ts";
@@ -278,7 +279,7 @@ function handPlans(state: GameState, seat: PlayerId): number {
   }
   for (const [district, count] of counts) {
     score += 0.5 * Math.min(count, 5) ** 1.4;
-    const supported = state.players[seat].support[district as DistrictId].length > 0;
+    const supported = canRecruitIn(state, seat, district as DistrictId); // counts zeroed support as none
     if (count >= 3 && supported) score += 4;
     const buildable = state.availableMonuments.some((monument) => {
       const def = getCard(monument.cardId);
