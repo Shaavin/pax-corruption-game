@@ -63,7 +63,7 @@ Card text is in `lib/cards/expansion.ts`; the rulebook summary is in [game-rules
 | Legacy "Activate a Victory Condition" | The **buyer** chooses any one inactive victory (Military, Popularity, Ideological, Cultural, Diplomatic) and flips it active. |
 | Events played as civil cards | **Fully civil cards** of the event's district, with the printed value: influence, electors, Civil Service, Diet of Saints, Currency Ballots, Urban Aristocrats swaps, conspiracies, and so on. The only difference: when discarded, they leave the game (see "Discarding events" above). |
 
-### 2026-11-17 (Ian)
+### 2026-11-17 (Joe, via Ian)
 
 | Topic | Decision |
 | --- | --- |

@@ -185,7 +185,7 @@ function runElection(state: GameState, rng: Rng): GameState {
   );
 }
 
-// --- De Jures per district (empty districts fail for both: Ian, 2026-11-17) ------------------
+// --- De Jures per district (empty districts fail for both: Joe via Ian, 2026-11-17) ------------------
 {
   const { state } = playToTurnOne(261);
   const [d1, d2, d3, d4] = state.districtOrder as [DistrictId, DistrictId, DistrictId, DistrictId];
