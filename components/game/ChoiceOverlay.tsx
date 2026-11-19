@@ -5,7 +5,7 @@ import { PeekableOverlay } from "./PeekableOverlay";
 import { CardView } from "./CardView";
 import { DISTRICT_LABEL } from "./Lane";
 import { getCard } from "@/lib/cards/catalog";
-import { DISTRICTS, District, type DistrictId } from "@/lib/cards/schema";
+import { CardKind, DISTRICTS, District, type DistrictId } from "@/lib/cards/schema";
 import { handLikeCards, landingDistrict, swapCandidates, type Action, type GameState, type PendingChoice, type PlayerId } from "@/lib/game";
 
 type ChoiceOverlayProps = {
@@ -70,7 +70,68 @@ export function ChoiceOverlay({ state, choice, viewer, onAction }: ChoiceOverlay
     }
     case "routeDiscards":
       return <RouteChoice state={state} choice={choice} viewer={viewer} onAction={onAction} />;
+    case "trimAlliances":
+      return <TrimChoice state={state} choice={choice} viewer={viewer} onAction={onAction} />;
   }
+}
+
+/** Alliance limit lowered (Martial Law): pick which of your alliances in the lane to discard. */
+function TrimChoice({
+  state,
+  choice,
+  viewer,
+  onAction,
+}: {
+  state: GameState;
+  choice: Extract<PendingChoice, { kind: "trimAlliances" }>;
+  viewer: PlayerId;
+  onAction: (action: Action) => void;
+}) {
+  const [picked, setPicked] = useState<string[]>([]);
+  const alliances = state.players[viewer].tableau[choice.district].filter(
+    (card) => getCard(card.cardId).kind === CardKind.Alliance,
+  );
+  const name = DISTRICT_LABEL[choice.district];
+  const many = choice.count === 1 ? "one" : String(choice.count);
+  return (
+    <Frame
+      kicker="Alliance limit"
+      title={`Discard ${many} ${name} ${choice.count === 1 ? "alliance" : "alliances"}`}
+      body={`Your alliance limit in ${name} went down (Martial Law), so you have more alliances there than you may keep. Pick which to discard to your support pile.`}
+    >
+      <div className="flex flex-wrap justify-center gap-2">
+        {alliances.map((card) => {
+          const def = getCard(card.cardId);
+          const on = picked.includes(card.instanceId);
+          return (
+            <button
+              key={card.instanceId}
+              type="button"
+              aria-pressed={on}
+              aria-label={`Discard ${def.name}`}
+              onClick={() =>
+                setPicked((list) =>
+                  on ? list.filter((id) => id !== card.instanceId) : [...list, card.instanceId].slice(-choice.count),
+                )
+              }
+              className={[
+                "cursor-pointer rounded-xl p-1 transition",
+                on ? "ring-2 ring-[var(--act)]" : "opacity-80 hover:opacity-100",
+              ].join(" ")}
+            >
+              <CardView name={def.name} art={def.art} size="panel" cardId={card.cardId} />
+            </button>
+          );
+        })}
+      </div>
+      <PrimaryButton
+        disabled={picked.length !== choice.count}
+        onClick={() => onAction({ type: "trimAlliances", player: viewer, instanceIds: picked })}
+      >
+        {choice.count === 1 ? "Discard it" : "Discard them"}
+      </PrimaryButton>
+    </Frame>
+  );
 }
 
 function SwapChoice({ state, viewer, onAction }: { state: GameState; viewer: PlayerId; onAction: (action: Action) => void }) {

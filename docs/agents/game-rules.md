@@ -273,7 +273,7 @@ All districts start neutral.
 
 Rulings carried over from earlier play (still consistent with current text):
 
-- **Martial Law** applies only to Shavvinne: −1 alliance limit there; any action that would discard 2+ Shavvinne cards is illegal. A Shavvinne conspiracy is therefore illegal while it is active.
+- **Martial Law** applies only to Shavvinne: −1 alliance limit there; any action that would discard 2+ Shavvinne cards is illegal. A Shavvinne conspiracy is therefore illegal while it is active. When it passes, each player discards their Shavvinne alliances down to the new limit, to their own support pile (ruled 2026-11-18). With Model Society (limit 1) and two alliances there, the owner picks which one goes.
 - **United Front** looks at the **landing** pile. A card discarded to Smarbbit goes to the non-discarding player's Smarbbit pile. If Space Agency sends it elsewhere, the discarder keeps it. Applies to every discard source and can feed Popularity.
 - **Consultative Office**: enables the Smarbbit [network](#network) for **both** players. When the policy changes, everyone's Smarbbit network cards go back to hand.
 - **Currency Ballots**: a General Election drawn by this effect does not delay the mandatory discard. Finish draw-then-discard, then handle the election.

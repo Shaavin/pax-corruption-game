@@ -178,7 +178,12 @@ export type PendingChoice =
   /** People's Press: draw from the deck or take a card from your Smarbbit pile. */
   | { kind: "peoplesPress"; player: PlayerId }
   /** Space Academy: optionally move one just-discarded card to another of your piles. */
-  | { kind: "routeDiscards"; player: PlayerId; instanceIds: string[] };
+  | { kind: "routeDiscards"; player: PlayerId; instanceIds: string[] }
+  /**
+   * Alliance limit dropped below the alliances in a lane (Martial Law passed while
+   * Model Society keeps the limit above 0): the owner discards `count` of them.
+   */
+  | { kind: "trimAlliances"; player: PlayerId; district: DistrictId; count: number };
 
 /** Where the turn picks up once every pending choice is resolved. */
 export type Continuation =
@@ -390,6 +395,8 @@ export type ChooseSwapAction = {
 export type ChooseIntelAction = { type: "chooseIntel"; player: PlayerId; instanceId: string };
 /** `null` draws from the deck as usual. */
 export type ChoosePressAction = { type: "choosePress"; player: PlayerId; instanceId: string | null };
+/** The alliances (exactly the choice's `count`) to discard down to the limit. */
+export type TrimAlliancesAction = { type: "trimAlliances"; player: PlayerId; instanceIds: string[] };
 export type RouteDiscardsAction = {
   type: "routeDiscards";
   player: PlayerId;
@@ -418,6 +425,7 @@ export type Action =
   | ChooseDiscardAction
   | ChooseSwapAction
   | ChooseIntelAction
+  | TrimAlliancesAction
   | ChoosePressAction
   | RouteDiscardsAction
   | BuyEventAction;
@@ -534,6 +542,8 @@ export type GameEvent =
   | { type: "networkMoved"; player: PlayerId; direction: "in" | "out"; cardIds: string[] }
   /** A network was disabled: its cards went back to the hand (even past the hand limit). */
   | { type: "networkReturned"; player: PlayerId; cardIds: string[] }
+  /** Discarded down to a lowered alliance limit (Martial Law); `cardDiscarded` events follow. */
+  | { type: "alliancesOverLimit"; player: PlayerId; district: DistrictId; limit: number; cardIds: string[] }
   | { type: "civilsSwapped"; player: PlayerId; mineCardId: string; theirsCardId: string }
   | { type: "allianceReplaced"; player: PlayerId; owner: PlayerId; cardId: string; replacedCardId: string; district: DistrictId }
   | { type: "deckReordered"; player: PlayerId }

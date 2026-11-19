@@ -68,7 +68,7 @@ function eventName(cardId: string): string {
 
 type Draft = ActionLogEntry & {
   /** Discards that follow belong to this entry (a wipe, a cost, a pushed-out Senator). */
-  absorb?: "wipe" | "cost" | "senate" | "proposal";
+  absorb?: "wipe" | "cost" | "senate" | "proposal" | "limit";
   /** Vote tally carried from a proposal to the policy change it causes. */
   votes?: string;
 };
@@ -282,6 +282,18 @@ function buildEntries(events: readonly GameEvent[], viewer: PlayerId): ActionLog
           summary: `${who(event.player, viewer)} moved ${event.cardIds.map(cardName).join(", ")} ${event.direction === "in" ? "into their network" : "from their network back to hand"}.`,
           primary: face(event.cardIds[0]!),
           related: event.cardIds.slice(1).map(face),
+        });
+        break;
+      case "alliancesOverLimit":
+        push({
+          kind: ActionLogKind.Discard,
+          player: event.player,
+          summary: `${who(event.player, viewer)} discarded ${event.cardIds.map(cardName).join(", ")} from ${DISTRICT_LABEL[event.district]}: their alliance limit there is now ${event.limit} (Martial Law).`,
+          primary: face(event.cardIds[0]!),
+          related: [],
+          relatedLabel: "Discarded",
+          district: event.district,
+          absorb: "limit",
         });
         break;
       case "networkReturned":

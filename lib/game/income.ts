@@ -7,6 +7,7 @@ import { finishTurn } from "./election.ts";
 import { Phase, type Continuation, type GameEvent, type GameState, type PlayerId } from "./types.ts";
 import { marketNonEvents } from "./world.ts";
 import { syncNetworks } from "./network.ts";
+import { enforceAllianceLimits } from "./discard.ts";
 
 export function handSize(state: GameState, player: PlayerId): number {
   return state.players[player].hand.length;
@@ -49,6 +50,12 @@ function run(state: GameState, next: Continuation, events: GameEvent[]): void {
   // A network disabled during the step (e.g. Consultative Office proposed away) returns
   // its cards before the next step checks the hand limit.
   syncNetworks(state, events);
+  // A lowered alliance limit (Martial Law just passed) discards the extras first.
+  enforceAllianceLimits(state, events);
+  if (state.pending.length > 0) {
+    state.resume = next;
+    return;
+  }
   switch (next) {
     case "action":
       return;

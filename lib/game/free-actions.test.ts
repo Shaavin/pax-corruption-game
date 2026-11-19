@@ -151,6 +151,8 @@ function freeOf(state: GameState, player: PlayerId, ability: string) {
   const { state, rng, me } = fresh(506);
   const architect = place(state, me, "Architecture Inc.", District.Shavvinne);
   const rebel = place(state, me, "Rebel Inc.", District.Shavvinne);
+  // Two alliances in one lane need Model Society (limit 2), or the limit check discards one.
+  state.players[me].monuments.push(monument(MonumentId.ModelSociety));
   // Build Dragon Gate with four Dragonara cards.
   state.availableMonuments = [monument(MonumentId.DragonGate)];
   const four = ["Tinkers", "Engineers", "Gardeners", "Fire Breathers"].map((name) => take(state, name, District.Dragonara));

@@ -78,6 +78,7 @@ Card text is in `lib/cards/expansion.ts`; the rulebook summary is in [game-rules
 | Roman Basilica | "You immediately win Civil Victory when 1) you win the 3rd election or 2) the final election is over." The 3rd election is the one featuring the game's **3rd General Election card**, not the 3rd election phase. At the final election the owner wins Civil **whoever won it**. Automatic; nothing to declare. |
 | Divine Inquisitors | "You win Shavvinne during elections if opponent also has an alliance card in Shavvinne." Followed as printed (it reverses the old "only alliance card in the district" condition). |
 | Cultural victory | Wording only: "Have 2+ more monuments than opponent does." |
+| Alliance limit lowered | When a player's alliance limit drops below the alliances they already have in a district (Martial Law passed), the extras are **discarded down to the limit** at once, to their owner's support pile. If some may stay (Model Society: 2 → 1), the **owner** picks which go, even on the opponent's turn. Monuments are never lost, so losing Model Society can't lower a limit. From report seed 374294586. The owner is the one discarding, so their Space Academy may route one of these discards (inferred, not ruled). |
 
 ### 2026-11-17 (Joe, via Ian)
 
@@ -121,7 +122,7 @@ Card text is in `lib/cards/expansion.ts`; the rulebook summary is in [game-rules
 | Deck math | 104 non-election − 7 starting − 5 Senate − 5 Market = **87**, matching every mode's printed piles. (Was 92 before the Senate existed.) |
 | Chaotic piles | A `8 + 1`, B `10`, C+D one pile `64 & 3`, E `5`. |
 | Digital seating | District order is fixed to the TTS table (Shavvinne, Horsard, Dragonara, Smarbbit, left to right), the same for both players. |
-| Martial Law | Applies **only in Shavvinne**. −1 alliance limit there (default 1 → 0; Model Society 2 → 1). Any action that would discard 2+ Shavvinne cards is illegal, including a Shavvinne conspiracy. |
+| Martial Law | Applies **only in Shavvinne**. −1 alliance limit there (default 1 → 0; Model Society 2 → 1); alliances already over the new limit are discarded (see 2026-11-18). Any action that would discard 2+ Shavvinne cards is illegal, including a Shavvinne conspiracy. |
 | Consultative Office | Personal face-up zone. Move Smarbbit cards **from hand** into it. Usable later **as if in hand**; they don't count toward hand limit. **Superseded 2026-11-18:** see Network. |
 | Currency Ballots | A General Election drawn by this effect does **not** delay the mandatory discard. Finish draw-then-discard, then handle the election. |
 | United Front | Looks at the **landing** pile. A card discarded to Smarbbit goes to the **non-discarding** player's Smarbbit pile. If Space Agency sends it elsewhere, the discarder keeps it. All discard sources. Can feed Popularity. |

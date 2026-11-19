@@ -1212,6 +1212,9 @@ function gateHint(state: GameState, events: GameEvent[], names: PlayerNames): st
     }
     if (event.type === "policyProposed") bits.push("Proposed a policy.");
     if (event.type === "policyChanged") bits.push(`Set ${DISTRICT_NAME[event.district]} to ${policyName(event.policyId)}.`);
+    if (event.type === "alliancesOverLimit") {
+      bits.push(`${playerLabel(event.player, names)} discarded ${event.cardIds.map((id) => getCard(id).name).join(", ")} (alliance limit in ${DISTRICT_NAME[event.district]} is now ${event.limit}).`);
+    }
     if (event.type === "marketTaken") bits.push(`Took ${getCard(event.cardId).name} from the market.`);
     if (event.type === "cardDrawn") bits.push("Drew from the deck.");
     if (event.type === "electionSetAside") bits.push("A general election was revealed.");

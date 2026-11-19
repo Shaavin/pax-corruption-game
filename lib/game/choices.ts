@@ -4,9 +4,9 @@
  * resolved before anything else happens; then the turn resumes.
  */
 import { getCard } from "../cards/catalog.ts";
-import { District, type DistrictId } from "../cards/schema.ts";
+import { CardKind, District, type DistrictId } from "../cards/schema.ts";
 import { unitedFrontRedirect } from "./abilities.ts";
-import { discardOwn } from "./discard.ts";
+import { discardAlliances, discardOwn } from "./discard.ts";
 import { drawToHand } from "./draw.ts";
 import { IllegalActionError } from "./errors.ts";
 import { resumeAfterChoice } from "./income.ts";
@@ -56,6 +56,10 @@ export function choiceActions(state: GameState, viewer: PlayerId): Action[] {
       ];
     case "routeDiscards":
       return [{ type: "routeDiscards" as const, player: viewer, moves: [] }];
+    case "trimAlliances":
+      return combinations(laneAlliances(state, viewer, choice.district).map((card) => card.instanceId), choice.count).map(
+        (instanceIds) => ({ type: "trimAlliances" as const, player: viewer, instanceIds }),
+      );
   }
 }
 
@@ -174,6 +178,33 @@ function findInPiles(state: GameState, instanceId: string) {
     }
   }
   return null;
+}
+
+function laneAlliances(state: GameState, player: PlayerId, district: DistrictId) {
+  return state.players[player].tableau[district].filter((card) => getCard(card.cardId).kind === CardKind.Alliance);
+}
+
+function combinations<T>(items: readonly T[], size: number): T[][] {
+  if (size === 0) return [[]];
+  return items.flatMap((item, index) =>
+    combinations(items.slice(index + 1), size - 1).map((rest) => [item, ...rest]),
+  );
+}
+
+/** Alliance limit lowered (Martial Law): the owner picks which alliances to discard. */
+export function trimAlliances(state: GameState, player: PlayerId, instanceIds: string[], events: GameEvent[]): void {
+  const choice = requireChoice(state, player, "trimAlliances");
+  const ids = new Set(instanceIds);
+  const lane = laneAlliances(state, player, choice.district);
+  const cards = lane.filter((card) => ids.has(card.instanceId));
+  if (ids.size !== instanceIds.length || cards.length !== ids.size) {
+    throw new IllegalActionError("Pick alliances from that district's lane");
+  }
+  if (cards.length !== choice.count) {
+    throw new IllegalActionError(`Discard exactly ${choice.count} ${choice.count === 1 ? "alliance" : "alliances"}`);
+  }
+  discardAlliances(state, player, choice.district, cards, events);
+  resumeAfterChoice(state, events);
 }
 
 /** Printed district of a card in a route choice (for UI hints). */

@@ -1,7 +1,7 @@
 import { getCard } from "../cards/catalog.ts";
 import { CardKind, DISTRICTS, type DistrictId, type PartyIdValue } from "../cards/schema.ts";
 import { martialLawBlocks } from "./abilities.ts";
-import { chooseDiscard, choiceActions, chooseIntel, choosePress, chooseSwap, routeDiscards } from "./choices.ts";
+import { chooseDiscard, choiceActions, chooseIntel, choosePress, chooseSwap, routeDiscards, trimAlliances } from "./choices.ts";
 import { inactiveDecrees } from "./decrees.ts";
 import { gameIsOver } from "./discard.ts";
 import { activateDecree } from "./election.ts";
@@ -182,6 +182,9 @@ export function apply(state: GameState, action: Action, rng: Rng): ApplyResult {
     case "routeDiscards":
       routeDiscards(next, action.player, action.moves, events);
       break;
+    case "trimAlliances":
+      trimAlliances(next, action.player, action.instanceIds, events);
+      break;
     default: {
       const never: never = action;
       throw new IllegalActionError(`Unknown action ${(never as Action).type}`);
@@ -197,7 +200,8 @@ function isChoiceAction(action: Action): boolean {
     action.type === "chooseSwap" ||
     action.type === "chooseIntel" ||
     action.type === "choosePress" ||
-    action.type === "routeDiscards"
+    action.type === "routeDiscards" ||
+    action.type === "trimAlliances"
   );
 }
 

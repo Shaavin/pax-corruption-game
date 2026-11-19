@@ -1,5 +1,6 @@
-import { MonumentId } from "../cards/schema.ts";
-import { ownsMonument, unitedFrontRedirect } from "./abilities.ts";
+import { getCard } from "../cards/catalog.ts";
+import { CardKind, DISTRICTS, MonumentId, type DistrictId } from "../cards/schema.ts";
+import { allianceLimit, ownsMonument, unitedFrontRedirect } from "./abilities.ts";
 import { landingDistrict } from "./main.ts";
 import { otherPlayer } from "./zones.ts";
 import { isEventCard } from "./world.ts";
@@ -58,6 +59,52 @@ export function discardOwn(
     cards.map((card) => ({ card, owner: player })),
     events,
   );
+}
+
+/**
+ * Alliance limit (ruled 2026-11-18, Joe via Ian): when a player's alliance limit
+ * drops below the alliances in one of their lanes (Martial Law passed), they
+ * discard down to the limit at once, to their own support piles. When some may
+ * stay (Model Society), the owner picks which go. Monuments are never lost, so
+ * Martial Law is the only way a limit drops.
+ */
+export function enforceAllianceLimits(state: GameState, events: GameEvent[]): void {
+  for (const player of [0, 1] as const) {
+    for (const district of DISTRICTS) {
+      const alliances = state.players[player].tableau[district].filter(
+        (card) => getCard(card.cardId).kind === CardKind.Alliance,
+      );
+      const limit = allianceLimit(state, player, district);
+      if (alliances.length <= limit) continue;
+      if (state.pending.some((choice) => choice.kind === "trimAlliances" && choice.player === player && choice.district === district)) {
+        continue;
+      }
+      if (limit === 0) discardAlliances(state, player, district, alliances, events);
+      else state.pending.push({ kind: "trimAlliances", player, district, count: alliances.length - limit });
+    }
+  }
+}
+
+/** Discard some of `player`'s alliances in `district`'s lane for the alliance limit. */
+export function discardAlliances(
+  state: GameState,
+  player: PlayerId,
+  district: DistrictId,
+  cards: readonly CardInstance[],
+  events: GameEvent[],
+): void {
+  const seat = state.players[player];
+  const ids = new Set(cards.map((card) => card.instanceId));
+  seat.tableau[district] = seat.tableau[district].filter((card) => !ids.has(card.instanceId));
+  events.push({
+    type: "alliancesOverLimit",
+    player,
+    district,
+    limit: allianceLimit(state, player, district),
+    cardIds: cards.map((card) => card.cardId),
+  });
+  // The owner discards them, so Space Academy may route one, like any discard of theirs.
+  discardOwn(state, player, cards, events);
 }
 
 export function gameIsOver(state: GameState): boolean {
