@@ -5,6 +5,7 @@ import { CardView } from "./CardView";
 import { getCard } from "@/lib/cards/catalog";
 import { getEvent, VICTORY_CARDS, WORLD_POWER_NAME } from "@/lib/cards/expansion";
 import { LEGACY_VICTORY_ORDER } from "./table-model";
+import { LEGACY_VICTORY_COLOR } from "./victory-marks";
 import { PeekableOverlay } from "./PeekableOverlay";
 import { District } from "@/lib/cards/schema";
 import {
@@ -136,7 +137,12 @@ export function BuyEventDialog({ state, viewer, instanceId, onAction, onClose }:
                 .map((entry) => {
                   const victory = VICTORY_CARDS.find((card) => card.id === entry.victory)!;
                   return (
-                    <UseButton key={entry.victory} disabled={!ready || martial} onClick={() => buy("legacyActivate", entry.victory)}>
+                    <UseButton
+                      key={entry.victory}
+                      disabled={!ready || martial}
+                      color={LEGACY_VICTORY_COLOR[entry.victory!]}
+                      onClick={() => buy("legacyActivate", entry.victory)}
+                    >
                       Activate {victory.name} Victory
                     </UseButton>
                   );
@@ -169,13 +175,28 @@ function districtName(district: string): string {
   return district.charAt(0).toUpperCase() + district.slice(1);
 }
 
-function UseButton({ children, onClick, disabled }: { children: ReactNode; onClick: () => void; disabled?: boolean }) {
+function UseButton({
+  children,
+  onClick,
+  disabled,
+  color,
+}: {
+  children: ReactNode;
+  onClick: () => void;
+  disabled?: boolean;
+  /** A Legacy Victory's card color (white text); the usual action yellow otherwise. */
+  color?: string;
+}) {
   return (
     <button
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className="cursor-pointer rounded-xl bg-[var(--act)] px-4 py-2 text-sm font-semibold text-stone-950 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-35"
+      className={[
+        "cursor-pointer rounded-xl px-4 py-2 text-sm font-semibold hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-35",
+        color ? "text-white ring-1 ring-white/25" : "bg-[var(--act)] text-stone-950",
+      ].join(" ")}
+      style={color ? { background: color } : undefined}
     >
       {children}
     </button>

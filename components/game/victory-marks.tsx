@@ -3,6 +3,16 @@
 import type { RaceView } from "./table-model";
 import type { VictoryStanding } from "@/lib/game/progress";
 import type { VictoryKindId } from "@/lib/game/types";
+import type { ExpansionVictoryId } from "@/lib/cards/expansion";
+
+/** The band color printed on each Legacy Victory card (sampled from its face). */
+export const LEGACY_VICTORY_COLOR: Record<ExpansionVictoryId, string> = {
+  military: "#b51700",
+  ideological: "#004d80",
+  popularity: "#a34d01",
+  cultural: "#b21465",
+  diplomatic: "#006a00",
+};
 
 /**
  * Shared helpers for victory progress shown on the table, next to what each victory
