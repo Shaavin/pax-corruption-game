@@ -103,15 +103,8 @@ const FREE_LABEL: Record<FreeActionAction["ability"], (name: string, district: D
 
 type PolicyTarget = { district: DistrictId; policyId: PolicyIdValue | null };
 
-const NETWORK_LABEL = {
-  toNetwork: "Move to network",
-  fromNetwork: "Back to hand",
-} as const;
-
-const NETWORK_TITLE = {
-  toNetwork: "Reveal it into your network: it stays usable as if in hand and doesn't count toward your hand limit",
-  fromNetwork: "Take it back into your hand: it counts toward your hand limit again",
-} as const;
+// Moving a card into the network is a click on the network box (like playing to a district).
+const BACK_TO_HAND_TITLE = "Take it back into your hand: it counts toward your hand limit again";
 
 const START_OF_TURN = new Set<Action["type"]>([
   "playCivil",
@@ -489,6 +482,8 @@ export function HotseatSession(props: HotseatSessionProps) {
   const networkFor = selectedCard
     ? networkActions(state, viewer).filter((action) => action.instanceIds[0] === selectedCard.instanceId)
     : [];
+  const toNetwork = spendKind ? undefined : networkFor.find((action) => action.type === "toNetwork");
+  const backToHand = networkFor.filter((action) => action.type === "fromNetwork");
 
   function startMode(kind: SpendKind, source: string | null = null) {
     setSpendKind(kind);
@@ -683,10 +678,10 @@ export function HotseatSession(props: HotseatSessionProps) {
       });
     }
   } else if (inAction) {
-    for (const action of networkFor) {
+    for (const action of backToHand) {
       extraActions.push({
-        label: NETWORK_LABEL[action.type],
-        title: NETWORK_TITLE[action.type],
+        label: "Back to hand",
+        title: BACK_TO_HAND_TITLE,
         tone: "neutral",
         onClick: () => dispatch(action),
       });
@@ -706,10 +701,10 @@ export function HotseatSession(props: HotseatSessionProps) {
         onClick: () => dispatch({ type: "influenceSenate", player: viewer, instanceId: selectedCard.instanceId }),
       });
     }
-    for (const action of networkFor) {
+    for (const action of backToHand) {
       extraActions.push({
-        label: NETWORK_LABEL[action.type],
-        title: NETWORK_TITLE[action.type],
+        label: "Back to hand",
+        title: BACK_TO_HAND_TITLE,
         tone: "neutral",
         onClick: () => dispatch(action),
       });
@@ -720,10 +715,10 @@ export function HotseatSession(props: HotseatSessionProps) {
       onClick: () => dispatch({ type: "endPolitics", player: viewer }),
     });
   } else if (state.phase === Phase.Income) {
-    for (const action of networkFor) {
+    for (const action of backToHand) {
       extraActions.push({
-        label: NETWORK_LABEL[action.type],
-        title: NETWORK_TITLE[action.type],
+        label: "Back to hand",
+        title: BACK_TO_HAND_TITLE,
         tone: "neutral",
         onClick: () => dispatch(action),
       });
@@ -811,6 +806,7 @@ export function HotseatSession(props: HotseatSessionProps) {
           onSelectHand: selectCard,
           targetDistrict: playDistrict,
           targetLabel,
+          networkTarget: toNetwork ? { label: "Add to network", onSelect: () => dispatch(toNetwork) } : null,
           onSelectDistrict: (district: DistrictId) => {
             if (!inAction || !selectedCard || playDistrict !== district) return;
             const kind = getCard(selectedCard.cardId).kind;

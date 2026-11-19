@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { playCardMotion } from "./card-motion";
 import { NoticeProvider, useNotice } from "./notice";
 import { SettingsDialog } from "./SettingsDialog";
 import { Hand } from "./Hand";
 import { HistoryRail } from "./HistoryRail";
 import { Lane, type InPlayPick } from "./Lane";
+import { NetworkTray } from "./NetworkTray";
 import { PeekContext, type PeekCard } from "./peek";
 import { PlayerAid } from "./PlayerAid";
 import { PlayerBar } from "./PlayerBar";
@@ -36,6 +37,8 @@ export type TableInteraction = {
   targetDistrict: DistrictId | null;
   targetLabel: string;
   onSelectDistrict: (district: DistrictId) => void;
+  /** The selected hand card can go into your network: the network box is a target. */
+  networkTarget?: { label: string; onSelect: () => void } | null;
   takeableMarketIds: ReadonlySet<string>;
   marketMode?: "take" | "use";
   onTakeMarket: (instanceId: string) => void;
@@ -225,6 +228,7 @@ function TableView({
           }
           leader={model.districtLeader?.[district]}
           zeroedBy={model.supportZeroedBy?.[district] ?? null}
+          network={model.networkEnabled?.[district]}
           onShowSupport={
             veiled
               ? undefined
@@ -265,8 +269,41 @@ function TableView({
   );
   const actionCards = interaction?.actionCards ?? [];
   const revealedIds = useMemo(() => new Set(model.you.revealedIds), [model.you.revealedIds]);
+  const networkDistricts = model.districtOrder.filter((district) => model.networkEnabled?.[district]?.you);
+  const showTray = networkDistricts.length > 0 || model.you.network.length > 0;
+  // The network box sits at the left of the hand strip, under your party and name; the action
+  // cards sit at the right; the fan centers between them.
+  const trayRef = useRef<HTMLDivElement>(null);
+  const [trayWidth, setTrayWidth] = useState(0);
+  useLayoutEffect(() => {
+    const element = trayRef.current;
+    if (!element) {
+      setTrayWidth(0);
+      return;
+    }
+    const measure = () => setTrayWidth(element.offsetWidth);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [showTray]);
+  const actionWidth = !compact && actionCards.length > 0 ? `${actionCards.length} * (var(--card-hand) * 0.86 + 0.5rem)` : null;
   const hand = (
     <div className="relative h-[calc(var(--card-hand)*1.364*0.7)] shrink-0 bg-black/20">
+      {showTray ? (
+        <div ref={trayRef} className="absolute bottom-1 left-3 z-10 max-[480px]:left-2">
+          <NetworkTray
+            cards={model.you.network}
+            districts={networkDistricts}
+            playableIds={interaction?.playableHandIds}
+            selectableIds={interaction?.selectableHandIds}
+            selectedIds={interaction?.selectedHandIds}
+            onSelect={interaction?.onSelectHand}
+            blockedReasons={interaction?.handBlockedReasons}
+            target={interaction?.networkTarget ?? null}
+          />
+        </div>
+      ) : null}
       {compact ? null : (
         <div className="absolute right-4 bottom-0 z-10 translate-y-[24%]">
           <ActionCards cards={actionCards} variant="hand" />
@@ -274,18 +311,16 @@ function TableView({
       )}
       <div
         className="absolute inset-x-0 bottom-0 flex translate-y-[28%] justify-center"
-        // Keep the fan clear of the action cards on the right.
-        style={
-          !compact && actionCards.length > 0
-            ? { paddingRight: `calc(${actionCards.length} * (var(--card-hand) * 0.86 + 0.5rem) + 1.5rem)` }
-            : undefined
-        }
+        // Keep the fan clear of the network box (left) and the action cards (right).
+        style={{
+          paddingLeft: showTray && trayWidth > 0 ? `calc(${trayWidth}px + 1.25rem)` : undefined,
+          paddingRight: actionWidth ? `calc(${actionWidth} + 1.5rem)` : undefined,
+        }}
       >
         <Hand
           cards={model.you.hand}
           variant="you"
           tourId="your-hand"
-          tags={model.you.handTags}
           playableIds={interaction?.playableHandIds}
           selectableIds={interaction?.selectableHandIds}
           selectedIds={interaction?.selectedHandIds}
@@ -390,7 +425,7 @@ function TableView({
               name={playerLabel(model.opponent.id)}
               partyId={model.opponent.partyId}
               monuments={model.opponent.monuments}
-              setAside={model.opponent.setAside}
+              network={model.opponent.network}
               electionWins={model.opponent.electionWins}
               incumbent={model.opponent.incumbent}
               electorates={model.opponent.electorates}
@@ -477,7 +512,7 @@ function TableView({
               name={`${playerLabel(model.you.id)} (You)`}
               partyId={model.you.partyId}
               monuments={model.you.monuments}
-              setAside={model.you.setAside}
+              network={[]}
               electionWins={model.you.electionWins}
               incumbent={model.you.incumbent}
               electorates={model.you.electorates}
@@ -603,7 +638,7 @@ function CompactTable({
           name={playerLabel(model.opponent.id)}
           partyId={model.opponent.partyId}
           monuments={model.opponent.monuments}
-          setAside={model.opponent.setAside}
+          network={model.opponent.network}
           electionWins={model.opponent.electionWins}
           incumbent={model.opponent.incumbent}
           electorates={model.opponent.electorates}
@@ -686,7 +721,7 @@ function CompactTable({
         name={`${playerLabel(model.you.id)} (You)`}
         partyId={model.you.partyId}
         monuments={model.you.monuments}
-        setAside={model.you.setAside}
+        network={[]}
         electionWins={model.you.electionWins}
         incumbent={model.you.incumbent}
         electorates={model.you.electorates}

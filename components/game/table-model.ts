@@ -12,6 +12,7 @@ import { isEventId, VICTORY_CARDS, WORLD_POWERS, type ExpansionVictoryId, type W
 import type { PhaseStep } from "./SidePanel";
 import { privateSymbols, sharedSymbols } from "@/lib/game/victory";
 import { supportZeroedBy } from "@/lib/game/world";
+import { networkDistricts } from "@/lib/game/network";
 import type { SymbolId } from "@/lib/cards/schema";
 
 /** Legacy & Diplomacy: what the table shows besides the base game. */
@@ -41,11 +42,9 @@ export type TablePlayerView = {
   /** The support piles' cards (public), oldest first. */
   supportCards: Record<DistrictId, CardInstance[]>;
   influence: Record<DistrictId, DistrictInfluence>;
-  /** The opponent's network: face-up, usable as if in hand (yours shows in your hand, tagged). */
-  setAside: CardInstance[];
-  /** Your own set-aside cards show in your hand with a tag (they work as hand cards). */
-  handTags: Record<string, string>;
-  /** Your hand cards the opponent can see (taken face up, or in a face-up zone): they get an eye. */
+  /** Network cards: face up, outside the hand limit, usable as if in hand. Yours show in a tray beside your hand. */
+  network: CardInstance[];
+  /** Your hand cards the opponent can see (taken face up, or back from the network): they get an eye. */
   revealedIds: string[];
   partyId: PartyIdValue | null;
   monuments: string[];
@@ -91,6 +90,8 @@ export type TableModel = {
   policyFrozen: Record<DistrictId, boolean>;
   /** West "support remains at zero": the event's name per district (null when support counts normally). */
   supportZeroedBy: Record<DistrictId, string | null>;
+  /** Whose network is enabled in each district (Consultative Office, Planet Next, East events). */
+  networkEnabled: Record<DistrictId, { you: boolean; opponent: boolean }>;
   you: TablePlayerView;
   opponent: TablePlayerView;
   activePlayer: PlayerId;
@@ -156,6 +157,13 @@ export function tableModel(state: GameState, viewer: PlayerId): TableModel {
       DistrictId,
       string | null
     >,
+    networkEnabled: (() => {
+      const yours = new Set(networkDistricts(state, viewer));
+      const theirs = new Set(networkDistricts(state, opponentId));
+      return Object.fromEntries(
+        DISTRICTS.map((district) => [district, { you: yours.has(district), opponent: theirs.has(district) }]),
+      ) as Record<DistrictId, { you: boolean; opponent: boolean }>;
+    })(),
     you: playerView(state, viewer, true, electorates[viewer]),
     opponent: playerView(state, opponentId, false, electorates[opponentId]),
     activePlayer: state.activePlayer,
@@ -231,15 +239,8 @@ function playerView(state: GameState, player: PlayerId, isYou: boolean, electora
   const partyId = isYou ? (seat.partyId ?? state.setup?.chosenParty[player] ?? null) : seat.partyId;
   return {
     id: player,
-    hand: isYou
-      ? [...seat.hand, ...seat.network].map((card) => ({ ...card, faceUp: true }))
-      : seat.hand,
-    revealedIds: isYou
-      ? [...seat.hand.filter((card) => card.faceUp), ...seat.network].map((card) => card.instanceId)
-      : [],
-    handTags: isYou
-      ? Object.fromEntries(seat.network.map((card) => [card.instanceId, "Network"]))
-      : {},
+    hand: isYou ? seat.hand.map((card) => ({ ...card, faceUp: true })) : seat.hand,
+    revealedIds: isYou ? seat.hand.filter((card) => card.faceUp).map((card) => card.instanceId) : [],
     tableau: seat.tableau,
     support: Object.fromEntries(
       DISTRICTS.map((district) => [district, seat.support[district].length]),
@@ -248,7 +249,7 @@ function playerView(state: GameState, player: PlayerId, isYou: boolean, electora
     influence: Object.fromEntries(
       DISTRICTS.map((district) => [district, playerDistrictInfluence(state, player, district)]),
     ) as Record<DistrictId, DistrictInfluence>,
-    setAside: isYou ? [] : seat.network,
+    network: seat.network.map((card) => ({ ...card, faceUp: true })),
     partyId,
     monuments: seat.monuments.map((card) => card.cardId),
     partisans: seat.partisans,

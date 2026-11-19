@@ -4,6 +4,7 @@ import { useNotice } from "./notice";
 import type { ReactNode } from "react";
 import { CardBack, CardView } from "./CardView";
 import { resolveCard, type FixtureCard } from "./layout-fixture";
+import { NetworkIcon } from "./NetworkIcon";
 import type { PartyIdValue } from "@/lib/cards/schema";
 
 type PlayerBarProps = {
@@ -11,7 +12,8 @@ type PlayerBarProps = {
   name: string;
   partyId: PartyIdValue | null;
   monuments: readonly string[];
-  setAside: FixtureCard[];
+  /** Their network (face up): shown in a bordered, labelled group. Yours sits beside your hand. */
+  network: FixtureCard[];
   electionWins: number;
   /** Wins a tied election: the last election's winner (the first player before any). */
   incumbent?: boolean;
@@ -35,7 +37,7 @@ export function PlayerBar({
   name,
   partyId,
   monuments,
-  setAside,
+  network,
   electionWins,
   incumbent = false,
   electorates,
@@ -118,7 +120,7 @@ export function PlayerBar({
         {/* Cultural Victory lives in the Monuments section, Diplomatic in the World section. */}
       </dl>
 
-      {monuments.length + setAside.length > 0 ? (
+      {monuments.length + network.length > 0 ? (
         <div className="flex shrink-0 items-center gap-1">
           {monuments.map((id) => {
             const monument = resolveCard(id);
@@ -134,19 +136,36 @@ export function PlayerBar({
               />
             );
           })}
-          {setAside.map((entry) => {
-            const card = resolveCard(entry.cardId);
-            return (
-              <CardView
-                key={entry.instanceId}
-                name={card.name}
-                art={card.art}
-                size="mini"
-                cardId={entry.cardId}
-                motionKey={entry.instanceId}
-              />
-            );
-          })}
+          {network.length > 0 ? (
+            <div
+              role="group"
+              aria-label={`${seat === "you" ? "Your" : "Their"} network, ${network.length} ${network.length === 1 ? "card" : "cards"}`}
+              title="Network: revealed cards outside the hand limit, usable as if in hand"
+              className="relative ml-1 flex items-center gap-1 rounded-md border px-1 pt-2 pb-0.5"
+              style={{ borderColor: `color-mix(in srgb, ${color} 50%, transparent)` }}
+            >
+              <span
+                className="absolute -top-1.5 left-1 flex items-center gap-0.5 rounded-full bg-[rgb(12_15_20)] px-1 text-[0.45rem] leading-[0.7rem] font-bold tracking-[0.08em] uppercase"
+                style={{ color }}
+              >
+                <NetworkIcon className="size-2" />
+                Network
+              </span>
+              {network.map((entry) => {
+                const card = resolveCard(entry.cardId);
+                return (
+                  <CardView
+                    key={entry.instanceId}
+                    name={card.name}
+                    art={card.art}
+                    size="mini"
+                    cardId={entry.cardId}
+                    motionKey={entry.instanceId}
+                  />
+                );
+              })}
+            </div>
+          ) : null}
         </div>
       ) : null}
 

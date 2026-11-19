@@ -10,8 +10,6 @@ type HandProps = {
   /** "you": large fanned hand that bleeds off the bottom edge. "opponent": small backs. */
   variant: "you" | "opponent";
   tourId?: string;
-  /** Small labels on specific cards (e.g. "Network"). */
-  tags?: Record<string, string>;
   playableIds?: ReadonlySet<string>;
   selectableIds?: ReadonlySet<string>;
   selectedIds?: ReadonlySet<string>;
@@ -36,7 +34,6 @@ export function Hand({
   cards,
   variant,
   tourId,
-  tags,
   playableIds,
   selectableIds,
   selectedIds,
@@ -84,7 +81,7 @@ export function Hand({
       data-tour={tourId}
       data-motion-zone="hand-you"
       data-motion-origin="hand-you"
-      aria-label={`Your hand, ${cards.length} cards`}
+      aria-label={`Your hand, ${cards.length} ${cards.length === 1 ? "card" : "cards"}`}
       className="flex items-end justify-center"
     >
       {cards.map((entry, index) => {
@@ -133,11 +130,6 @@ export function Hand({
               blockedReason={selectable ? undefined : blockedReasons?.get(entry.instanceId)}
             />
             {revealed ? <RevealedEye /> : null}
-            {tags?.[entry.instanceId] ? (
-              <span className="pointer-events-none absolute top-1 left-1/2 z-10 -translate-x-1/2 rounded-full bg-[var(--you)] px-2 py-0.5 text-[0.55rem] font-bold tracking-wide text-stone-950 uppercase shadow">
-                {tags[entry.instanceId]}
-              </span>
-            ) : null}
           </li>
         );
       })}
@@ -158,7 +150,7 @@ function RevealedEye() {
       onClick={(event) => {
         // Explain instead of choosing the card underneath.
         event.stopPropagation();
-        notify("Your opponent can see this card: it was taken face up (from the Market, for example) or sits in a face-up zone.");
+        notify("Your opponent can see this card: it was taken face up (from the Market, for example) or came back from your network.");
       }}
       title="Your opponent can see this card"
       // Floats just above the card's top-left corner: the next card in the fan covers the right side.

@@ -3,6 +3,7 @@
 import type { CSSProperties } from "react";
 import { CardView } from "./CardView";
 import { InfoTip } from "./InfoTip";
+import { NetworkIcon } from "./NetworkIcon";
 import { TugBar, tugStateText } from "./TugBar";
 import { useNotice } from "./notice";
 import { resolveCard, type FixtureCard } from "./layout-fixture";
@@ -46,9 +47,13 @@ type LaneProps = {
   zeroedBy?: string | null;
   /** Opens the support piles (both players' cards) for this district. */
   onShowSupport?: () => void;
+  /** Whose network is enabled here (a mark on the plate). */
+  network?: NetworkReach;
   /** Grid column (1–4): lanes share rows with the center band above the plates. */
   column: number;
 };
+
+export type NetworkReach = { you: boolean; opponent: boolean };
 
 export type InPlayPick = {
   /** instanceId → button label */
@@ -60,7 +65,7 @@ export type InPlayPick = {
  * One district, Snap-style: the opponent's cards hang down toward the district
  * plate, yours rise up toward it, and the plate shows who leads.
  */
-export function Lane({ district, policyId, you, opponent, electors, leader, tourAnchor, target, onShowPolicies, pickable, popularityRule, zeroedBy = null, onShowSupport, column }: LaneProps) {
+export function Lane({ district, policyId, you, opponent, electors, leader, tourAnchor, target, onShowPolicies, pickable, popularityRule, zeroedBy = null, onShowSupport, network, column }: LaneProps) {
   const lane = { "--lane": `var(--${district})` } as CSSProperties;
   return (
     <section
@@ -86,6 +91,7 @@ export function Lane({ district, policyId, you, opponent, electors, leader, tour
         popularityRule={popularityRule}
         zeroedBy={zeroedBy}
         onShowSupport={onShowSupport}
+        network={network}
       />
       </div>
 
@@ -200,6 +206,7 @@ function Plate({
   popularityRule,
   zeroedBy,
   onShowSupport,
+  network,
 }: {
   district: DistrictId;
   policyId: PolicyIdValue | null;
@@ -213,6 +220,7 @@ function Plate({
   popularityRule?: { active: boolean; target: number };
   zeroedBy: string | null;
   onShowSupport?: () => void;
+  network?: NetworkReach;
 }) {
   const policy = policyId ? resolveCard(policyId) : null;
   const lead = you.influence.total - opponent.influence.total;
@@ -242,7 +250,11 @@ function Plate({
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <div className="flex items-center gap-1.5">
           <span
-            className="h-3 w-3 shrink-0 rounded-full shadow-[0_0_8px_var(--glow)]"
+            // Narrow plates drop the dot for the network mark (the top edge carries the color).
+            className={[
+              "h-3 w-3 shrink-0 rounded-full shadow-[0_0_8px_var(--glow)]",
+              network && (network.you || network.opponent) ? "@max-[15rem]:hidden" : "",
+            ].join(" ")}
             style={{ background: `var(--${district})`, "--glow": `var(--${district})` } as CSSProperties}
             aria-hidden
           />
@@ -261,6 +273,7 @@ function Plate({
             Popularity Victory. Tap that bar to see every card in both piles.
           </InfoTip>
           </span>
+          {network && (network.you || network.opponent) ? <NetworkMark district={district} reach={network} /> : null}
           {electors !== null ? (
             <span
               className="ml-auto shrink-0 rounded-full bg-[var(--act)]/15 px-1.5 text-[0.55rem] font-semibold text-[var(--act)] @max-[15rem]:px-1 @max-[15rem]:text-[0.5rem]"
@@ -309,6 +322,30 @@ function Plate({
 }
 
 /** Influence side by side: the opponent on the left, you on the right (like the Military tug-of-war). */
+/**
+ * A network enabled in this district: in your color when it's yours (or both
+ * players'), in theirs with a padlock when only your opponent has it.
+ */
+function NetworkMark({ district, reach }: { district: DistrictId; reach: NetworkReach }) {
+  const notify = useNotice();
+  const name = DISTRICT_LABEL[district];
+  const text = reach.you
+    ? `Network enabled ${reach.opponent ? "for both players" : "for you"} in ${name}. During your turn, move ${name} cards from your hand into your network: they stay usable as if in hand, don't count toward your hand limit, and your opponent can see them.`
+    : `Your opponent's network is enabled in ${name}, but not yours: only they can keep ${name} cards there, outside their hand limit.`;
+  return (
+    <button
+      type="button"
+      onClick={() => notify(text)}
+      title={text}
+      aria-label={reach.you ? `Network enabled in ${name}${reach.opponent ? " for both players" : " for you"}` : `Network enabled in ${name} for your opponent only`}
+      className="flex shrink-0 cursor-help items-center rounded-full p-0.5 hover:bg-white/10"
+      style={{ color: reach.you ? "var(--you)" : "var(--opp)" }}
+    >
+      <NetworkIcon locked={!reach.you} className="size-3.5 @max-[15rem]:size-3" />
+    </button>
+  );
+}
+
 function InfluenceRow({
   you,
   opponent,
