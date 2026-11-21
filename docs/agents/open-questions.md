@@ -65,6 +65,12 @@ Card text is in `lib/cards/expansion.ts`; the rulebook summary is in [game-rules
 | Legacy "Activate a Victory Condition" | The **buyer** chooses any one inactive victory (Military, Popularity, Ideological, Cultural, Diplomatic) and flips it active. |
 | Events played as civil cards | **Fully civil cards** of the event's district, with the printed value: influence, electors, Civil Service, Diet of Saints, Currency Ballots, Urban Aristocrats swaps, conspiracies, and so on. The only difference: when discarded, they leave the game (see "Discarding events" above). |
 
+### 2026-11-21 (Joe, via Ian)
+
+| Topic | Decision |
+| --- | --- |
+| Income refill order (expansion) | At the income refill the new event goes in **first**: it slides up against the older cards (the right-most open spot), and the main-deck cards follow into the spots to its left. Its cost is the number of older non-event cards to its right. From Joe's report (seed 2247414781): with 2 older cards in spots 4–5, the new event sits in spot 3 and costs 2, not 4. This matches the rulebook's "slide it to the right-most available slot". It replaces the spot-1 placement of the 2026-11-16 ruling **for the income refill only**: the refill after an election and new election rows keep the new event in spot 1 (Ian, 2026-11-21) until Joe rules on those. |
+
 ### 2026-11-18 (Joe, via Ian): card updates and the network
 
 | Topic | Decision |
@@ -90,7 +96,7 @@ Card text is in `lib/cards/expansion.ts`; the rulebook summary is in [game-rules
 
 | Topic | Decision |
 | --- | --- |
-| Market flow (expansion) | Cards flow **left to right like a conveyor**. New cards enter on the left; older cards slide right to close gaps, so a short row sits in its right-most spots. At the income refill: events that started the turn in the last 2 spots leave, the rest slide right, a new event (if fewer than 2 and there's room) takes **spot 1**, and main cards fill the gap. An event therefore starts expensive and gets cheaper as it drifts right, until it leaves. During an election a row without an event gets one on its left only if that isn't one of the last 2 spots (the row holds 2+ cards). When election rows open, a row without an event gets its new event in spot 1, consistent with the post-election ruling. |
+| Market flow (expansion) | Cards flow **left to right like a conveyor**. New cards enter on the left; older cards slide right to close gaps, so a short row sits in its right-most spots. At the income refill: events that started the turn in the last 2 spots leave, the rest slide right, a new event (if fewer than 2 and there's room) takes **spot 1**, and main cards fill the gap. An event therefore starts expensive and gets cheaper as it drifts right, until it leaves. During an election a row without an event gets one on its left only if that isn't one of the last 2 spots (the row holds 2+ cards). When election rows open, a row without an event gets its new event in spot 1, consistent with the post-election ruling. **Superseded 2026-11-21 for the income refill:** the new event goes in first, next to the older cards, and main cards follow to its left. After an election and in new election rows it still takes spot 1. |
 
 ### 2026-11-14 (Ian)
 

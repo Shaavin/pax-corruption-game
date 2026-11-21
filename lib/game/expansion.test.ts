@@ -436,9 +436,9 @@ const civilOf = (district: DistrictId, value?: number) => (id: string) => {
   replenishMarket(state, []);
   const after: CardInstance[] = [...state.market];
   assert(state.expansion!.box.some((c) => c.cardId === stale.cardId), "Full Market: the spot-5 event still leaves");
-  // Conveyor (Ian, 2026-11-16): the older cards slide right; the new event enters at spot 1.
+  // The older cards slide right; the new event slides up against them, into the one open spot.
   assert(mains.every((card, index) => after[index + 1] === card), "…the rest slide right, in order");
-  assert(isEventCard(after[0]!) && eventCost(state, after[0]!.instanceId) === 4, "…a new event enters at spot 1 (costs 4)");
+  assert(isEventCard(after[0]!) && eventCost(state, after[0]!.instanceId) === 4, "…a new event fills spot 1 (costs 4)");
   assert(after.length === 5, `…and the Market refills to exactly 5, got ${after.length}`);
 
   // Nothing to remove and already 5: no sixth card, not even an event.
@@ -466,7 +466,63 @@ const civilOf = (district: DistrictId, value?: number) => (id: string) => {
   assert(row.length === 5, "Back to 5 cards");
   assert(row.indexOf(first) === 2, `The older event drifted right to spot 3 (index ${row.indexOf(first)})`);
   assert(liveEventCost(state, first.instanceId) === 2, "…and now costs 2 (2 main cards to its right)");
-  assert(isEventCard(row[0]!) && row[0] !== first, "A newer event entered at spot 1");
+  // Joe, 2026-11-21: the new event goes in first, next to the older cards; main cards follow.
+  assert(isEventCard(row[1]!) && row[1] !== first, "A newer event went in first, at spot 2");
+  assert(!isEventCard(row[0]!), "…and a main card followed into spot 1");
+}
+
+// --- Income refill order: the event goes in first (Joe, 2026-11-21) ----------------------------
+{
+  // Joe's report (seed 2247414781): P1 took 3 Market cards in one turn, leaving Arms Dealers and
+  // Divine Inquisitors in spots 4–5. The new event slides up against them (spot 3), and the
+  // main-deck cards follow into spots 1–2, so the event costs 2, not 4.
+  const reported = replayRecord({
+    version: 1,
+    seed: 2247414781,
+    mode: "tourney",
+    expansion: true,
+    foreignInfluence: true,
+    actions: [
+      { type: "chooseParty", player: 0, partyId: "party-1" },
+      { type: "chooseParty", player: 1, partyId: "party-3" },
+      { type: "chooseStartingHand", player: 0, instanceIds: ["shavvinne-a-2", "shavvinne-b-1", "smarbbit-b-14"] },
+      { type: "freeAction", player: 0, source: "ev-event-east-ublozisky-cartels", ability: "eastTake", instanceId: "smarbbit-b-3" },
+      { type: "freeAction", player: 0, source: "ev-event-east-world-factory", ability: "eastTake", instanceId: "dragonara-b-11" },
+      { type: "playAlliance", player: 0, instanceId: "shavvinne-a-2" },
+      {
+        type: "proposePolicy",
+        player: 0,
+        revealIds: ["shavvinne-b-1", "smarbbit-b-3"],
+        discardId: "smarbbit-b-3",
+        district: District.Smarbbit,
+        policyId: PolicyId.SmarbbitA,
+      },
+      { type: "takeMarket", player: 0, instanceId: "smarbbit-b-7" },
+    ],
+  }).state;
+  const ids = reported.market.map((c) => c.instanceId);
+  assert(
+    ids.join() === "smarbbit-b-17,shavvinne-b-13,ev-event-south-clans-of-massacre,horsard-b-16,shavvinne-a-6",
+    `Reported refill: main cards left of the event, the event next to the older cards (got ${ids.join()})`,
+  );
+  assert(eventCost(reported, "ev-event-south-clans-of-massacre") === 2, "…so the new event costs 2 for the next turn");
+
+  // One event already there (it started the turn in spot 1): three main cards are taken, and the
+  // new event still slides up against the older cards.
+  const { state } = start(22);
+  const older = inst(event("Railway Bonds"));
+  state.expansion!.eventDeck = state.expansion!.eventDeck.filter((c) => c.cardId !== older.cardId);
+  const [m0, ...taken] = state.market.filter((c) => !isEventCard(c)).slice(0, 4);
+  state.market = [older, m0!, ...taken];
+  snapshotMarket(state);
+  for (const card of taken) removeFromMarket(state, card.instanceId);
+  replenishMarket(state, []);
+  const row: CardInstance[] = [...state.market];
+  assert(row.length === 5 && row.filter(isEventCard).length === 2, "Two events, 5 cards");
+  assert(row[3] === older && row[4] === m0, "The older cards keep spots 4–5");
+  assert(isEventCard(row[2]!) && row[2] !== older, "The new event goes in first: spot 3, next to the older cards");
+  assert(!isEventCard(row[0]!) && !isEventCard(row[1]!), "…and main cards follow into spots 1–2");
+  assert(liveEventCost(state, row[2]!.instanceId) === 1, "…so it costs 1 (only the main card in spot 5)");
 }
 
 // --- Market after an election (Ian, 2026-11-15) ---------------------------------------------
@@ -482,11 +538,26 @@ const civilOf = (district: DistrictId, value?: number) => (id: string) => {
   resetMarketAfterElection(state, events);
   assert(state.market.length === 0 && state.expansion!.rowBreak === null, "After an election: the Market is wiped, one row");
   assert(leftovers.every((l) => state.expansion!.box.some((c) => c.cardId === l.cardId)), "…leftover events leave the game");
-  replenishMarket(state, events);
+  replenishMarket(state, events, { afterElection: true });
   const refilled: CardInstance[] = [...state.market];
   assert(refilled.length === 5, "…then refills to 5 like any income");
   assert(refilled.filter(isEventCard).length === 1 && isEventCard(refilled[0]!), "…one new event, in the next (first) spot");
   assert(eventCost(state, refilled[0]!.instanceId) === 4, "…so it costs 4, not 0 (the event is first, not last)");
+
+  // The real election end keeps that spot-1 refill, unlike the income refill (Joe, 2026-11-21).
+  const ended = start(23).state;
+  const leftover = inst(event("Railway Bonds"));
+  ended.expansion!.eventDeck = ended.expansion!.eventDeck.filter((c) => c.cardId !== leftover.cardId);
+  ended.deck = ended.deck.filter((c) => getCard(c.cardId).kind !== CardKind.Election);
+  ended.market = [leftover];
+  ended.election.active = false;
+  ended.phase = Phase.DecreeChoice;
+  const winner = ended.activePlayer;
+  ended.pendingDecrees = { player: winner, remaining: 1, nextPlayer: (1 - winner) as PlayerId };
+  const resumed = apply(ended, { type: "activateDecree", player: winner, decreeId: DecreeId.Imperium }, rng).state;
+  assert(resumed.market.length === 5 && isEventCard(resumed.market[0]!), "Election end: the new event takes spot 1");
+  assert(resumed.market[0]!.instanceId !== leftover.instanceId, "…a new one; the leftover left the game");
+  assert(eventCost(resumed, resumed.market[0]!.instanceId) === 4, "…and costs 4 on the next turn");
 }
 
 // --- Election rows ------------------------------------------------------------------------------

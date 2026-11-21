@@ -70,10 +70,17 @@ export function openElectionIfNeeded(state: GameState, events: GameEvent[]): voi
   fillMarketTo(state, ELECTION_MARKET_SIZE, events);
 }
 
-/** Income step 2 / after an election: back to 5. Never during an election phase. */
-export function replenishMarket(state: GameState, events: GameEvent[]): void {
+/**
+ * Income step 2 / after an election: back to 5. Never during an election phase.
+ * `afterElection` (expansion): the new event takes spot 1 instead of going in first.
+ */
+export function replenishMarket(
+  state: GameState,
+  events: GameEvent[],
+  { afterElection = false }: { afterElection?: boolean } = {},
+): void {
   if (state.expansion) {
-    replenishExpansionMarket(state, events);
+    replenishExpansionMarket(state, afterElection ? "spot1" : "nextToOlder", events);
   } else if (!state.election.active) {
     fillMarketTo(state, MARKET_SIZE, events);
   }
@@ -89,8 +96,8 @@ export function replenishMarket(state: GameState, events: GameEvent[]): void {
 //
 // Cards flow left to right like a conveyor (Ian, 2026-11-16): new cards enter on the left,
 // older cards slide right to close gaps, and a short row is right-aligned (its cards sit
-// in the last spots). An event starts expensive (main cards to its right) and gets cheaper
-// as it drifts right, until it leaves from the last 2 spots.
+// in the last spots). An event gets cheaper as it drifts right, until it leaves from the
+// last 2 spots. Where a new event enters depends on the refill (see `NewEventSpot`).
 
 /** Spots in a Market row. */
 export const ROW_SPOTS = 5;
@@ -176,27 +183,44 @@ function fillRow(state: GameState, row: CardInstance[], size: number, events: Ga
 }
 
 /**
- * Conveyor refill of one row: the older cards keep the right-hand spots; a new event (if
- * wanted) takes spot 1, and main-deck cards fill the gap between it and the older cards.
- * Never past 5 cards. Stops early if a General Election needs the rows rebuilt.
+ * Where a refill puts a new event.
+ * - `nextToOlder`: the income refill. The event goes in first and slides up against the older
+ *   cards; main-deck cards follow into the spots to its left (Joe, 2026-11-21).
+ * - `spot1`: after an election, and in new election rows. The event takes spot 1, and main
+ *   cards fill the gap between it and the older cards (Ian, 2026-11-15 and 2026-11-16).
  */
-function refillFromLeft(state: GameState, row: CardInstance[], wantEvent: boolean, events: GameEvent[]): CardInstance[] {
+type NewEventSpot = "nextToOlder" | "spot1";
+
+/**
+ * Conveyor refill of one row: the older cards keep the right-hand spots; a new event (if
+ * wanted) goes where `spot` says, and main-deck cards fill the rest. Never past 5 cards.
+ * Stops early if a General Election needs the rows rebuilt.
+ */
+function refillFromLeft(
+  state: GameState,
+  row: CardInstance[],
+  wantEvent: boolean,
+  spot: NewEventSpot,
+  events: GameEvent[],
+): CardInstance[] {
   const event = wantEvent && row.length < ROW_SPOTS ? revealEvent(state, events) : null;
   const mains: CardInstance[] = [];
   fillRow(state, mains, ROW_SPOTS - row.length - (event ? 1 : 0), events);
-  return [...(event ? [event] : []), ...mains, ...row];
+  if (!event) return [...mains, ...row];
+  return spot === "spot1" ? [event, ...mains, ...row] : [...mains, event, ...row];
 }
 
 /**
  * Expansion income step 2.
  * Outside an election, whatever the Market holds: (1) events that sat in the 2 right-most
  * spots at the start of the turn leave the game, the rest slide right; (2) under 2 events
- * and room left, a new event takes spot 1; (3) main cards fill the gap, never past 5.
+ * and room left, a new event enters (see `NewEventSpot`); (3) main cards fill the rest,
+ * never past 5.
  * During an election: per row, events in its last 2 spots leave; a row without an
  * event gets one on its left only if it would not land in the row's last 2 spots
  * (the row holds at least 2 cards). No main refill.
  */
-function replenishExpansionMarket(state: GameState, events: GameEvent[]): void {
+function replenishExpansionMarket(state: GameState, spot: NewEventSpot, events: GameEvent[]): void {
   const expansion = state.expansion!;
   if (state.election.active) {
     const rows = marketRows(state);
@@ -221,7 +245,7 @@ function replenishExpansionMarket(state: GameState, events: GameEvent[]): void {
   const gone = lastTwoSpotEvents(state.market, expansion.turnMarket);
   boxEvents(state, gone, events);
   const row = state.market.filter((card) => !gone.includes(card));
-  setRows(state, [refillFromLeft(state, row, row.filter(isEventCard).length < 2, events)]);
+  setRows(state, [refillFromLeft(state, row, row.filter(isEventCard).length < 2, spot, events)]);
 }
 
 /**
@@ -254,8 +278,8 @@ function openElectionRows(state: GameState, events: GameEvent[]): void {
     row1 = slots1.filter((card): card is CardInstance => card !== null);
     row2 = slots2.filter((card): card is CardInstance => card !== null);
   } else {
-    row1 = refillFromLeft(state, market, !market.some(isEventCard), events);
-    row2 = refillFromLeft(state, [], true, events);
+    row1 = refillFromLeft(state, market, !market.some(isEventCard), "spot1", events);
+    row2 = refillFromLeft(state, [], true, "spot1", events);
   }
   setRows(state, [row1, row2]);
 }
@@ -277,7 +301,7 @@ function fillSlots(state: GameState, slots: (CardInstance | null)[], events: Gam
 /**
  * After an election resolves (Ian, 2026-11-15): nothing at all stays in the Market. Leftover
  * events leave the game, the rows merge back into one empty row, and the caller then
- * refills it like any income refill (`replenishMarket`).
+ * refills it with the new event in spot 1 (`replenishMarket` with `afterElection`).
  */
 export function resetMarketAfterElection(state: GameState, events: GameEvent[]): void {
   if (!state.expansion) return;

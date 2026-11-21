@@ -321,6 +321,6 @@ function finishElection(state: GameState, nextPlayer: PlayerId, events: GameEven
   // Normal turn order resumes. Refilling to 5 may reveal another General Election,
   // which opens the next phase right away.
   if (state.expansion) resetMarketAfterElection(state, events);
-  replenishMarket(state, events);
+  replenishMarket(state, events, { afterElection: true });
   startTurn(state, nextPlayer, events);
 }

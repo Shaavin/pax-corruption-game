@@ -398,8 +398,9 @@ function MarketSection({
       info={
         expansion ? (
           <>
-            Cards enter on the left and slide right as the row refills. Events cost one card per non-event card to
-            their right (fixed for the turn), so they start dear and get cheaper. At income, buy one instead of
+            Cards enter on the left and slide right as the row refills. A new event goes in first, next to the
+            older cards, and new cards fill in to its left. Events cost one card per non-event card to their right
+            (fixed for the turn) and get cheaper as they drift right. At income, buy one instead of
             taking a card, while under your hand limit. Events in the last 2 spots leave at the next refill.
           </>
         ) : undefined
