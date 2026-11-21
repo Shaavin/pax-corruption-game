@@ -29,6 +29,8 @@ type PolicyChooserProps = {
   open?: ReadonlySet<DistrictId>;
   /** Scrolls to and outlines this district (opened from its plate). */
   focus?: DistrictId | null;
+  /** Narrows the legal choices further (a lesson asking for one policy). Others show "Not now". */
+  canPick?: (choice: PolicyChoice) => boolean;
   onClose: () => void;
 };
 
@@ -39,7 +41,7 @@ function allowedChanges(district: DistrictId, current: PolicyIdValue | null): (P
 }
 
 /** Every district's policy beside the ones it could change to. Cards zoom on hover or long-press. */
-export function PolicyChooser({ districtOrder, policies, frozen, open, onChoose, focus = null, onClose }: PolicyChooserProps) {
+export function PolicyChooser({ districtOrder, policies, frozen, open, onChoose, focus = null, canPick, onClose }: PolicyChooserProps) {
   const focusRef = useRef<HTMLLIElement>(null);
 
   useEffect(() => {
@@ -120,15 +122,23 @@ export function PolicyChooser({ districtOrder, policies, frozen, open, onChoose,
                 <div className="mt-2 flex items-start justify-center gap-2">
                   {options.map((policyId) => {
                     const inEffect = policyId === current;
-                    const canChoose = !inEffect && allowed.has(policyId);
+                    const legal = !inEffect && allowed.has(policyId);
+                    const canChoose = legal && (!canPick || canPick({ district, policyId }));
+                    // Legal, but not the change being asked for (lessons).
+                    const notNow = legal && !canChoose && onChoose !== null;
                     const name = policyId ? getCard(policyId).name : "Neutral";
                     return (
                       <div key={policyId ?? "neutral"} className="flex flex-col items-center gap-1.5">
                         <div className={["rounded-[0.4em]", inEffect ? "ring-2 ring-[var(--act)] ring-offset-2 ring-offset-[#11151c]" : ""].join(" ")}>
                           {policyId ? (
-                            <CardView name={name} art={getCard(policyId).art} size="choice" cardId={policyId} />
+                            <CardView name={name} art={getCard(policyId).art} size="choice" cardId={policyId} dimmed={notNow} />
                           ) : (
-                            <div className="flex aspect-[825/1125] w-[calc(var(--card-choice)*0.62)] items-center justify-center rounded-[0.4em] border border-dashed border-white/20 text-xs text-stone-400">
+                            <div
+                            className={[
+                              "flex aspect-[825/1125] w-[calc(var(--card-choice)*0.62)] items-center justify-center rounded-[0.4em] border border-dashed border-white/20 text-xs text-stone-400",
+                              notNow ? "opacity-40" : "",
+                            ].join(" ")}
+                          >
                               Neutral
                             </div>
                           )}
@@ -146,7 +156,7 @@ export function PolicyChooser({ districtOrder, policies, frozen, open, onChoose,
                           </button>
                         ) : (
                           <span className="py-0.5 text-[0.6rem] tracking-wide text-stone-500 uppercase">
-                            {canChoose ? "Can change to" : locked || closed ? "Locked" : "Neutral first"}
+                            {notNow ? "Not now" : canChoose ? "Can change to" : locked || closed ? "Locked" : "Neutral first"}
                           </span>
                         )}
                       </div>

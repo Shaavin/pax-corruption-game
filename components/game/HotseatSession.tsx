@@ -20,6 +20,7 @@ import { SetupOverlay } from "./SetupOverlay";
 import { type ActionCardSpec } from "./ActionCards";
 import { BuyEventDialog } from "./BuyEventDialog";
 import { PolicyChooser } from "./PolicyChooser";
+import type { MoveStage } from "@/lib/tutorial/lesson";
 import { getEvent, isEventId } from "@/lib/cards/expansion";
 import { Table, type DockBanner, type ExtraAction } from "./Table";
 import { tableModel } from "./table-model";
@@ -152,6 +153,8 @@ export type RemoteGame = {
   view?: "districts" | "table" | null;
   /** Show every hand card in full color, none greyed out (a lesson note is showing the hand off). */
   showHand?: boolean;
+  /** Where the player is in a move that takes several clicks (a lesson's note follows along). */
+  onStage?: (stage: MoveStage) => void;
 };
 
 type LocalProps = { remote?: undefined };
@@ -522,18 +525,19 @@ export function HotseatSession(props: HotseatSessionProps) {
     setProposeTarget(null);
   }
 
+  /** The proposal (or Capitol Inc.'s free one) that changes `target`, discarding `discardId`. */
+  function proposalAction(target: PolicyTarget, discardId: string | null): Action {
+    const proposal = { revealIds: selectedHandIds, discardId, district: target.district, policyId: target.policyId };
+    return via
+      ? { type: "freeAction", player: viewer, source: via, ability: "capitolInc", ...proposal }
+      : { type: "proposePolicy", player: viewer, ...proposal };
+  }
+
   function selectCard(instanceId: string) {
     if (spendKind === "propose") {
       if (proposeTarget) {
         if (!selectedHandIds.includes(instanceId)) return;
-        const proposal = {
-          revealIds: selectedHandIds,
-          discardId: instanceId,
-          district: proposeTarget.district,
-          policyId: proposeTarget.policyId,
-        };
-        if (via) dispatch({ type: "freeAction", player: viewer, source: via, ability: "capitolInc", ...proposal });
-        else dispatch({ type: "proposePolicy", player: viewer, ...proposal });
+        dispatch(proposalAction(proposeTarget, instanceId));
         return;
       }
       setSelectedHandIds((current) =>
@@ -829,6 +833,35 @@ export function HotseatSession(props: HotseatSessionProps) {
 
   const banner = victoryBanner(state, viewer, declarable, names);
 
+  // Where the player is in a several-click move, for a lesson's coach to follow.
+  const stage: MoveStage = buying
+    ? "buying"
+    : spendKind === "propose" && !via
+      ? proposeTarget
+        ? "propose-discard"
+        : choosingPolicy
+          ? "propose-choosing"
+          : revealPassing && selectedHandIds.length > 0
+            ? "propose-passing"
+            : "propose-reveal"
+      : spendKind === "recruit" && !via
+        ? spendReady
+          ? "recruit-ready"
+          : "recruit"
+        : spendKind === "construct" && !via
+          ? spendReady
+            ? "construct-ready"
+            : "construct"
+          : playDistrict
+            ? "play-selected"
+            : seatArmed
+              ? "seat-armed"
+              : "idle";
+  const onStage = remote?.onStage;
+  useEffect(() => {
+    onStage?.(stage);
+  }, [onStage, stage]);
+
   const pendingDecrees = state.phase === Phase.DecreeChoice ? state.pendingDecrees : null;
 
   const interaction =
@@ -953,9 +986,7 @@ export function HotseatSession(props: HotseatSessionProps) {
                   setChoosingPolicy(false);
                   if (selectedHandIds.length === 0) {
                     // Nothing revealed, so nothing to discard: propose right away.
-                    const proposal = { revealIds: [], discardId: null, ...target };
-                    if (via) dispatch({ type: "freeAction", player: viewer, source: via, ability: "capitolInc", ...proposal });
-                    else dispatch({ type: "proposePolicy", player: viewer, ...proposal });
+                    dispatch(proposalAction(target, null));
                     resetSelection();
                     return;
                   }
@@ -963,11 +994,26 @@ export function HotseatSession(props: HotseatSessionProps) {
                 }
               : null
           }
+          // A lesson asking for one policy leaves only that one to choose.
+          canPick={allow ? (target) => allow(proposalAction(target, selectedHandIds[0] ?? null)) : undefined}
           onClose={() => setChoosingPolicy(false)}
         />
       ) : null}
       {buying && state.market.some((card) => card.instanceId === buying) && !veiled && !waitingFirstSeat ? (
-        <BuyEventDialog state={state} viewer={viewer} instanceId={buying} onAction={dispatch} onClose={() => setBuying(null)} />
+        <BuyEventDialog
+          state={state}
+          viewer={viewer}
+          instanceId={buying}
+          onAction={dispatch}
+          onClose={() => setBuying(null)}
+          // A lesson asking for one way to play the event leaves only that one.
+          allowUse={
+            allow
+              ? (use, victory) =>
+                  allow({ type: "buyEvent", player: viewer, instanceId: buying, payIds: [], use, ...(victory ? { victory } : {}) })
+              : undefined
+          }
+        />
       ) : null}
       {choice && choice.player === viewer && !veiled && !waitingFirstSeat && !replaying ? (
         <ChoiceOverlay state={state} choice={choice} viewer={viewer} onAction={dispatch} />

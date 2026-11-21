@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { placeCard, type Box } from "../game/TableTour";
 import { useCompact } from "../game/use-compact";
 import { Portrait } from "./Portrait";
-import type { CastMember, CoachTarget, LessonStep } from "@/lib/tutorial";
+import type { CastMember, CoachTarget, LessonStep, MoveStage } from "@/lib/tutorial";
 
 /** An opponent's line, and the lesson step it belongs to (it goes when the step does). */
 export type Speech = { text: string; key: number; step: number };
@@ -15,6 +15,8 @@ type CoachCardProps = {
   step: LessonStep | null;
   stepIndex: number;
   stepCount: number;
+  /** Where the learner is in a several-click move: a step's matching note replaces its body. */
+  stage: MoveStage;
   opponent: CastMember;
   /** The opponent's latest line. */
   speech: Speech | null;
@@ -70,7 +72,7 @@ function sameBox(a: Box | null, b: Box | null): boolean {
  * Unlike the "How to play" tour it doesn't block the table: you play through it. Notes that
  * only need reading dim the rest of the table and wait for Next.
  */
-export function CoachCard({ step, stepIndex, stepCount, opponent, speech, notice, onNext }: CoachCardProps) {
+export function CoachCard({ step, stepIndex, stepCount, stage, opponent, speech, notice, onNext }: CoachCardProps) {
   const compact = useCompact();
   const [spot, setSpot] = useState<Box | null>(null);
   const [modal, setModal] = useState(false);
@@ -79,7 +81,10 @@ export function CoachCard({ step, stepIndex, stepCount, opponent, speech, notice
   const [hintFor, setHintFor] = useState<number | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const nextRef = useRef<HTMLButtonElement>(null);
-  const target = step?.target;
+  // Part-way through a move, the step's note for that part says what to click next.
+  const stageNote = step?.kind === "do" ? step.stages?.[stage] : undefined;
+  const target = stageNote?.target ?? step?.target;
+  const body = stageNote?.body ?? step?.body;
   const explain = step?.kind === "explain";
   // Folding the card lasts until the next step.
   const collapsed = collapsedAt === stepIndex && step !== null;
@@ -120,7 +125,7 @@ export function CoachCard({ step, stepIndex, stepCount, opponent, speech, notice
       window.removeEventListener("resize", schedule);
       window.removeEventListener("scroll", schedule, true);
     };
-  }, [target, stepIndex, compact, collapsed, showHint, notice, speech, explain]);
+  }, [target, stepIndex, compact, collapsed, showHint, notice, speech, explain, body]);
 
   // Notes that need reading take the keyboard focus, so Enter or Space moves on.
   useEffect(() => {
@@ -232,7 +237,9 @@ export function CoachCard({ step, stepIndex, stepCount, opponent, speech, notice
         ) : (
           <>
             <h2 className="mt-2.5 text-base leading-snug font-semibold">{step.title}</h2>
-            <p className="mt-1 text-sm leading-relaxed text-stone-300">{step.body}</p>
+            <p key={body} className={["mt-1 text-sm leading-relaxed text-stone-300", stageNote ? "rise-in" : ""].join(" ")}>
+              {body}
+            </p>
             {showHint && step.kind === "free" ? (
               <p className="rise-in mt-2 rounded-lg bg-[var(--act)]/10 px-2.5 py-2 text-sm leading-snug text-[var(--act)] ring-1 ring-[var(--act)]/30">
                 {step.hint}

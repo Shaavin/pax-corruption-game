@@ -67,6 +67,9 @@ const foreignAffairs: Lesson = {
       body: "Play Influencers in Horsard.",
       expect: { type: "playCivil", card: "horsard-b-17" },
       hint: "Play Influencers in Horsard.",
+      stages: {
+        "play-selected": { body: "Now select Horsard.", target: "lane:horsard" },
+      },
     },
     {
       kind: "do",
@@ -84,6 +87,9 @@ const foreignAffairs: Lesson = {
       body: "At income you may buy an event instead of taking a card. Select Railway Bonds, pay 2 cards from your hand (they go to your support piles), and play it for its effect.",
       expect: { type: "buyEvent", event: RAILWAY_BONDS, use: "effect" },
       hint: "Buy Railway Bonds and play it for its effect.",
+      stages: {
+        buying: { body: "Select 2 cards to pay with, then choose Play for its effect. Playing it as a civil card is closed for this lesson." },
+      },
     },
     {
       kind: "explain",
@@ -172,6 +178,9 @@ const worldOrder: Lesson = {
       body: "Play Influencers in Horsard.",
       expect: { type: "playCivil", card: "horsard-b-17" },
       hint: "Play Influencers in Horsard.",
+      stages: {
+        "play-selected": { body: "Now select Horsard.", target: "lane:horsard" },
+      },
     },
     {
       kind: "do",
@@ -189,6 +198,9 @@ const worldOrder: Lesson = {
       body: "Buy Declaration of Universal Rights (pay 2 cards). A legacy event offers two choices: discard every played West event, or activate a victory. Activate Diplomatic Victory.",
       expect: { type: "buyEvent", event: DECLARATION, use: "legacyActivate", victory: ExpansionVictory.Diplomatic },
       hint: "Buy Declaration of Universal Rights and use it to activate Diplomatic Victory.",
+      stages: {
+        buying: { body: "Select 2 cards to pay with, then choose Activate Diplomatic Victory." },
+      },
     },
     {
       kind: "explain",

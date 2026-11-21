@@ -3,7 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { CardView } from "./CardView";
 import { getCard } from "@/lib/cards/catalog";
-import { getEvent, VICTORY_CARDS, WORLD_POWER_NAME } from "@/lib/cards/expansion";
+import { getEvent, VICTORY_CARDS, WORLD_POWER_NAME, type ExpansionVictoryId } from "@/lib/cards/expansion";
 import { LEGACY_VICTORY_ORDER } from "./table-model";
 import { LEGACY_VICTORY_COLOR } from "./victory-marks";
 import { PeekableOverlay } from "./PeekableOverlay";
@@ -27,13 +27,15 @@ type BuyEventDialogProps = {
   instanceId: string;
   onAction: (action: Action) => void;
   onClose: () => void;
+  /** Narrows the ways to play it (a lesson asking for one). The others stay disabled. */
+  allowUse?: (use: EventUse, victory?: ExpansionVictoryId) => boolean;
 };
 
 /**
  * Legacy & Diplomacy income option B: pay one card per non-event card to the
  * event's right, then play it at once (effect or civil; legacy: discard or activate).
  */
-export function BuyEventDialog({ state, viewer, instanceId, onAction, onClose }: BuyEventDialogProps) {
+export function BuyEventDialog({ state, viewer, instanceId, onAction, onClose, allowUse }: BuyEventDialogProps) {
   const card = state.market.find((entry) => entry.instanceId === instanceId)!;
   const event = getEvent(card.cardId);
   const cost = eventCost(state, instanceId);
@@ -46,6 +48,7 @@ export function BuyEventDialog({ state, viewer, instanceId, onAction, onClose }:
     return "district" in def && def.district === District.Shavvinne;
   }).length;
   const martial = martialLawBlocks(state, Array(shavvinnePaid).fill(District.Shavvinne));
+  const permitted = (use: EventUse, victory?: ExpansionVictoryId) => !allowUse || allowUse(use, victory);
 
   useEffect(() => {
     const onKey = (keyEvent: KeyboardEvent) => {
@@ -128,7 +131,7 @@ export function BuyEventDialog({ state, viewer, instanceId, onAction, onClose }:
         <div className="mt-5 flex flex-wrap gap-2">
           {event.legacy ? (
             <>
-              <UseButton disabled={!ready || martial} onClick={() => buy("legacyDiscard")}>
+              <UseButton disabled={!ready || martial || !permitted("legacyDiscard")} onClick={() => buy("legacyDiscard")}>
                 Discard all played {POWER_LABEL[event.power]} cards
               </UseButton>
               {uses
@@ -139,7 +142,7 @@ export function BuyEventDialog({ state, viewer, instanceId, onAction, onClose }:
                   return (
                     <UseButton
                       key={entry.victory}
-                      disabled={!ready || martial}
+                      disabled={!ready || martial || !permitted("legacyActivate", entry.victory)}
                       color={LEGACY_VICTORY_COLOR[entry.victory!]}
                       onClick={() => buy("legacyActivate", entry.victory)}
                     >
@@ -150,10 +153,10 @@ export function BuyEventDialog({ state, viewer, instanceId, onAction, onClose }:
             </>
           ) : (
             <>
-              <UseButton disabled={!ready || martial} onClick={() => buy("effect")}>
+              <UseButton disabled={!ready || martial || !permitted("effect")} onClick={() => buy("effect")}>
                 Play for its effect · draw a card
               </UseButton>
-              <UseButton disabled={!ready || martial} onClick={() => buy("civil")}>
+              <UseButton disabled={!ready || martial || !permitted("civil")} onClick={() => buy("civil")}>
                 Play as a civil card: {event.civilName} ({event.influence}) in {districtName(event.district)}
               </UseButton>
             </>

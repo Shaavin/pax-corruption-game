@@ -24,6 +24,7 @@ import {
   submit,
   type Lesson,
   type LessonRun,
+  type MoveStage,
 } from "@/lib/tutorial";
 
 /** Dimmed table areas get these classes on the wrapper (see globals.css). */
@@ -42,6 +43,8 @@ function LessonTable({ lesson, onRestart }: { lesson: Lesson; onRestart: () => v
   const [rng] = useState(() => createSeededRng(lesson.scenario.seed));
   const [speech, setSpeech] = useState<Speech | null>({ text: lesson.intro, key: 0, step: 0 });
   const [notice, setNotice] = useState<CoachNotice | null>(null);
+  /** Where the learner is in a several-click move (the table reports it). */
+  const [stage, setStage] = useState<MoveStage>("idle");
   // The name typed on the menu last time, if any (otherwise the table says "Player 1").
   const [playerName] = useState(() => rememberedNames()[0] || null);
   const runRef = useRef(run);
@@ -121,6 +124,7 @@ function LessonTable({ lesson, onRestart }: { lesson: Lesson; onRestart: () => v
       view: step && step.kind !== "free" ? (step.view ?? null) : null,
       // A note about the hand shows it in full color; a step asking for one card still greys the rest.
       showHand: step?.kind === "explain" && step.target === "your-hand",
+      onStage: setStage,
     }),
     [run, lesson, opponent.name, playerName, send, onRestart, step],
   );
@@ -135,6 +139,7 @@ function LessonTable({ lesson, onRestart }: { lesson: Lesson; onRestart: () => v
           step={step}
           stepIndex={run.step}
           stepCount={lesson.steps.length}
+          stage={stage}
           opponent={opponent}
           speech={speech?.step === run.step ? speech : null}
           notice={notice}

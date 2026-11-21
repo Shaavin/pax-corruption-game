@@ -80,6 +80,9 @@ const firstDay: Lesson = {
       body: "Your main action: play Roman Church. Select it in your hand, then select the Shavvinne district.",
       expect: { type: "playCivil", card: "shavvinne-b-1" },
       hint: "For now, play Roman Church in Shavvinne.",
+      stages: {
+        "play-selected": { body: "Now select the Shavvinne district: it lights up.", target: "lane:shavvinne" },
+      },
     },
     {
       kind: "explain",
@@ -183,6 +186,9 @@ const scandal: Lesson = {
       body: "Select Grassroot Media, then Horsard.",
       expect: { type: "playConspiracy", card: "horsard-c-1" },
       hint: "Play Grassroot Media into Horsard.",
+      stages: {
+        "play-selected": { body: "Now select Horsard (it's marked Wipe this district).", target: "lane:horsard" },
+      },
     },
     {
       kind: "explain",
@@ -280,6 +286,9 @@ const friends: Lesson = {
       body: "The Dragonara Order of Knights reads: \"Each of your Dragonara civil cards now gives you +1 influence. Conspiracy cannot be played in Dragonara.\" Play it into Dragonara.",
       expect: { type: "playAlliance", card: "dragonara-a-1" },
       hint: "Play the Dragonara Order of Knights into Dragonara.",
+      stages: {
+        "play-selected": { body: "Now select Dragonara.", target: "lane:dragonara" },
+      },
     },
     {
       kind: "explain",
@@ -390,6 +399,10 @@ const rally: Lesson = {
       body: "Choose Recruit partisans, select your three Smarbbit cards, then confirm.",
       expect: { type: "recruit", district: District.Smarbbit },
       hint: "Recruit with your three Smarbbit cards.",
+      stages: {
+        recruit: { body: "Select your three Smarbbit cards: Communists, NGOs, and Anarchists.", target: "your-hand" },
+        "recruit-ready": { body: "That's three. Confirm with Recruit in the turn panel.", target: "turn" },
+      },
     },
     {
       kind: "explain",
@@ -458,6 +471,9 @@ const senate: Lesson = {
       body: "Play Professors in Dragonara.",
       expect: { type: "playCivil", card: "dragonara-b-10" },
       hint: "Play Professors in Dragonara.",
+      stages: {
+        "play-selected": { body: "Now select Dragonara.", target: "lane:dragonara" },
+      },
     },
     {
       kind: "explain",
@@ -473,6 +489,12 @@ const senate: Lesson = {
       body: "Select a card in your hand and choose Seat in the Senate. It takes the leftmost seat, everyone shifts right, and the rightmost Senator (Estate Moguls) goes to your support pile. Fire Breathers is a good card to spare.",
       expect: { type: "influenceSenate" },
       hint: "Seat any card from your hand in the Senate.",
+      stages: {
+        "seat-armed": {
+          body: "Now choose Seat in the Senate in the turn panel. Estate Moguls, on the far right of the Senate, is the one who leaves.",
+          target: "turn",
+        },
+      },
     },
     {
       kind: "explain",
@@ -561,6 +583,9 @@ const law: Lesson = {
       body: "Play Teachers in Shavvinne.",
       expect: { type: "playCivil", card: "shavvinne-b-15" },
       hint: "Play Teachers in Shavvinne.",
+      stages: {
+        "play-selected": { body: "Now select Shavvinne.", target: "lane:shavvinne" },
+      },
     },
     {
       kind: "explain",
@@ -573,9 +598,21 @@ const law: Lesson = {
       kind: "do",
       target: "action-cards",
       title: "Propose",
-      body: "Choose Propose policy and reveal Capitol Inc. and TuWang Gang. Then Choose a policy: Shavvinne, Secularism. Last, discard one of the two revealed cards; the other goes back to your hand.",
+      body: "Choose Propose policy, beside your hand. Three parts follow: reveal two cards, choose the policy, then discard one of the cards you revealed.",
       expect: { type: "proposePolicy", district: District.Shavvinne, policy: PolicyId.ShavvinneB },
       hint: "Propose Secularism in Shavvinne, revealing Capitol Inc. and TuWang Gang.",
+      stages: {
+        "propose-reveal": {
+          body: "Select Capitol Inc. and TuWang Gang in your hand to reveal them. The Senators they convince light up, and the vote count shows above the Senate.",
+          target: "your-hand",
+        },
+        "propose-passing": { body: "4 of 7 votes: a majority. Now press Choose a policy in the turn panel.", target: "turn" },
+        "propose-choosing": { body: "Choose Secularism, in Shavvinne. It's the change this lesson is about, so the others are closed." },
+        "propose-discard": {
+          body: "Last part: a proposal that passes costs one of the cards you revealed. Select Capitol Inc. or TuWang Gang in your hand to discard it. The other goes back to your hand, and Secularism takes effect.",
+          target: "your-hand",
+        },
+      },
     },
     {
       kind: "explain",
@@ -656,6 +693,10 @@ const monuments: Lesson = {
       body: "Choose Build monument, select your five Smarbbit cards, then select Model Society.",
       expect: { type: "construct", monument: MonumentId.ModelSociety },
       hint: "Build Model Society with your five Smarbbit cards.",
+      stages: {
+        construct: { body: "Select your five Smarbbit cards.", target: "your-hand" },
+        "construct-ready": { body: "That's five. Now select Model Society in the Monuments section.", target: "supply" },
+      },
     },
     {
       kind: "explain",
@@ -766,6 +807,9 @@ const electionNight: Lesson = {
       body: "NGOs is a Smarbbit 5. With Universities that's 11 to Crane's 8. Play it.",
       expect: { type: "playCivil", card: "smarbbit-b-17" },
       hint: "Play NGOs in Smarbbit.",
+      stages: {
+        "play-selected": { body: "Now select Smarbbit.", target: "lane:smarbbit" },
+      },
     },
     {
       kind: "do",
@@ -860,6 +904,10 @@ const seize: Lesson = {
       body: "Recruiting adds a partisan, and the 3 cards you discard go to your support pile. Recruit with your three Horsard cards (your Horsard pile already holds Veterans).",
       expect: { type: "recruit", district: District.Horsard },
       hint: "Recruit with your three Horsard cards.",
+      stages: {
+        recruit: { body: "Select your three Horsard cards: Film Industry, Urban Planners, and Influencers.", target: "your-hand" },
+        "recruit-ready": { body: "That's three. Confirm with Recruit in the turn panel.", target: "turn" },
+      },
     },
     {
       kind: "explain",

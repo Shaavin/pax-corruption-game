@@ -50,8 +50,38 @@ type StepBase = {
 /** Read, then press Next. No move is allowed meanwhile. */
 export type ExplainStep = StepBase & { kind: "explain" };
 
-/** Make one particular move; anything else gets `hint`. */
-export type DoStep = StepBase & { kind: "do"; expect: Expect; hint: string };
+/**
+ * Where the learner is in a move that takes several clicks, as the table reports it:
+ * a card picked and waiting for its district, a Senate seat ready, cards being picked to
+ * recruit or build, the parts of a proposal, an event being bought.
+ */
+export type MoveStage =
+  | "idle"
+  | "play-selected"
+  | "seat-armed"
+  | "recruit"
+  | "recruit-ready"
+  | "construct"
+  | "construct-ready"
+  | "propose-reveal"
+  | "propose-passing"
+  | "propose-choosing"
+  | "propose-discard"
+  | "buying";
+
+/** What the coach says (and points at) for one part of a several-click move. */
+export type StageNote = { body: string; target?: CoachTarget };
+
+/**
+ * Make one particular move; anything else gets `hint`. `stages` replace the body (and the
+ * spotlight) while the move is part-way done, so the note always says what to click next.
+ */
+export type DoStep = StepBase & {
+  kind: "do";
+  expect: Expect;
+  hint: string;
+  stages?: Partial<Record<MoveStage, StageNote>>;
+};
 
 /**
  * Any legal move. Ends at the end of the learner's turn, or when someone wins.

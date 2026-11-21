@@ -11,7 +11,7 @@ import { playerDistrictInfluence } from "../game/influence.ts";
 import { createSeededRng } from "../game/rng.ts";
 import { convincedVotes, senateTotalVotes, senateVotesNeeded } from "../game/senate.ts";
 import { assert, fail, report } from "../game/test-helpers.ts";
-import { Phase, type GameState, type PlayerId } from "../game/types.ts";
+import { Phase, type Action, type GameState, type PlayerId } from "../game/types.ts";
 import { relationLeads, supportCount } from "../game/world.ts";
 import {
   acknowledge,
@@ -169,9 +169,14 @@ for (const lesson of LESSONS) {
   }
   for (const step of lesson.steps) {
     assert(step.title.length > 0 && step.body.length > 0, `${lesson.id}: every step has a title and words`);
-    assert(!step.target || !(lesson.dim ?? []).includes(step.target), `${lesson.id}: "${step.title}" points at a dimmed area`);
-    if (step.target?.startsWith("lane:")) {
-      assert((DISTRICTS as readonly string[]).includes(step.target.slice(5)), `${lesson.id}: ${step.target} is a district`);
+    // The step's own spotlight, and the ones its several-click notes switch to.
+    const targets = [step.target, ...(step.kind === "do" ? Object.values(step.stages ?? {}).map((note) => note.target) : [])];
+    for (const target of targets) {
+      if (!target) continue;
+      assert(!(lesson.dim ?? []).includes(target), `${lesson.id}: "${step.title}" points at a dimmed area (${target})`);
+      if (target.startsWith("lane:")) {
+        assert((DISTRICTS as readonly string[]).includes(target.slice(5)), `${lesson.id}: ${target} is a district`);
+      }
     }
   }
 }
@@ -203,6 +208,55 @@ for (const lesson of LESSONS) {
   const other = legal.find((action) => action.type === "playCivil" && action.instanceId !== "shavvinne-b-1")!;
   const hint = submit(run, other, createSeededRng(1));
   assert("hint" in hint && hint.hint.includes("Roman Church"), "Another card gets the step's hint");
+}
+
+// --- A step asking for one policy (or one way to play an event) offers only that one ---------
+{
+  const law = getLesson("law")!;
+  let run = startLesson(law);
+  const rng = createSeededRng(5);
+  while (shownStep(run)?.kind !== "do" || (shownStep(run) as { expect: Expect }).expect.type !== "proposePolicy") {
+    const step = shownStep(run)!;
+    if (step.kind === "explain") run = acknowledge(run);
+    else if (step.kind === "do") {
+      const action = legalActions(run.state, LEARNER).find((candidate) => matches(step.expect, candidate))!;
+      const result = submit(run, action, rng);
+      if ("run" in result) run = result.run;
+    }
+  }
+  const proposal = (district: DistrictId, policyId: string | null) => ({
+    type: "proposePolicy" as const,
+    player: LEARNER,
+    revealIds: ["smarbbit-a-2", "shavvinne-b-2"],
+    discardId: "smarbbit-a-2",
+    district,
+    policyId: policyId as never,
+  });
+  assert(allows(run, proposal(District.Shavvinne, "shavvinne-b")), "Law: Secularism can be chosen");
+  assert(!allows(run, proposal(District.Shavvinne, "shavvinne-a")), "Law: Martial Law is closed");
+  assert(!allows(run, proposal(District.Smarbbit, "smarbbit-a")), "Law: United Front is closed");
+  const discards = ["smarbbit-a-2", "shavvinne-b-2"].map((id) => ({ ...proposal(District.Shavvinne, "shavvinne-b"), discardId: id }));
+  assert(discards.every((action) => allows(run, action)), "Law: either revealed card may be discarded");
+
+  const events = getLesson("events")!;
+  let buying = startLesson(events);
+  while (!(shownStep(buying)?.kind === "do" && (shownStep(buying) as { expect: Expect }).expect.type === "buyEvent")) {
+    const step = shownStep(buying)!;
+    if (step.kind === "explain") buying = acknowledge(buying);
+    else if (step.kind === "do") {
+      const action = legalActions(buying.state, LEARNER).find((candidate) => matches(step.expect, candidate))!;
+      const result = submit(buying, action, rng);
+      if ("run" in result) buying = result.run;
+    }
+  }
+  const buy = (use: "effect" | "civil"): Action => ({
+    type: "buyEvent",
+    player: LEARNER,
+    instanceId: "ev-event-east-railway-bonds",
+    payIds: [],
+    use,
+  });
+  assert(allows(buying, buy("effect")) && !allows(buying, buy("civil")), "Events: only Play for its effect is open");
 }
 
 // --- The exam can be failed, and Vex says so ----------------------------------------------
