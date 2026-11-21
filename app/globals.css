@@ -160,6 +160,15 @@ body {
     0 0 18px color-mix(in srgb, var(--act) 45%, transparent);
 }
 
+/* A chosen card (to pay, play, or spend): a light inner line, a bright ring, and a glow, so it
+   stands out on the dark table and differs from the softer "you can play this" glow. */
+.card-selected {
+  box-shadow:
+    0 0 0 1.5px rgb(255 251 235),
+    0 0 0 4px var(--act),
+    0 0 22px 3px color-mix(in srgb, var(--act) 65%, transparent);
+}
+
 .exalted-frame {
   position: relative;
   padding: 3px;

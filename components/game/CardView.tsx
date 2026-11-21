@@ -108,7 +108,9 @@ export function CardView({
     peekDelay ?? (size === "choice" ? CHOICE_PEEK_DELAY_MS : 0);
   const liftOnHover = size !== "choice";
   const frameClass = [
-    "relative block shrink-0 overflow-hidden rounded-[0.32em] bg-stone-900 shadow-[0_3px_10px_rgba(0,0,0,0.5)] ring-1 ring-black/50",
+    "relative block shrink-0 overflow-hidden rounded-[0.32em] bg-stone-900 shadow-[0_3px_10px_rgba(0,0,0,0.5)]",
+    // The faint dark outline only on unselected cards: it used to override the selection ring's color.
+    selected && !dimmed ? "card-selected" : "ring-1 ring-black/50",
     square ? "aspect-square" : "aspect-[825/1125]",
     WIDTH[size],
     interactive
@@ -120,9 +122,6 @@ export function CardView({
         ].join(" ")
       : "",
     canPeek && !onSelect ? "cursor-zoom-in" : "",
-    selected && !dimmed
-      ? "ring-2 ring-[var(--act)] ring-offset-2 ring-offset-[#0a0c10]"
-      : "",
     playable && !selected ? "act-glow" : "",
     className,
   ].join(" ");
