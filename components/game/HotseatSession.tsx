@@ -150,6 +150,8 @@ export type RemoteGame = {
   hideGameOver?: boolean;
   /** Phone layout: hold this half of the table on screen. */
   view?: "districts" | "table" | null;
+  /** Show every hand card in full color, none greyed out (a lesson note is showing the hand off). */
+  showHand?: boolean;
 };
 
 type LocalProps = { remote?: undefined };
@@ -835,7 +837,9 @@ export function HotseatSession(props: HotseatSessionProps) {
       : {
           playableHandIds: spendKind ? selectableHandIds : playableHandIds,
           selectableHandIds:
-            spendKind || inAction || inPolitics || state.phase === Phase.Income ? selectableHandIds : undefined,
+            !remote?.showHand && (spendKind || inAction || inPolitics || state.phase === Phase.Income)
+              ? selectableHandIds
+              : undefined,
           selectedHandIds: new Set(selectedHandIds),
           onSelectHand: selectCard,
           targetDistrict: playDistrict,

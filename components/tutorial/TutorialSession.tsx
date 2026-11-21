@@ -119,6 +119,8 @@ function LessonTable({ lesson, onRestart }: { lesson: Lesson; onRestart: () => v
       showTour: false,
       hideGameOver: true,
       view: step && step.kind !== "free" ? (step.view ?? null) : null,
+      // A note about the hand shows it in full color; a step asking for one card still greys the rest.
+      showHand: step?.kind === "explain" && step.target === "your-hand",
     }),
     [run, lesson, opponent.name, playerName, send, onRestart, step],
   );
