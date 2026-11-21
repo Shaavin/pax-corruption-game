@@ -42,7 +42,8 @@ export function PeekableOverlay({
 
   return (
     <>
-      <div className={[className, peeking ? "hidden" : ""].join(" ")} onClick={onBackdropClick}>
+      {/* data-modal: a lesson's coach card moves aside while a decision covers the table. */}
+      <div data-modal className={[className, peeking ? "hidden" : ""].join(" ")} onClick={onBackdropClick}>
         <button
           type="button"
           onClick={(event) => {

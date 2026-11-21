@@ -69,6 +69,7 @@ export function Lane({ district, policyId, you, opponent, electors, leader, tour
   const lane = { "--lane": `var(--${district})` } as CSSProperties;
   return (
     <section
+      data-lane={district}
       aria-label={`${DISTRICT_LABEL[district]} district`}
       // Rows (shared with the other lanes via subgrid): their cards, the center band, the plate, yours.
       className="lane row-span-4 row-start-1 grid min-h-0 min-w-0 grid-rows-subgrid border-x border-[var(--line)]"

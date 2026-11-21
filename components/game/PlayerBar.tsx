@@ -52,7 +52,10 @@ export function PlayerBar({
   const party = partyId ? resolveCard(partyId) : null;
 
   return (
-    <div className={["flex min-w-0 items-center", compact ? "w-full gap-1.5 min-[360px]:gap-2.5" : "gap-3"].join(" ")}>
+    <div
+      data-tour={seat === "you" ? "your-party" : undefined}
+      className={["flex min-w-0 items-center", compact ? "w-full gap-1.5 min-[360px]:gap-2.5" : "gap-3"].join(" ")}
+    >
       {/* On phones the name and party shorten (…) before the numbers get pushed off-screen. */}
       <div className={["flex items-center", compact ? "min-w-[4.5rem] shrink gap-1.5 min-[360px]:gap-2" : "shrink-0 gap-2"].join(" ")}>
         <div className="relative">

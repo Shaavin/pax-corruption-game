@@ -84,6 +84,10 @@ type TableProps = {
   extraMenu?: TableMenuItem[];
   /** Replaces the Menu link (troubleshooting uses its own exit). */
   menuHref?: string;
+  /** Replaces the deck-mode label in the top bar (a lesson's name). */
+  modeLabel?: string;
+  /** Phone layout: hold this half of the table on screen (a lesson pointing at it). */
+  pinnedView?: TourView | null;
   children?: ReactNode;
 };
 
@@ -117,6 +121,8 @@ function TableView({
   onReport,
   extraMenu,
   menuHref = "/",
+  modeLabel: labelOverride,
+  pinnedView = null,
   children,
 }: TableProps) {
   const playerLabel = usePlayerLabel();
@@ -142,7 +148,7 @@ function TableView({
   const tourOpen = showTour && (tourRequest === "open" || (tourRequest === "auto" && !tourSeen));
   const tourSteps = useMemo(() => tableTourSteps({ compact, expansion }), [compact, expansion]);
   const step = Math.min(tourStep, tourSteps.length - 1);
-  const tourView: TourView | null = tourOpen ? (tourSteps[step]?.view ?? null) : null;
+  const tourView: TourView | null = tourOpen ? (tourSteps[step]?.view ?? null) : pinnedView;
   const openTour = useCallback(() => {
     setPeek(null);
     setAidOpen(false);
@@ -203,7 +209,7 @@ function TableView({
     />
   );
   const lanes = (
-    <div className="grid min-h-0 flex-1 grid-cols-4 grid-rows-[minmax(0,1fr)_auto_auto_minmax(0,1fr)]">
+    <div data-tour="lanes" className="grid min-h-0 flex-1 grid-cols-4 grid-rows-[minmax(0,1fr)_auto_auto_minmax(0,1fr)]">
       {model.districtOrder.map((district, index) => (
         <Lane
           key={district}
@@ -361,9 +367,9 @@ function TableView({
     </>
   );
   // No seed here: anyone could load it in another tab and see the deck order. (Reports carry it.)
-  const modeLabel = `${GAME_MODES.find((entry) => entry.id === mode)?.name ?? mode}${expansion ? " + L&D" : ""}${
-    seed === null ? " · Online" : ""
-  }`;
+  const modeLabel =
+    labelOverride ??
+    `${GAME_MODES.find((entry) => entry.id === mode)?.name ?? mode}${expansion ? " + L&D" : ""}${seed === null ? " · Online" : ""}`;
 
   if (compact) {
     return (

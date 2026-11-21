@@ -116,7 +116,10 @@ const START_OF_TURN = new Set<Action["type"]>([
 ]);
 
 
-/** Online play: the server owns the game; this device is one seat. */
+/**
+ * A game run somewhere else, shown for one seat: online play (the server owns the game) or
+ * a tutorial lesson (the lesson runner owns it). The optional fields are for lessons.
+ */
 export type RemoteGame = {
   seat: PlayerId;
   /** This seat's redacted view, from the server. */
@@ -133,6 +136,20 @@ export type RemoteGame = {
   rematch?: { label: string; note?: string; onClick: () => void } | null;
   /** Extra menu entries (rejoin link, turn alerts). A returned string is shown as a note. */
   menu?: TableMenuItem[];
+  /** Only these moves light up (a lesson step asks for one move). Others stay hidden or dim. */
+  allow?: (action: Action) => boolean;
+  /** Why a card the rules allow can't be chosen now (shown when it's tapped). */
+  blockedHint?: string;
+  /** Replaces the "Online" label in the top bar. */
+  label?: string;
+  /** Where Menu / Leave game goes. */
+  menuHref?: string;
+  /** Offer the "How to play" tour (default true). */
+  showTour?: boolean;
+  /** The driver shows its own end screen. */
+  hideGameOver?: boolean;
+  /** Phone layout: hold this half of the table on screen. */
+  view?: "districts" | "table" | null;
 };
 
 type LocalProps = { remote?: undefined };
@@ -209,10 +226,14 @@ export function HotseatSession(props: HotseatSessionProps) {
   const shownState = playback ? playback.states[playback.index]! : state;
   const model = useMemo(() => tableModel(shownState, viewer), [shownState, viewer]);
   const inSetup = state.phase === Phase.Setup;
-  const legal = useMemo(
-    () => (veiled || waitingFirstSeat ? [] : legalActions(state, viewer)),
-    [state, veiled, waitingFirstSeat, viewer],
-  );
+  const allow = remote?.allow;
+  const legal = useMemo(() => {
+    if (veiled || waitingFirstSeat) return [];
+    const all = legalActions(state, viewer);
+    return allow ? all.filter(allow) : all;
+  }, [state, veiled, waitingFirstSeat, viewer, allow]);
+  /** A lesson limits the moves on offer: buttons and action cards for other moves stay hidden. */
+  const offered = (type: Action["type"]) => !allow || legal.some((action) => action.type === type);
 
   function resetSelection() {
     setBuying(null);
@@ -370,7 +391,10 @@ export function HotseatSession(props: HotseatSessionProps) {
     return ids;
   }, [legal]);
 
-  const freeOptions = useMemo(() => (inAction ? playableFreeActions(state, viewer) : []), [state, viewer, inAction]);
+  const freeOptions = useMemo(
+    () => (inAction ? playableFreeActions(state, viewer).filter((action) => !allow || allow(action)) : []),
+    [state, viewer, inAction, allow],
+  );
   const freeSources = useMemo(
     () =>
       freeActionSources(state, viewer).filter((source) =>
@@ -477,7 +501,11 @@ export function HotseatSession(props: HotseatSessionProps) {
   const canEndAction = legal.some((action) => action.type === "endAction");
   const recruitReason = recruitBlockReason(state, viewer);
   const constructReason = constructBlockReason(state, viewer);
-  const declarable = inPolitics ? declarableVictories(state, viewer) : [];
+  const declarable = inPolitics
+    ? declarableVictories(state, viewer).filter(
+        (victory) => !allow || allow({ type: "declareVictory", player: viewer, victory }),
+      )
+    : [];
   const seatArmed = inPolitics && !spendKind && selectedCard !== undefined && !state.market.includes(selectedCard);
   const networkFor = selectedCard
     ? networkActions(state, viewer).filter((action) => action.instanceIds[0] === selectedCard.instanceId)
@@ -558,7 +586,7 @@ export function HotseatSession(props: HotseatSessionProps) {
     return () => (spendKind === kind && via === source ? resetSelection() : (resetSelection(), start()));
   }
   const actionCards: ActionCardSpec[] = [];
-  if (inAction && !state.turn.mainActionDone) {
+  if (inAction && !state.turn.mainActionDone && (offered("recruit") || (spendKind === "recruit" && !via))) {
     actionCards.push({
       id: "recruit",
       kind: "recruit",
@@ -568,6 +596,8 @@ export function HotseatSession(props: HotseatSessionProps) {
       active: spendKind === "recruit" && !via,
       onClick: modeCard("recruit", null, () => startMode("recruit")),
     });
+  }
+  if (inAction && !state.turn.mainActionDone && (offered("construct") || (spendKind === "construct" && !via))) {
     actionCards.push({
       id: "construct",
       kind: "construct",
@@ -608,7 +638,7 @@ export function HotseatSession(props: HotseatSessionProps) {
       });
     }
   }
-  if (inPolitics) {
+  if (inPolitics && (offered("proposePolicy") || (spendKind === "propose" && !via))) {
     actionCards.push({
       id: "propose",
       kind: "propose",
@@ -618,6 +648,8 @@ export function HotseatSession(props: HotseatSessionProps) {
       active: spendKind === "propose" && !via,
       onClick: modeCard("propose", null, () => startMode("propose")),
     });
+  }
+  if (inPolitics) {
     for (const victory of declarable) {
       actionCards.push({
         id: `declare-${victoryLabel(victory)}`,
@@ -709,11 +741,13 @@ export function HotseatSession(props: HotseatSessionProps) {
         onClick: () => dispatch(action),
       });
     }
-    extraActions.push({
-      label: "Skip politics",
-      tone: "neutral",
-      onClick: () => dispatch({ type: "endPolitics", player: viewer }),
-    });
+    if (offered("endPolitics")) {
+      extraActions.push({
+        label: "Skip politics",
+        tone: "neutral",
+        onClick: () => dispatch({ type: "endPolitics", player: viewer }),
+      });
+    }
   } else if (state.phase === Phase.Income) {
     for (const action of backToHand) {
       extraActions.push({
@@ -761,9 +795,9 @@ export function HotseatSession(props: HotseatSessionProps) {
     if (spendKind === "century") return "Century Inc.: pick an alliance from your hand.";
     if (spendKind === "propose") return proposeTarget ? "Discard one of the cards you revealed." : null;
     if (spendKind === "eastTake") return "Take a card from the Market.";
-    if (inAction) return handCardBlockReason(state, viewer, instanceId);
+    if (inAction) return handCardBlockReason(state, viewer, instanceId) ?? remote?.blockedHint ?? null;
     if (state.phase === Phase.Income) return "At Income you take a card from the Market; your hand isn't used.";
-    return null;
+    return remote?.blockedHint ?? null;
   }
 
   // Your own last move this turn can't be taken back: keep Undo visible and say why.
@@ -870,6 +904,9 @@ export function HotseatSession(props: HotseatSessionProps) {
       seed={remote ? null : session.replay.seed}
       mode={settings.mode}
       expansion={settings.expansion}
+      modeLabel={remote?.label}
+      menuHref={remote?.menuHref}
+      pinnedView={remote?.view ?? null}
       history={history}
       idlePrompt={
         replaying
@@ -881,7 +918,7 @@ export function HotseatSession(props: HotseatSessionProps) {
                 aiPersona(ai.level).thinking[session.replay.steps.length % aiPersona(ai.level).thinking.length]!
               : statusLine(state)
       }
-      showTour={!veiled && !waitingFirstSeat && !inSetup && !state.victory}
+      showTour={(remote?.showTour ?? true) && !veiled && !waitingFirstSeat && !inSetup && !state.victory}
       veiled={veiled || waitingFirstSeat}
       hotseat={viewer}
       interaction={myMove ? interaction : null}
@@ -931,7 +968,7 @@ export function HotseatSession(props: HotseatSessionProps) {
       {choice && choice.player === viewer && !veiled && !waitingFirstSeat && !replaying ? (
         <ChoiceOverlay state={state} choice={choice} viewer={viewer} onAction={dispatch} />
       ) : null}
-      {state.victory ? (
+      {state.victory && !remote?.hideGameOver ? (
         <GameOverOverlay
           victory={state.victory}
           rematch={remote?.rematch ?? null}

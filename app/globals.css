@@ -199,6 +199,20 @@ body {
   }
 }
 
+/* Tutorial: table areas a lesson hasn't introduced yet fade back (lesson `dim` anchors). */
+.tutorial-dim-senate [data-tour="senate"],
+.tutorial-dim-decrees [data-tour="decrees"],
+.tutorial-dim-supply [data-tour="supply"],
+.tutorial-dim-elections [data-tour="elections"],
+.tutorial-dim-center-band [data-tour="center-band"],
+.tutorial-dim-market [data-tour="market"],
+.tutorial-dim-world [data-tour="world"],
+.tutorial-dim-victory-cards [data-tour="victory-cards"] {
+  opacity: 0.3;
+  filter: saturate(0.3);
+  transition: opacity 300ms ease, filter 300ms ease;
+}
+
 @keyframes rise-in {
   from {
     opacity: 0;

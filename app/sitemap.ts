@@ -14,6 +14,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
       // app/opengraph-image.jpg, the share image for the homepage.
       images: [`${SITE_URL}/opengraph-image.jpg`],
     },
+    { url: `${SITE_URL}/learn`, changeFrequency: "monthly", priority: 0.8 },
     { url: `${SITE_URL}/online`, changeFrequency: "monthly", priority: 0.6 },
   ];
 }

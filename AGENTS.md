@@ -22,6 +22,8 @@ Before changing game rules, engine code, or board UI, read:
 
 The rules were revised in 2026-11: the Senate and decree objectives replaced policy supporters, referendums, and executive power. The engine and UI were migrated to these rules on 2026-11-11; card abilities (Phase 6) followed on 2026-11-12 the hotseat finish (Phase 7) and troubleshooting tools (Phase 8) on 2026-11-13. **Phase 9** is done (2026-11-13): setup modes, the Legacy & Diplomacy expansion, and online play through a free Cloudflare Worker in `server/` (see `server/README.md`). Never send hidden information to a client: online views go through `lib/game/redact.ts`. Bump `ENGINE_VERSION` in `lib/game/record.ts` when a change can make old game records replay differently. Do not reintroduce removed mechanics.
 
+The tutorial (**Learn to play**, `/learn`, added 2026-11-21) teaches the rules in prepared lessons (`lib/tutorial/`). Its notes quote rules and numbers: when a rule or card changes, update the lessons it touches. `lib/tutorial/lessons.test.ts` plays every lesson through the engine and checks the numbers the coach quotes.
+
 Source priority: current printed card text (the Tabletop Simulator save faces) > the current rulebook PDF > these docs > marketing copy. Paths are in [card-catalog.md](docs/agents/card-catalog.md#sources-of-truth).
 
 Do not implement a card ability from memory. Use the catalog and the current printed card image. If a rule is listed as open, stop and ask.

@@ -119,6 +119,22 @@ export default function Home() {
             and steer the elections toward one of five victories. Free to play in your browser.
           </p>
 
+          <Link
+            href="/learn"
+            className="group mt-6 flex max-w-md items-center gap-3 rounded-2xl border border-[var(--act)]/30 bg-[var(--act)]/[0.06] px-4 py-3 backdrop-blur transition hover:border-[var(--act)]/60 hover:bg-[var(--act)]/[0.1]"
+          >
+            <span aria-hidden className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--act)] text-base font-bold text-stone-950">
+              ?
+            </span>
+            <span className="min-w-0 flex-1 leading-tight">
+              <span className="block text-sm font-semibold text-stone-100">New here? Learn to play</span>
+              <span className="block text-xs text-stone-400">Short lessons against the computer, from Town Hall to the Palace.</span>
+            </span>
+            <span aria-hidden className="text-stone-400 transition group-hover:translate-x-0.5 group-hover:text-stone-100">
+              →
+            </span>
+          </Link>
+
           <ul aria-label="Districts" className="mt-8 grid max-w-md grid-cols-2 gap-2 sm:gap-2.5">
             {DISTRICTS.map((district) => (
               <li

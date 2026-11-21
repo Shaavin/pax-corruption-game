@@ -13,8 +13,8 @@ import { join, relative } from "node:path";
  */
 export const dynamic = "force-static";
 
-/** Pages the installed app can open offline. `/play` is the same page for every game. */
-const PAGES = ["/", "/play", "/online"];
+/** Pages the installed app can open offline. `/play` (and `/learn/play`) is the same page for every game (lesson). */
+const PAGES = ["/", "/play", "/online", "/learn", "/learn/play"];
 /** One saved width per card: sharp enough for the board and the zoomed view. */
 const CARD_WIDTH = 640;
 const CARD_QUALITY = 75;

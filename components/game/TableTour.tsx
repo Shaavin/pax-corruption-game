@@ -247,7 +247,7 @@ export function markTourSeen() {
 
 // --- Overlay -----------------------------------------------------------------------------------
 
-type Box = { top: number; left: number; width: number; height: number };
+export type Box = { top: number; left: number; width: number; height: number };
 
 const GAP = 12;
 const MARGIN = 12;
@@ -260,7 +260,7 @@ function clamp(n: number, min: number, max: number) {
 type Side = "left" | "right" | "top" | "bottom";
 
 /** Put the card beside the spotlight on whichever side has room, never on top of it if avoidable. */
-function placeCard(h: Box | null, vw: number, vh: number, w: number, ht: number): { top: number; left: number } {
+export function placeCard(h: Box | null, vw: number, vh: number, w: number, ht: number): { top: number; left: number } {
   const maxLeft = Math.max(MARGIN, vw - w - MARGIN);
   const maxTop = Math.max(MARGIN, vh - ht - MARGIN);
   if (!h) return { top: clamp((vh - ht) / 2, MARGIN, maxTop), left: clamp((vw - w) / 2, MARGIN, maxLeft) };

@@ -21,6 +21,7 @@ Local hotseat simulator first. The same rules engine should later run a networke
 | Troubleshooting (`diagnostics.ts`, `/troubleshoot`) | Bug reports (in-game **Report**), share codes, step-through replay with hidden info, failure and invariant checks, engine version stamps, **Play on from here**. |
 | Computer opponent (`lib/game/ai.ts`) | `chooseAiAction(state, seat, level, rng)` picks from `legalActions`. Easy: mostly random but active. Normal: tries every legal move on a copy with the hidden piles reshuffled and keeps the best `positionScore` (victory progress and threats, election outlook, district influence, monuments, Lords, hand size; never the opponent's hand). Always declares a victory when it can. `/play?ai=easy|normal` seats it as Player 2; records keep `ai` so saves resume against it. Tests: `ai.test.ts` (legal, finishes games, Normal beats random and Easy). |
 | Card motion (`card-motion.ts`) | Cards carry `data-card-key` (instance id). `captureCards()` runs before every change (move, undo, server update, replay step); `Table` calls `playCardMotion()` after the commit, so cards slide from old to new spots, new cards fly in from a hand or the deck, and removed cards fade. Hotseat handoffs replay the other player's moves since the new seat last looked (final history, so undone moves never show; Skip available). Off with reduced motion. |
+| Tutorial (`lib/tutorial`, `components/tutorial`, `/learn`) | **Learn to play** (2026-11-21): 12 short lessons from prepared positions against the three computer personalities, base game first, then an optional Legacy & Diplomacy chapter. See [Tutorial](#tutorial-learn-to-play). |
 | How to play (`TableTour.tsx`) | The one walkthrough (it replaced a separate text primer, 2026-11-15): a spotlight tour controlled by `Table` that explains each rule on the component it applies to, and each victory where it is tracked. Opens once per browser (`pax-table-tour-v10`), reopens from **How to play** (desktop) or the ⋯ menu (phone). Steps point at `data-tour` anchors; on phones each step pins the Districts or Senate · Market view. Expansion games get expansion wording (inactive victories, buying events, two-row election Market) and a World step. |
 
 ## Principles
@@ -206,6 +207,20 @@ Tests: `diagnostics.test.ts` (clean simulation, failure index, invariants, versi
 
   Seats are tokens in `localStorage` (no accounts). Undo works online with the hotseat rules, checked by the server. Bug reports stay hotseat-only (an online record would reveal the opponent's cards).
   `server/smoke.ts` plays two scripted clients against a running server.
+
+## Tutorial (Learn to play)
+
+Added 2026-11-21. Short lessons, each from a prepared position, that teach the game a few pieces at a time. The opponents are the computer's three personalities, met in order of skill: **Town Hall** with Mayor Mildred (civil cards, influence, the turn, conspiracies and support piles, alliances and the Council of Lords, Recruit and Military Victory), **the Capital** with Chancellor Crane (the Senate, Propose Policy, monuments, an election and decrees, Political Victory), **the Palace** with Grand Vizier Vex (a final exam: win this turn before he does), then the optional **Foreign Affairs** chapter, also with Vex (events, relations, legacy events, Diplomatic Victory).
+
+| Piece | Where |
+| --- | --- |
+| Positions | `lib/tutorial/scenario.ts`: a compact table description (hands, lanes, support piles, Senate, Market, deck top, policies, decrees, monuments, an election under way, expansion relations and events) built into a full `GameState`. Unplaced cards fill the deck (fixed shuffle); the General Elections sit deep unless placed. |
+| Lessons | `lib/tutorial/lessons/base.ts`, `lessons/expansion.ts`. Each has steps (`explain`: read, then Next; `do`: one move, anything else gets a hint; `free`: any legal move until the turn ends or someone wins), the opponent's scripted moves with their lines, intro / outro / loss lines, and the table areas to dim. |
+| Runner | `lib/tutorial/runner.ts` (pure): which step shows (a step waits for the learner's next decision unless marked `now`), which moves the step allows, the opponent's next move (script first, then the computer at the persona's level), completion and failure. |
+| Cast | `lib/tutorial/cast.ts`: names from `ai.ts` personas, plus role, monogram, and color. |
+| UI | `/learn` (lesson list, progress in `localStorage` `pax-tutorial-v1`, lessons unlock in order or all at once), `/learn/play?lesson=<id>` (`TutorialSession`: drives `HotseatSession` through its `remote` interface with `allow`, `label`, `view`, and `hideGameOver`; `CoachCard`: a non-blocking note with a spotlight and the opponent's lines, docked at the top on phones and moved to a corner while a decision overlay is open). Dimmed areas: `.tutorial-dim-<anchor>` in `globals.css`. |
+
+The notes quote rules and numbers. When a rule or card changes, update the lessons. `lib/tutorial/lessons.test.ts` plays every lesson through the engine (guided moves legal when asked, the opponent's script legal when due, free stretches finishable, card count constant) and checks each number the coach quotes; it also checks that the exam can be lost.
 
 ## Testing
 
