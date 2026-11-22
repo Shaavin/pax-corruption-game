@@ -8,6 +8,7 @@ import type { TableMenuItem } from "./Table";
 import { ChoiceOverlay } from "./ChoiceOverlay";
 import { DecreeChoice } from "./DecreeChoice";
 import { GameOverOverlay } from "./GameOverOverlay";
+import { VictoryStory } from "./VictoryStory";
 import { PassDeviceGate } from "./PassDeviceGate";
 import { playerLabel, PlayerNamesContext } from "./players";
 import { NO_NAMES, type PlayerNames } from "@/lib/game/names";
@@ -208,6 +209,8 @@ export function HotseatSession(props: HotseatSessionProps) {
   /** Expansion: the event being bought (income). */
   const [buying, setBuying] = useState<string | null>(null);
   const [choosingPolicy, setChoosingPolicy] = useState(false);
+  /** The victory whose story has been told (then the results show). */
+  const [storySeen, setStorySeen] = useState<string | null>(null);
   const closeReport = useCallback(() => setReportOpen(false), []);
 
   // In local games `session` is always set; online games never touch it.
@@ -222,6 +225,8 @@ export function HotseatSession(props: HotseatSessionProps) {
     [remoteHistory, localSession],
   );
   const actor = currentActor(state);
+  // Which game's victory this is (online views hide the seed, so the game's length tells rematches apart).
+  const victoryKey = state.victory ? `${state.seed}:${history.length}:${state.victory.kind}:${state.victory.player}` : null;
   // Online and against the computer, this device is one seat: nothing to hide behind a pass-device screen.
   const veiled = !remote && !ai && seated !== null && seated !== actor && !state.victory;
   const waitingFirstSeat = seated === null;
@@ -1018,7 +1023,9 @@ export function HotseatSession(props: HotseatSessionProps) {
       {choice && choice.player === viewer && !veiled && !waitingFirstSeat && !replaying ? (
         <ChoiceOverlay state={state} choice={choice} viewer={viewer} onAction={dispatch} />
       ) : null}
-      {state.victory && !remote?.hideGameOver ? (
+      {state.victory && !remote?.hideGameOver && storySeen !== victoryKey ? (
+        <VictoryStory victory={state.victory} onDone={() => setStorySeen(victoryKey)} />
+      ) : state.victory && !remote?.hideGameOver ? (
         <GameOverOverlay
           victory={state.victory}
           rematch={remote?.rematch ?? null}

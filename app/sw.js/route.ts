@@ -5,7 +5,8 @@ import { join, relative } from "node:path";
 /**
  * The service worker that makes the installed app work offline. Built once per deploy: the
  * build id names the caches (a new deploy replaces the old pages and scripts), and the card
- * list is read from `public/cards` (every card image is saved on install).
+ * list is read from `public/cards` (every card image is saved on install), and so are the victory
+ * scenes in `public/art/victory`.
  *
  * Card images are saved through the image optimizer at one width (a few MB in all); offline,
  * a card at any other width is answered with the saved copy. Card files are never edited in
@@ -19,23 +20,26 @@ const PAGES = ["/", "/play", "/online", "/learn", "/learn/play"];
 const CARD_WIDTH = 640;
 const CARD_QUALITY = 75;
 
-function cardFiles(): string[] {
+/** Public image files under `public/<folder>`, as site paths. */
+function imageFiles(folder: string): string[] {
   const root = join(process.cwd(), "public");
   const walk = (dir: string): string[] =>
     readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
       entry.isDirectory() ? walk(join(dir, entry.name)) : /\.(png|jpe?g|webp)$/i.test(entry.name) ? [join(dir, entry.name)] : [],
     );
-  return walk(join(root, "cards"))
+  return walk(join(root, folder))
     .map((file) => `/${relative(root, file).split("\\").join("/")}`)
     .sort();
 }
 
 export function GET(): Response {
-  const cards = cardFiles();
+  const cards = imageFiles("cards");
+  // The victory scenes, saved as they are (full-screen, so not through the card-size optimizer).
+  const art = imageFiles(join("art", "victory"));
   const build = process.env.PAX_BUILD || "dev";
-  // A new card list (a card added or renamed) starts a fresh card cache; otherwise it's kept.
-  const cardsTag = createHash("sha1").update(cards.join("\n")).digest("hex").slice(0, 10);
-  const script = SERVICE_WORKER.replace("__CONFIG__", JSON.stringify({ build, cardsTag, pages: PAGES, cards, width: CARD_WIDTH, quality: CARD_QUALITY }));
+  // A new card or scene list (one added or renamed) starts a fresh card cache; otherwise it's kept.
+  const cardsTag = createHash("sha1").update([...cards, ...art].join("\n")).digest("hex").slice(0, 10);
+  const script = SERVICE_WORKER.replace("__CONFIG__", JSON.stringify({ build, cardsTag, pages: PAGES, cards, art, width: CARD_WIDTH, quality: CARD_QUALITY }));
   return new Response(script, {
     headers: {
       "Content-Type": "application/javascript; charset=utf-8",
@@ -68,13 +72,14 @@ async function saveShell() {
   await Promise.allSettled([...assets].map((url) => cache.add(new Request(url, { cache: "reload" }))));
 }
 
-/** Save every card image once (skipping ones already saved). A failure here never blocks install. */
+/** Save every card image and victory scene once (skipping ones already saved). A failure here never blocks install. */
 async function saveCards() {
   const cache = await caches.open(CARDS);
   const missing = [];
-  for (const src of CONFIG.cards) if (!(await cache.match(imageUrl(src)))) missing.push(src);
+  for (const src of CONFIG.cards) if (!(await cache.match(imageUrl(src)))) missing.push(imageUrl(src));
+  for (const src of CONFIG.art) if (!(await cache.match(src))) missing.push(src);
   for (let i = 0; i < missing.length; i += 8) {
-    await Promise.allSettled(missing.slice(i, i + 8).map((src) => cache.add(imageUrl(src))));
+    await Promise.allSettled(missing.slice(i, i + 8).map((url) => cache.add(url)));
   }
 }
 

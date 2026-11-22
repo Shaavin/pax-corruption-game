@@ -6,7 +6,7 @@ import { usePlayerLabel } from "./players";
 import { SYMBOL_NAME, type DistrictId } from "@/lib/cards/schema";
 import { MILITARY_LEAD, POPULARITY_LEAD, VictoryKind, type Victory } from "@/lib/game";
 
-const KIND_LABEL: Record<Victory["kind"], string> = {
+export const KIND_LABEL: Record<Victory["kind"], string> = {
   [VictoryKind.Military]: "Military Victory",
   [VictoryKind.Popularity]: "Popularity Victory",
   [VictoryKind.Ideological]: "Ideological Victory",
@@ -99,7 +99,7 @@ export function GameOverOverlay({
       <div
         role="dialog"
         aria-labelledby="game-over-title"
-        className="pointer-events-auto m-auto w-full max-w-lg min-w-0 rounded-2xl glass-strong px-4 py-6 text-center shadow-2xl ring-1 ring-[var(--brass)]/40 sm:px-6 sm:py-8"
+        className="rise-in pointer-events-auto m-auto w-full max-w-lg min-w-0 rounded-2xl glass-strong px-4 py-6 text-center shadow-2xl ring-1 ring-[var(--brass)]/40 sm:px-6 sm:py-8"
       >
         <p className="text-[0.65rem] font-semibold tracking-[0.18em] text-[var(--brass)] uppercase">
           Game over

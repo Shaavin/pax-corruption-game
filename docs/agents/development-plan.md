@@ -208,6 +208,22 @@ Tests: `diagnostics.test.ts` (clean simulation, failure index, invariants, versi
   Seats are tokens in `localStorage` (no accounts). Undo works online with the hotseat rules, checked by the server. Bug reports stay hotseat-only (an online record would reveal the opponent's cards).
   `server/smoke.ts` plays two scripted clients against a running server.
 
+## Victory scene
+
+Added 2026-11-21. When someone wins, `VictoryStory` (`components/game/VictoryStory.tsx`) plays before the results: the victory's scene slowly pulls back, washed in the color of its band in the rulebooks' "Gallery of the Future", while that band's passage types out word for word ("A Democratic Future" for Civil, "An Autocratic Future" for Political, and so on; base rulebook p. 11, Legacy & Diplomacy p. 7). **See the results** opens `GameOverOverlay`; **Skip** or Escape goes there at once, and a click or Enter finishes the passage. Reduced motion (or Motion: off in Settings) shows it still and in full. Lessons (`hideGameOver`) skip both.
+
+Like the rulebook bands, each scene is a photograph or painting under the band's color (applied in CSS). `scripts/make-victory-art.py` downloads the originals, frames them 16:9, evens out their tone, and writes `public/art/victory/<kind>.webp`; the service worker saves them for offline play. Every source is CC0 or public domain:
+
+| Victory | Scene | Credit |
+| --- | --- | --- |
+| Civil | [Peace Day Celebrations, Victoria Square, Adelaide (1919)](https://commons.wikimedia.org/w/index.php?curid=87033451) | State Government Photographer, South Australia |
+| Political | [Parliament House, Helsinki, at night](https://commons.wikimedia.org/w/index.php?curid=146679758) | Leonhard Lenz |
+| Military | [Entrance hall chandelier, Dolmabahçe Palace](https://commons.wikimedia.org/w/index.php?curid=176677231) | Julian Lupyan |
+| Popularity | [View of Bordeaux, from the Quai des Chartrons (Eugène Boudin, 1874)](https://commons.wikimedia.org/w/index.php?curid=76010027) | Cleveland Museum of Art |
+| Ideological | [Persons under CCTV cameras](https://commons.wikimedia.org/w/index.php?curid=83602925) | Matthew Henry |
+| Cultural | [Blackpool Tower Ballroom](https://commons.wikimedia.org/w/index.php?curid=71673120) | Michael D Beckwith |
+| Diplomatic | [Flags in front of the Louise Weiss building, Strasbourg](https://commons.wikimedia.org/w/index.php?curid=149512489) | Syced |
+
 ## Tutorial (Learn to play)
 
 Added 2026-11-21. Short lessons, each from a prepared position, that teach the game a few pieces at a time. The opponents are the computer's three personalities, met in order of skill: **Town Hall** with Mayor Mildred (civil cards, influence, the turn, conspiracies and support piles, alliances and the Council of Lords, Recruit and Military Victory), **the Capital** with Chancellor Crane (the Senate, Propose Policy, monuments, an election and decrees, Political Victory), **the Palace** with Grand Vizier Vex (a final exam: win this turn before he does), then the optional **Foreign Affairs** chapter, also with Vex (events, relations, legacy events, Diplomatic Victory).
