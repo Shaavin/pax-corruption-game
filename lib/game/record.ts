@@ -16,7 +16,7 @@ export const RECORD_VERSION = 1;
  * Bump whenever a rules or engine change can make an old action list replay
  * differently. Records carry it so troubleshooting can flag a mismatch.
  */
-export const ENGINE_VERSION = "2026-11-21.1";
+export const ENGINE_VERSION = "2026-11-22.1";
 
 export type GameRecord = {
   version: typeof RECORD_VERSION;

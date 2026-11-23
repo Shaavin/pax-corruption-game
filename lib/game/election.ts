@@ -136,7 +136,7 @@ export function tallyElection(state: GameState): ElectionTally {
 
 /**
  * Alliance and monument effects that decide a district regardless of influence:
- * Diet of Saints and Divine Inquisitors (Shavvinne), then Civil Service as a veto.
+ * Divine Inquisitors, else Diet of Saints (Shavvinne), then Civil Service as a veto.
  */
 export function districtOverride(
   state: GameState,
@@ -145,21 +145,24 @@ export function districtOverride(
 ): PlayerId | null {
   let winner = byInfluence;
   if (district === District.Shavvinne) {
-    const claims = new Set<PlayerId>();
+    // Diet of Saints: "You always have higher influence in Shavvinne."
+    const diet = new Set<PlayerId>();
     for (const player of PLAYERS) {
-      // Diet of Saints: "You always have higher influence in Shavvinne."
       if (hasActiveAlliance(state, player, EffectId.AlwaysHigherInfluenceDiscardCivilAfterElection, District.Shavvinne)) {
-        claims.add(player);
+        diet.add(player);
       }
     }
     // Divine Inquisitors (card updated 2026-11-18): "You win Shavvinne during elections if
     // opponent also has an alliance card in Shavvinne." Any alliance card in their Shavvinne lane.
+    const inquisitors = new Set<PlayerId>();
     const inShavvinne = activeAlliances(state).filter((alliance) => alliance.occupied === District.Shavvinne);
     for (const inquisitor of inShavvinne.filter((alliance) => alliance.effectIds.includes(EffectId.WinIfOpponentAlliance))) {
       const opponentLane = state.players[otherPlayer(inquisitor.owner)].tableau[District.Shavvinne];
-      if (opponentLane.some((card) => getCard(card.cardId).kind === CardKind.Alliance)) claims.add(inquisitor.owner);
+      if (opponentLane.some((card) => getCard(card.cardId).kind === CardKind.Alliance)) inquisitors.add(inquisitor.owner);
     }
-    // Conflicting claims (both players) cancel out: nobody wins the district.
+    // Divine Inquisitors trumps the opponent's Diet of Saints (Joe, 2026-11-22). Each card has one
+    // copy, so a set never holds both players; if it somehow did, nobody would win the district.
+    const claims = inquisitors.size > 0 ? inquisitors : diet;
     if (claims.size === 1) winner = [...claims][0]!;
     else if (claims.size === 2) winner = null;
   }

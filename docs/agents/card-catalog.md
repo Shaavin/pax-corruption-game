@@ -143,7 +143,7 @@ Current printed text. Every alliance also prints `OR — It counts 2x many votes
 | `shavvinne-a-3` | Foreign Inc. ✱ | (Shavvinne version of Foreign Inc.) |
 | `shavvinne-a-4` | Rebel Inc. | As a free action, you may recruit partisans. |
 | `shavvinne-a-5` | Diet of Saints | You always have higher influence in Shavvinne. Discard ALL civil cards in Shavvinne after an election. |
-| `shavvinne-a-6` | Divine Inquisitors ✱ | You win Shavvinne during elections **if opponent also has an alliance card in Shavvinne**. (Revised 2026-11-18; was "if this is the only alliance card in the district".) |
+| `shavvinne-a-6` | Divine Inquisitors ✱ | You win Shavvinne during elections **if opponent also has an alliance card in Shavvinne**. (Revised 2026-11-18; was "if this is the only alliance card in the district".) Beats the opponent's Diet of Saints (ruled 2026-11-22). |
 | `smarbbit-a-1`, `-a-3` | Foreign Inc. ✱ | (Smarbbit version of Foreign Inc.) |
 | `smarbbit-a-2` | Capitol Inc. ✱ | As a free action, you may **propose new policy**. |
 | `smarbbit-a-4` | People's Press | When drawing from deck, you may now draw from your Smarbbit support pile instead. |

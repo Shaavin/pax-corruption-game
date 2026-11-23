@@ -6,9 +6,15 @@ Do not invent answers. If a task depends on one of these, stop and ask, then mov
 
 | Topic | Current answer (provisional, date) |
 | --- | --- |
-| Diet of Saints vs. the new Divine Inquisitors | Under the 2026-11-18 text, an opponent's **Diet of Saints** in Shavvinne is itself an alliance there, so your Divine Inquisitors claims Shavvinne while their Diet of Saints claims it too. The engine applies the 2026-11-12 ruling: conflicting claims **cancel** and nobody wins Shavvinne. That used to need a Century Inc. move; now it happens whenever both cards are out. Needs Joe's confirmation (provisional, 2026-11-18). |
+| (none) | |
 
 ## Resolved
+
+### 2026-11-22 (Joe, via Ian)
+
+| Topic | Decision |
+| --- | --- |
+| Divine Inquisitors vs. Diet of Saints | When your Divine Inquisitors claims Shavvinne (the opponent has an alliance there) and the opponent's Diet of Saints claims it too, **Divine Inquisitors wins**: you win Shavvinne. The claims no longer cancel. Civil Service can still veto afterwards. From the player report (seed 1227823536): P1's Divine Inquisitors faced P2's Diet of Saints (P2 also led Shavvinne on influence, 10–4). Nobody won Shavvinne, and P2 took the election on electors; now P1 wins Shavvinne and the election, 3 electorates to 2. |
 
 ### 2026-11-11 (Joe, via Ian)
 
@@ -42,7 +48,7 @@ Do not invent answers. If a task depends on one of these, stop and ask, then mov
 | Urban Aristocrats | The swapped civil cards **change owners**: yours goes into the opponent's Dragonara lane and theirs into yours. |
 | State Enterprise | Dragonara civil cards in the Market can be used straight from the Market for main and free actions, including playing them, recruiting partisans, and building monuments. The Market stays short until the next refill. Civils only, as printed: Market alliances (even Dragonara ones) can't be used, not even to build or recruit. |
 | Consultative Office | Like Planet Next: set cards aside only during your own turn. **Superseded 2026-11-18:** Consultative Office enables the Smarbbit network for both players. |
-| Diet of Saints vs. Divine Inquisitors (provisional) | If both claim Shavvinne for different players (possible only after Century Inc. moves Diet of Saints), the claims cancel and nobody wins Shavvinne. |
+| Diet of Saints vs. Divine Inquisitors (provisional) | If both claim Shavvinne for different players (possible only after Century Inc. moves Diet of Saints), the claims cancel and nobody wins Shavvinne. **Superseded 2026-11-22:** Divine Inquisitors wins. |
 | Propose Policy reveals | Revealed cards go back to your hand (except the one you discard); cards you didn't reveal never leave it. |
 | Propose Policy target | The changed policy must be in a district of one of the **revealed** cards. Example: revealing a Smarbbit alliance and a Shavvinne civil lets you change Smarbbit's or Shavvinne's policy, not Horsard's. (Interpretation of "must relate to the revealed cards"; implemented.) **Superseded 2026-11-14:** the card must also convince a Senator. |
 | Buying an event for its effect (expansion; not yet in the rulebook) | When you purchase an event and play it **for its event effect** (not as a civil card), **draw a card**. This makes playing an event for its effect effectively 1 card cheaper than playing it as a civil card. |

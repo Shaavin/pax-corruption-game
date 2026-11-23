@@ -84,7 +84,7 @@ export type TableModel = {
   race: RaceView | null;
   districtOrder: DistrictId[];
   policies: Record<DistrictId, PolicyIdValue | null>;
-  /** Who would win each district if the election were tallied now (influence, then Diet of Saints, Divine Inquisitors, Civil Service). */
+  /** Who would win each district if the election were tallied now (influence, then Divine Inquisitors over Diet of Saints, then Civil Service). */
   districtLeader: Record<DistrictId, "you" | "opponent" | null>;
   /** A District Governor protects the district's policy from proposals. */
   policyFrozen: Record<DistrictId, boolean>;

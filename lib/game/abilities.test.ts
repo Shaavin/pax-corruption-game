@@ -1,7 +1,7 @@
 import { findDeckCards } from "../cards/catalog.ts";
 import { District, MonumentId, PolicyId, type DistrictId } from "../cards/schema.ts";
 import { allianceLimit, handLimit, isSilenced, alliancesInPlay, policyFrozen } from "./abilities.ts";
-import { districtOverride } from "./election.ts";
+import { districtOverride, tallyElection } from "./election.ts";
 import { apply, legalActions } from "./engine.ts";
 import { playBlockReason } from "./plays.ts";
 import { playerDistrictInfluence } from "./influence.ts";
@@ -299,6 +299,35 @@ function fresh(seed: number) {
   assert(districtOverride(state, District.Shavvinne, them) === them, "Divine Inquisitors: no opponent alliance in Shavvinne, no claim");
   place(state, them, "Rebel Inc.", District.Shavvinne);
   assert(districtOverride(state, District.Shavvinne, them) === me, "…wins once the opponent also has an alliance there");
+}
+
+{
+  // Joe, 2026-11-22: Divine Inquisitors trumps the opponent's Diet of Saints (they used to cancel).
+  // Report seed 1227823536: nobody won Shavvinne (P2 led it 10–4 on influence), and P2 took the election on electors.
+  const { state, me, them } = fresh(413);
+  place(state, them, "Diet of Saints", District.Shavvinne);
+  assert(districtOverride(state, District.Shavvinne, me) === them, "Diet of Saints alone wins Shavvinne");
+  place(state, me, "Divine Inquisitors", District.Shavvinne);
+  for (const byInfluence of [me, them, null]) {
+    assert(
+      districtOverride(state, District.Shavvinne, byInfluence) === me,
+      `Divine Inquisitors beats the opponent's Diet of Saints (influence leader: ${byInfluence})`,
+    );
+  }
+  assert(tallyElection(state).districts.shavvinne.winner === me, "…in the election tally too");
+  // Civil Service still vetoes afterwards: the Inquisitors' owner needs more Shavvinne civils.
+  state.players[them].monuments.push(monument(MonumentId.CivilService));
+  assert(districtOverride(state, District.Shavvinne, me) === null, "Civil Service still vetoes the Inquisitors' win");
+  place(state, me, "Roman Church", District.Shavvinne);
+  assert(districtOverride(state, District.Shavvinne, me) === me, "…until they have more civil cards there");
+}
+
+{
+  // Mirror seat: the same, with the cards swapped between players.
+  const { state, me, them } = fresh(414);
+  place(state, me, "Diet of Saints", District.Shavvinne);
+  place(state, them, "Divine Inquisitors", District.Shavvinne);
+  assert(districtOverride(state, District.Shavvinne, me) === them, "Divine Inquisitors beats Diet of Saints for either seat");
 }
 
 {
