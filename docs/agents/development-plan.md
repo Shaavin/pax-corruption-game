@@ -210,19 +210,21 @@ Tests: `diagnostics.test.ts` (clean simulation, failure index, invariants, versi
 
 ## Victory scene
 
-Added 2026-11-21. When someone wins, `VictoryStory` (`components/game/VictoryStory.tsx`) plays before the results: the victory's scene slowly pulls back, washed in the color of its band in the rulebooks' "Gallery of the Future", while that band's passage types out word for word ("A Democratic Future" for Civil, "An Autocratic Future" for Political, and so on; base rulebook p. 11, Legacy & Diplomacy p. 7). **See the results** opens `GameOverOverlay`; **Skip** or Escape goes there at once, and a click or Enter finishes the passage. Reduced motion (or Motion: off in Settings) shows it still and in full. Lessons (`hideGameOver`) skip both.
+Added 2026-11-21; text and art from Joe 2026-11-22. When someone wins, `VictoryStory` (`components/game/VictoryStory.tsx`) plays before the results: the victory's scene slowly pulls back while its passage types out, under the title of its band in the rulebooks' "Gallery of the Future" ("A Democratic Future" for Civil, "An Autocratic Future" for Political, "A Censored Future" for Ideological, and so on; base rulebook p. 11, Legacy & Diplomacy p. 7). **See the results** opens `GameOverOverlay`; **Skip** or Escape goes there at once, and a click or Enter finishes the passage. Reduced motion (or Motion: off in Settings) shows it still and in full. Lessons (`hideGameOver`) skip both.
 
-Like the rulebook bands, each scene is a photograph or painting under the band's color (applied in CSS). `scripts/make-victory-art.py` downloads the originals, frames them 16:9, evens out their tone, and writes `public/art/victory/<kind>.webp`; the service worker saves them for offline play. Every source is CC0 or public domain:
+The passage is Joe's text for each victory (lightly edited with his OK), filled in from the final table by `victoryPassage` (`lib/game/epilogue.ts`, tested in `epilogue.test.ts`): the winner's party, plus what won it.
 
-| Victory | Scene | Credit |
-| --- | --- | --- |
-| Civil | [Peace Day Celebrations, Victoria Square, Adelaide (1919)](https://commons.wikimedia.org/w/index.php?curid=87033451) | State Government Photographer, South Australia |
-| Political | [Parliament House, Helsinki, at night](https://commons.wikimedia.org/w/index.php?curid=146679758) | Leonhard Lenz |
-| Military | [Entrance hall chandelier, Dolmabahçe Palace](https://commons.wikimedia.org/w/index.php?curid=176677231) | Julian Lupyan |
-| Popularity | [View of Bordeaux, from the Quai des Chartrons (Eugène Boudin, 1874)](https://commons.wikimedia.org/w/index.php?curid=76010027) | Cleveland Museum of Art |
-| Ideological | [Persons under CCTV cameras](https://commons.wikimedia.org/w/index.php?curid=83602925) | Matthew Henry |
-| Cultural | [Blackpool Tower Ballroom](https://commons.wikimedia.org/w/index.php?curid=71673120) | Michael D Beckwith |
-| Diplomatic | [Flags in front of the Louise Weiss building, Strasbourg](https://commons.wikimedia.org/w/index.php?curid=149512489) | Syced |
+| Victory | Filled in |
+| --- | --- |
+| Civil | the party only |
+| Political | two decree objectives the winner met ("Pax Imperium and Profectus"; more than two: the first two in card order) |
+| Cultural | the winner's last two monuments, in the order built |
+| Diplomatic | every World Power the winner has the higher relation with (West, North, East, South order) |
+| Military | the partisan lead, as a word ("the three ambitious partner warlords") |
+| Popularity | every district the winner leads by 9+ support |
+| Ideological | the ideology: Authority = authoritative order, Science = scientific endeavor, Economy = economic growth, Justice = judicial equality |
+
+The passage is set in Fondamento Italic, the nearest web font to the rulebook's Kokonor. The scenes are Joe's band art, already in the band colors (`<Kind> Victory.jpg`, 1204 x 658). `scripts/make-victory-art.py <folder>` trims their frame, enlarges them to 1920 wide, and writes `public/art/victory/<kind>.webp`. The service worker saves them for offline play; their contents are part of its card cache's name, so a redrawn scene reaches installed apps under the same file name.
 
 ## Tutorial (Learn to play)
 

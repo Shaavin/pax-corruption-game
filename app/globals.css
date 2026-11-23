@@ -231,7 +231,7 @@ body {
 /* Victory (components/game/VictoryStory.tsx): the scene pulls back while its future is typed. */
 @keyframes victory-pan {
   from {
-    transform: scale(1.5) translateY(4%);
+    transform: scale(1.3) translateY(3%);
   }
   to {
     transform: scale(1.02);

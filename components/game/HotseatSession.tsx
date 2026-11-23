@@ -64,6 +64,7 @@ import {
   encodeShareCode,
   undoReplay,
   handCardBlockReason,
+  victoryPassage,
   victoryRace,
   VictoryKind,
   type Action,
@@ -1024,7 +1025,11 @@ export function HotseatSession(props: HotseatSessionProps) {
         <ChoiceOverlay state={state} choice={choice} viewer={viewer} onAction={dispatch} />
       ) : null}
       {state.victory && !remote?.hideGameOver && storySeen !== victoryKey ? (
-        <VictoryStory victory={state.victory} onDone={() => setStorySeen(victoryKey)} />
+        <VictoryStory
+          victory={state.victory}
+          text={victoryPassage(state, state.victory)}
+          onDone={() => setStorySeen(victoryKey)}
+        />
       ) : state.victory && !remote?.hideGameOver ? (
         <GameOverOverlay
           victory={state.victory}

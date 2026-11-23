@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { readdirSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 
 /**
@@ -11,6 +11,7 @@ import { join, relative } from "node:path";
  * Card images are saved through the image optimizer at one width (a few MB in all); offline,
  * a card at any other width is answered with the saved copy. Card files are never edited in
  * place: a changed face gets a new file name (e.g. `profectus-v2.png`), so caches never go stale.
+ * Victory scenes may be replaced in place: their contents are part of the card cache's name.
  */
 export const dynamic = "force-static";
 
@@ -37,8 +38,10 @@ export function GET(): Response {
   // The victory scenes, saved as they are (full-screen, so not through the card-size optimizer).
   const art = imageFiles(join("art", "victory"));
   const build = process.env.PAX_BUILD || "dev";
-  // A new card or scene list (one added or renamed) starts a fresh card cache; otherwise it's kept.
-  const cardsTag = createHash("sha1").update([...cards, ...art].join("\n")).digest("hex").slice(0, 10);
+  // A new card or scene list (one added or renamed), or a scene redrawn, starts a fresh card cache; otherwise it's kept.
+  const tag = createHash("sha1").update([...cards, ...art].join("\n"));
+  for (const src of art) tag.update(readFileSync(join(process.cwd(), "public", src)));
+  const cardsTag = tag.digest("hex").slice(0, 10);
   const script = SERVICE_WORKER.replace("__CONFIG__", JSON.stringify({ build, cardsTag, pages: PAGES, cards, art, width: CARD_WIDTH, quality: CARD_QUALITY }));
   return new Response(script, {
     headers: {
