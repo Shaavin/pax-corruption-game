@@ -27,5 +27,5 @@ function member(id: CastId, level: AiLevel, role: string, initials: string, colo
 export const CAST: Record<CastId, CastMember> = {
   mildred: member("mildred", "easy", "Mayor of Town Hall", "MM", "#d9a441"),
   crane: member("crane", "normal", "Chancellor of the Capital", "CC", "#6f9fc8"),
-  vex: member("vex", "hard", "Grand Vizier of the Palace", "GV", "#a66bd3"),
+  vex: member("vex", "hard", "retired Grand Vizier of the Old Palace", "GV", "#a66bd3"),
 };

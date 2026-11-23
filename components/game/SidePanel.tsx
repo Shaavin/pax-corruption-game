@@ -749,7 +749,7 @@ export function TurnDock({
           const current = phase === step.id;
           const done = STEPS.findIndex((entry) => entry.id === phase) > index;
           return (
-            <li key={step.id} className="flex flex-1 items-center gap-1">
+            <li key={step.id} data-step={step.id} className="flex flex-1 items-center gap-1">
               <span
                 className={[
                   "flex-1 rounded-full px-2 py-1 text-center text-[0.6rem] font-semibold tracking-[0.12em] uppercase transition-colors",

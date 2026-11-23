@@ -55,9 +55,30 @@ function besideBoard(width: number): { top: number; left: number } {
   return { top: board.top + MARGIN, left: Math.max(MARGIN, board.right - width - MARGIN) };
 }
 
-/** A decision overlay (decree, policy, event) is covering the table. */
-function modalOpen(): boolean {
-  return [...document.querySelectorAll<HTMLElement>("[data-modal]")].some((element) => element.getClientRects().length > 0);
+/** The panel of a decision overlay (setup, decree, policy, event) covering the table, if one is open. */
+function modalPanel(): DOMRect | null {
+  for (const overlay of document.querySelectorAll<HTMLElement>("[data-modal]")) {
+    if (overlay.getClientRects().length === 0) continue;
+    // The dialog itself; the shared overlay puts its panel after the "View table" button.
+    const panel = overlay.querySelector<HTMLElement>("[role=dialog]") ?? (overlay.lastElementChild as HTMLElement | null) ?? overlay;
+    return panel.getBoundingClientRect();
+  }
+  return null;
+}
+
+/** The card's usual width (21rem), and the narrowest it gets to fit beside a decision. */
+const CARD_WIDTH = 336;
+const NARROWEST = 240;
+
+/** Beside an open decision, on the side with more room, narrowed to fit; null when it would cover the decision. */
+function besideModal(panel: DOMRect): { top: number; left: number; width: number } | null {
+  const top = Math.max(MARGIN, Math.round(panel.top));
+  const leftRoom = panel.left - MARGIN * 2;
+  const rightRoom = window.innerWidth - panel.right - MARGIN * 2;
+  const room = Math.max(leftRoom, rightRoom);
+  if (room < NARROWEST) return null;
+  const width = Math.min(CARD_WIDTH, Math.floor(room));
+  return leftRoom >= rightRoom ? { top, left: MARGIN, width } : { top, left: window.innerWidth - width - MARGIN, width };
 }
 
 function sameBox(a: Box | null, b: Box | null): boolean {
@@ -76,6 +97,12 @@ export function CoachCard({ step, stepIndex, stepCount, stage, opponent, speech,
   const compact = useCompact();
   const [spot, setSpot] = useState<Box | null>(null);
   const [modal, setModal] = useState(false);
+  /** A decision is open and there's no room beside it: the card folds to a pill instead of covering it. */
+  const [cramped, setCramped] = useState(false);
+  /** The card's width while it waits beside a decision (narrower than usual when space is short). */
+  const [asideWidth, setAsideWidth] = useState<number | null>(null);
+  /** The step whose note was opened from the pill, over the decision. */
+  const [openedAt, setOpenedAt] = useState<number | null>(null);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const [collapsedAt, setCollapsedAt] = useState<number | null>(null);
   const [hintFor, setHintFor] = useState<number | null>(null);
@@ -96,14 +123,18 @@ export function CoachCard({ step, stepIndex, stepCount, stage, opponent, speech,
     let frame = 0;
     const layout = () => {
       const box = measure(target);
-      const covered = modalOpen();
+      const panel = modalPanel();
+      const covered = panel !== null;
       setSpot((current) => (sameBox(current, box) ? current : box));
       setModal(covered);
       const card = cardRef.current;
       const w = card?.offsetWidth ?? 320;
       const h = card?.offsetHeight ?? 180;
+      const aside = panel ? besideModal(panel) : null;
+      setCramped(covered && aside === null);
+      setAsideWidth(aside ? aside.width : null);
       const next = covered
-        ? { top: MARGIN, left: MARGIN }
+        ? (aside ? { top: aside.top, left: aside.left } : { top: MARGIN, left: MARGIN })
         : box
           ? placeCard(box, window.innerWidth, window.innerHeight, w, h)
           : explain
@@ -150,12 +181,17 @@ export function CoachCard({ step, stepIndex, stepCount, stage, opponent, speech,
       <div aria-hidden className="pointer-events-none fixed inset-0 z-[71] bg-black/45" />
     ) : null;
 
-  // Phones: a slim bar at the top while folded (or while a decision covers the table).
-  if (compact && (collapsed || (modal && !explain))) {
+  // Phones: a slim bar at the top while folded (or while a decision covers the table). Wider
+  // screens too, while a decision is open with no room beside it. Pressing it opens the note.
+  const pillForDecision = modal && !explain && openedAt !== stepIndex && (compact || cramped);
+  if ((compact && collapsed) || pillForDecision) {
     return (
       <button
         type="button"
-        onClick={() => setCollapsedAt(null)}
+        onClick={() => {
+          setCollapsedAt(null);
+          setOpenedAt(stepIndex);
+        }}
         className="fixed top-2 right-2 z-[72] flex max-w-[70vw] cursor-pointer items-center gap-2 rounded-full glass-strong px-3 py-1.5 text-xs font-semibold text-stone-100 shadow-xl ring-1 ring-[var(--act)]/60"
       >
         <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--act)]" aria-hidden />
@@ -189,7 +225,7 @@ export function CoachCard({ step, stepIndex, stepCount, stage, opponent, speech,
         aria-live="polite"
         aria-label="Lesson coach"
         className={`${placement} z-[72] rounded-2xl glass-strong p-3.5 text-stone-100 shadow-2xl ring-1 ring-white/10 ${!compact && !pos ? "invisible" : ""}`}
-        style={compact ? undefined : (pos ?? { top: 0, left: 0 })}
+        style={compact ? undefined : { ...(pos ?? { top: 0, left: 0 }), ...(asideWidth ? { width: asideWidth } : {}) }}
       >
         <header className="flex items-center justify-between gap-3 text-[0.65rem] font-semibold tracking-[0.14em] text-stone-400 uppercase">
           <span>{waiting ? "Their turn" : `Step ${Math.min(stepIndex + 1, stepCount)} of ${stepCount}`}</span>
@@ -207,7 +243,10 @@ export function CoachCard({ step, stepIndex, stepCount, stage, opponent, speech,
               type="button"
               aria-label="Fold the note away"
               title="Fold the note away (it comes back with the next one)"
-              onClick={() => setCollapsedAt(stepIndex)}
+              onClick={() => {
+                setCollapsedAt(stepIndex);
+                setOpenedAt(null);
+              }}
               className="-mr-1 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full text-base leading-none text-stone-400 hover:bg-white/8 hover:text-stone-100"
             >
               –

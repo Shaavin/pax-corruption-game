@@ -6,10 +6,11 @@
  */
 import { chooseAiAction } from "../game/ai.ts";
 import { apply, currentActor, legalActions } from "../game/engine.ts";
+import { newReplay } from "../game/record.ts";
 import type { Rng } from "../game/rng.ts";
 import { Phase, type Action, type GameEvent, type GameState, type PlayerId } from "../game/types.ts";
 import { CAST } from "./cast.ts";
-import { matches, type Lesson, type LessonStep } from "./lesson.ts";
+import { isNewGame, matches, type Lesson, type LessonStep } from "./lesson.ts";
 import { buildScenario } from "./scenario.ts";
 
 /** The learner always plays seat 0; the opponent seat 1. */
@@ -33,10 +34,17 @@ export type LessonRun = {
   outcome: LessonOutcome;
 };
 
-export function startLesson(lesson: Lesson): LessonRun {
+/** A lesson's seed: its table's, or for a whole game the one the attempt was dealt with. */
+export function lessonSeed(lesson: Lesson, dealt?: number): number {
+  return isNewGame(lesson.scenario) ? (dealt ?? 1) : lesson.scenario.seed;
+}
+
+/** A prepared table, or (for a whole game) a new standard base game dealt with `seed`. */
+export function startLesson(lesson: Lesson, seed?: number): LessonRun {
+  const state = isNewGame(lesson.scenario) ? newReplay(lessonSeed(lesson, seed)).state : buildScenario(lesson.scenario);
   return {
     lesson,
-    state: buildScenario(lesson.scenario),
+    state,
     step: 0,
     script: 0,
     history: [],
@@ -105,7 +113,7 @@ export function opponentMove(run: LessonRun, rng: Rng): { action: Action; say?: 
     const action = legal.find((candidate) => matches(entry, candidate));
     if (action) return { action, say: entry.say, scripted: true };
   }
-  const level = CAST[run.lesson.opponent].level;
+  const level = run.lesson.opponentLevel ?? CAST[run.lesson.opponent].level;
   return { action: chooseAiAction(run.state, OPPONENT, level, rng) ?? legal[0]!, scripted: false };
 }
 
@@ -116,9 +124,15 @@ export function playOpponent(run: LessonRun, move: { action: Action; scripted: b
 }
 
 function play(run: LessonRun, action: Action, rng: Rng): LessonRun {
-  const result = apply(run.state, action, rng);
-  const ended = result.events.filter((event) => event.type === "turnEnded" && event.nextPlayer === OPPONENT).length;
-  return { ...run, state: result.state, history: [...run.history, ...result.events], turnsEnded: run.turnsEnded + ended };
+  let result = apply(run.state, action, rng);
+  let events = result.events;
+  // Lessons without politics pass the step for whoever reaches it.
+  while (run.lesson.skipPolitics && result.state.phase === Phase.Politics && !result.state.victory) {
+    result = apply(result.state, { type: "endPolitics", player: currentActor(result.state) }, rng);
+    events = [...events, ...result.events];
+  }
+  const ended = events.filter((event) => event.type === "turnEnded" && event.nextPlayer === OPPONENT).length;
+  return { ...run, state: result.state, history: [...run.history, ...events], turnsEnded: run.turnsEnded + ended };
 }
 
 function advance(run: LessonRun): LessonRun {

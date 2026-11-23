@@ -5,6 +5,7 @@
 import type { ExpansionVictoryId } from "../cards/expansion.ts";
 import { getCard } from "../cards/catalog.ts";
 import type { DecreeIdValue, DistrictId, MonumentIdValue, PolicyIdValue } from "../cards/schema.ts";
+import type { AiLevel } from "../game/ai.ts";
 import type { Action, EventUse, FreeActionAction, VictoryKindId } from "../game/types.ts";
 import type { CastId } from "./cast.ts";
 import type { ScenarioSpec } from "./scenario.ts";
@@ -21,9 +22,11 @@ export type Expect =
   | { type: "declareVictory"; victory?: VictoryKindId }
   | { type: "activateDecree"; decree?: DecreeIdValue }
   | { type: "buyEvent"; event?: string; use?: EventUse; victory?: ExpansionVictoryId }
-  /** A free action; `card` is the card it takes (East events). */
-  | { type: "freeAction"; ability?: FreeActionAction["ability"]; card?: string }
-  | { type: "endAction" | "endPolitics" | "passIncome" };
+  /** A free action; `card` is the card it takes (East events), `district` the cards it spends (Rebel Inc.). */
+  | { type: "freeAction"; ability?: FreeActionAction["ability"]; card?: string; district?: DistrictId }
+  | { type: "endAction" | "endPolitics" | "passIncome" }
+  /** Setup, in a lesson that plays a whole game. */
+  | { type: "chooseParty" | "chooseStartingHand" };
 
 /** One of the opponent's moves, and what they say while making it. */
 export type ScriptedMove = Expect & { say?: string };
@@ -86,18 +89,26 @@ export type DoStep = StepBase & {
 /**
  * Any legal move. Ends at the end of the learner's turn, or when someone wins.
  * `solution` is a line that finishes it (the lesson tests play it; the coach's Hint explains it).
+ * A whole game has none: the tests let the computer play the learner's seat.
  */
 export type FreeStep = StepBase & {
   kind: "free";
   until: "turnEnd" | "victory";
   hint?: string;
-  solution: Expect[];
+  solution?: Expect[];
 };
 
 export type LessonStep = ExplainStep | DoStep | FreeStep;
 
 /** The tutorial's chapters: who you face, and where. */
 export type ActId = "townHall" | "capital" | "palace" | "foreign";
+
+/** A whole game from setup (choosing parties) instead of a prepared table: a new deal every attempt. */
+export type NewGameSpec = { newGame: true };
+
+export function isNewGame(scenario: ScenarioSpec | NewGameSpec): scenario is NewGameSpec {
+  return "newGame" in scenario;
+}
 
 export type Lesson = {
   id: string;
@@ -116,7 +127,13 @@ export type Lesson = {
   lose?: string;
   /** Table areas (`data-tour` anchors) dimmed in this lesson: not introduced yet. */
   dim?: string[];
-  scenario: ScenarioSpec;
+  /** Table areas left off the screen altogether (Town Hall: everything politics). */
+  hide?: string[];
+  /** No Politics step: it passes by itself for both players, and the turn panel doesn't show it. */
+  skipPolitics?: boolean;
+  /** The opponent's strength once their script runs out, if not their usual one. */
+  opponentLevel?: AiLevel;
+  scenario: ScenarioSpec | NewGameSpec;
   steps: LessonStep[];
   /** The opponent's moves, in order. Once spent (or if one can't be played), the computer plays. */
   script: ScriptedMove[];
@@ -167,6 +184,9 @@ export function matches(expect: Expect, action: Action): boolean {
     case "freeAction": {
       if (expect.type !== "freeAction") return false;
       if (expect.ability !== undefined && action.ability !== expect.ability) return false;
+      if (expect.district !== undefined && !("instanceIds" in action && action.instanceIds.every((id) => districtOf(id) === expect.district))) {
+        return false;
+      }
       return expect.card === undefined || ("instanceId" in action && sameCard(action.instanceId, expect.card));
     }
     default:

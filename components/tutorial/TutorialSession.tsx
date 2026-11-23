@@ -9,12 +9,14 @@ import { getSettings } from "../game/settings";
 import { CoachCard, type CoachNotice, type Speech } from "./CoachCard";
 import { Portrait } from "./Portrait";
 import { markLessonDone } from "./progress";
-import { createSeededRng } from "@/lib/game/rng";
+import { createSeededRng, randomUint32 } from "@/lib/game/rng";
 import type { Action } from "@/lib/game";
 import {
   acknowledge,
   allows,
   CAST,
+  isNewGame,
+  lessonSeed,
   LESSONS,
   nextLesson,
   opponentMove,
@@ -27,8 +29,9 @@ import {
   type MoveStage,
 } from "@/lib/tutorial";
 
-/** Dimmed table areas get these classes on the wrapper (see globals.css). */
+/** Dimmed and hidden table areas get these classes on the wrapper (see globals.css). */
 const DIM_CLASS = (anchor: string) => `tutorial-dim-${anchor}`;
+const HIDE_CLASS = (anchor: string) => `tutorial-hide-${anchor}`;
 
 /** One lesson at the table: the engine plays, the coach explains, the opponent follows a script. */
 export function TutorialSession({ lesson }: { lesson: Lesson }) {
@@ -39,8 +42,10 @@ export function TutorialSession({ lesson }: { lesson: Lesson }) {
 
 function LessonTable({ lesson, onRestart }: { lesson: Lesson; onRestart: () => void }) {
   const opponent = CAST[lesson.opponent];
-  const [run, setRun] = useState<LessonRun>(() => startLesson(lesson));
-  const [rng] = useState(() => createSeededRng(lesson.scenario.seed));
+  // A whole game is dealt afresh for every attempt; a prepared table is always the same.
+  const [seed] = useState(() => lessonSeed(lesson, isNewGame(lesson.scenario) ? randomUint32() : undefined));
+  const [run, setRun] = useState<LessonRun>(() => startLesson(lesson, seed));
+  const [rng] = useState(() => createSeededRng(seed));
   const [speech, setSpeech] = useState<Speech | null>({ text: lesson.intro, key: 0, step: 0 });
   const [notice, setNotice] = useState<CoachNotice | null>(null);
   /** Where the learner is in a several-click move (the table reports it). */
@@ -129,10 +134,15 @@ function LessonTable({ lesson, onRestart }: { lesson: Lesson; onRestart: () => v
     [run, lesson, opponent.name, playerName, send, onRestart, step],
   );
 
-  const dim = (lesson.dim ?? []).map(DIM_CLASS).join(" ");
+  const classes = [
+    ...(lesson.dim ?? []).map(DIM_CLASS),
+    ...(lesson.hide ?? []).map(HIDE_CLASS),
+    // The Politics step passes by itself here, so the turn panel leaves it out.
+    lesson.skipPolitics ? "tutorial-skip-politics" : "",
+  ].join(" ");
 
   return (
-    <div className={dim}>
+    <div className={classes}>
       <HotseatSession remote={remote} />
       {run.outcome === "playing" ? (
         <CoachCard
@@ -157,8 +167,8 @@ function LessonEnd({ lesson, run, onRestart }: { lesson: Lesson; run: LessonRun;
   const opponent = CAST[lesson.opponent];
   const won = run.outcome === "complete";
   const upNext = nextLesson(lesson.id);
-  // The base game ends with the exam; the expansion chapter is optional, so offer both.
-  const graduated = won && (lesson.id === "exam" || !upNext);
+  // The base game ends with a whole game against Vex; the expansion chapter is optional, so offer both.
+  const graduated = won && (lesson.id === "star" || !upNext);
   const practice = lesson.expansion ? "&expansion=1" : "";
   const hint = lesson.steps.find((step) => step.kind === "free" && step.hint);
   return (

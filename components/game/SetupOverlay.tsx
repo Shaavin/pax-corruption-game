@@ -179,8 +179,14 @@ function ChoiceFrame({
   children: ReactNode;
 }) {
   return (
-    <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center bg-black/70 px-4">
-      <div className="pointer-events-auto max-h-[min(92dvh,52rem)] w-full max-w-3xl overflow-y-auto rounded-2xl glass-strong px-5 py-6 text-center shadow-2xl ring-1 ring-white/10">
+    // data-modal: a lesson's coach card moves aside (and drops its spotlight) while setup covers the table.
+    <div data-modal className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center bg-black/70 px-4">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        className="pointer-events-auto max-h-[min(92dvh,52rem)] w-full max-w-3xl overflow-y-auto rounded-2xl glass-strong px-5 py-6 text-center shadow-2xl ring-1 ring-white/10"
+      >
         <p className="text-[0.65rem] font-semibold tracking-[0.18em] text-stamp-blue uppercase">
           {kicker}
         </p>

@@ -213,6 +213,17 @@ body {
   transition: opacity 300ms ease, filter 300ms ease;
 }
 
+/* Tutorial: table areas a lesson leaves out altogether (lesson `hide` anchors), and the
+   Politics step in the turn panel when the lesson skips it (Town Hall). */
+.tutorial-hide-senate [data-tour="senate"],
+.tutorial-hide-decrees [data-tour="decrees"],
+.tutorial-hide-supply [data-tour="supply"],
+.tutorial-hide-center-band [data-tour="center-band"],
+.tutorial-hide-action-cards [data-tour="action-cards"],
+.tutorial-skip-politics [data-step="politics"] {
+  display: none;
+}
+
 @keyframes rise-in {
   from {
     opacity: 0;

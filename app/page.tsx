@@ -128,7 +128,7 @@ export default function Home() {
             </span>
             <span className="min-w-0 flex-1 leading-tight">
               <span className="block text-sm font-semibold text-stone-100">New here? Learn to play</span>
-              <span className="block text-xs text-stone-400">Short lessons against the computer, from Town Hall to the Palace.</span>
+              <span className="block text-xs text-stone-400">Short lessons against the computer, from Town Hall to the Old Palace.</span>
             </span>
             <span aria-hidden className="text-stone-400 transition group-hover:translate-x-0.5 group-hover:text-stone-100">
               →

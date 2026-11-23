@@ -931,6 +931,7 @@ export function HotseatSession(props: HotseatSessionProps) {
             revealIssue,
             proposeTarget,
             declarable: declarable.length,
+            spends: (["recruit", "construct"] as const).filter((type) => legal.some((action) => action.type === type)),
           }),
           extraActions,
           actionCards,
@@ -1215,6 +1216,8 @@ function turnPrompt(
     revealIssue: string | null;
     proposeTarget: PolicyTarget | null;
     declarable: number;
+    /** Recruit and construct, when one is a legal main action now. */
+    spends: readonly ("recruit" | "construct")[];
   },
 ): string {
   const election = state.election.active ? "Election · " : "";
@@ -1265,7 +1268,9 @@ function turnPrompt(
   }
   if (opts.canEndAction) return `${election}Action · no legal main action`;
   if (opts.playDistrict) return `${election}Action · play into the highlighted district`;
-  return `${election}Action · play a card, or choose recruit / construct`;
+  return opts.spends.length > 0
+    ? `${election}Action · play a card, or choose ${opts.spends.join(" / ")}`
+    : `${election}Action · play a card`;
 }
 
 function statusLine(state: GameState): string {

@@ -5,7 +5,7 @@ import { LessonHub } from "@/components/tutorial/LessonHub";
 export const metadata: Metadata = {
   title: "Learn to play",
   description:
-    "Learn Pax Corruption in short lessons at a real table: civil cards, conspiracies, alliances, the Senate, elections, and every victory, against the computer.",
+    "Learn Pax Corruption in short lessons at a real table, from Town Hall to leading your own party: civil cards, alliances, conspiracies, the Senate, decrees, and every victory, against the computer.",
   alternates: { canonical: "/learn" },
   openGraph: { url: "/learn" },
 };

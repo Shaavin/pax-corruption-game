@@ -126,17 +126,19 @@ export function PolicyChooser({ districtOrder, policies, frozen, open, onChoose,
                     const canChoose = legal && (!canPick || canPick({ district, policyId }));
                     // Legal, but not the change being asked for (lessons).
                     const notNow = legal && !canChoose && onChoose !== null;
+                    // While choosing, only what can be chosen stays in full color (the policy in effect keeps its ring).
+                    const muted = onChoose !== null && !canChoose;
                     const name = policyId ? getCard(policyId).name : "Neutral";
                     return (
                       <div key={policyId ?? "neutral"} className="flex flex-col items-center gap-1.5">
                         <div className={["rounded-[0.4em]", inEffect ? "ring-2 ring-[var(--act)] ring-offset-2 ring-offset-[#11151c]" : ""].join(" ")}>
                           {policyId ? (
-                            <CardView name={name} art={getCard(policyId).art} size="choice" cardId={policyId} dimmed={notNow} />
+                            <CardView name={name} art={getCard(policyId).art} size="choice" cardId={policyId} dimmed={muted} />
                           ) : (
                             <div
                             className={[
                               "flex aspect-[825/1125] w-[calc(var(--card-choice)*0.62)] items-center justify-center rounded-[0.4em] border border-dashed border-white/20 text-xs text-stone-400",
-                              notNow ? "opacity-40" : "",
+                              muted ? "opacity-40" : "",
                             ].join(" ")}
                           >
                               Neutral

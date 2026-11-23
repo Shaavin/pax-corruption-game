@@ -5,7 +5,7 @@ import { Portrait } from "./Portrait";
 import { lessonUnlocked, nextUp, setUnlockAll, useTutorialProgress } from "./progress";
 import { ACTS, CAST, LESSONS, lessonsInAct } from "@/lib/tutorial";
 
-/** The lesson list: three chapters against the computer cast, then the optional expansion chapter. */
+/** The lesson list: three chapters up the ladder against the computer cast, then the optional expansion chapter. */
 export function LessonHub() {
   const progress = useTutorialProgress();
   const upNext = nextUp(progress);
@@ -19,8 +19,9 @@ export function LessonHub() {
         <div className="max-w-xl">
           <h1 className="text-4xl font-semibold tracking-[-0.02em] sm:text-5xl">Learn to play</h1>
           <p className="mt-3 text-base leading-relaxed text-stone-300">
-            Short lessons at a real table, a few minutes each. Every lesson adds a few new pieces of the game, and you
-            play them against the computer&apos;s three politicians, from the friendliest to the most cunning.
+            Climb the ladder from Town Hall to leading your own party. Short lessons at a real table add a few pieces
+            of the game at a time, against the computer&apos;s three politicians, from the friendliest to the most
+            cunning, and end with a whole game.
           </p>
         </div>
         <div className="shrink-0 sm:text-right">
@@ -62,7 +63,7 @@ export function LessonHub() {
                   , {member.role}. {act.blurb}
                 </p>
                 {act.expansion && !baseDone && !progress.unlockAll ? (
-                  <p className="mt-1 text-xs text-stone-500">Opens after the final exam, or unlock every lesson below.</p>
+                  <p className="mt-1 text-xs text-stone-500">Opens after A Star is Born, or unlock every lesson below.</p>
                 ) : null}
               </div>
             </header>

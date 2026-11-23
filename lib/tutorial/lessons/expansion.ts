@@ -1,6 +1,7 @@
 /**
- * The Legacy & Diplomacy lessons ("Foreign Affairs"), against Grand Vizier Vex: events in the
- * Market, buying them, relations, legacy events, and the victories that start inactive.
+ * The Legacy & Diplomacy lessons (the Foreign Ministry), against Grand Vizier Vex: events in the
+ * Market, buying them, relations, legacy events, the victories that start inactive, and the two
+ * victories only the expansion has (Cultural and Diplomatic).
  * Rules: docs/agents/game-rules.md#expansion-legacy--diplomacy and the expansion rulings in
  * open-questions.md.
  */
@@ -18,11 +19,11 @@ const foreignAffairs: Lesson = {
   id: "events",
   act: "foreign",
   expansion: true,
-  title: "Foreign affairs",
+  title: "Foreign Affairs",
   summary: "Events from the four World Powers: what they cost, how to buy one, and what it gives.",
   teaches: ["Events", "Event cost", "Relations"],
   opponent: "vex",
-  intro: "You've met the Union's politicians. Now meet its neighbors. I know them all personally.",
+  intro: "You lead a party now. Time you met the Union's neighbors. I know them all personally.",
   outro: "The East favors you. For a price, as always.",
   scenario: {
     seed: 201,
@@ -120,13 +121,13 @@ const foreignAffairs: Lesson = {
   ],
 };
 
-const worldOrder: Lesson = {
-  id: "diplomacy",
+const intoTheFuture: Lesson = {
+  id: "future",
   act: "foreign",
   expansion: true,
-  title: "A new world order",
-  summary: "Victories that start inactive, legacy events that switch them on, and Diplomatic Victory.",
-  teaches: ["Legacy events", "Inactive victories", "Diplomatic Victory"],
+  title: "Into the Future",
+  summary: "Victories that start inactive, legacy events that switch them on, and the expansion's own Cultural and Diplomatic Victory.",
+  teaches: ["Legacy events", "Inactive victories", "Cultural Victory", "Diplomatic Victory"],
   opponent: "vex",
   intro: "The East owes me favors. The West? Nobody has asked them yet.",
   outro: "The world chose you. Remarkable. Next time, I'll choose the world.",
@@ -165,10 +166,17 @@ const worldOrder: Lesson = {
     },
     {
       kind: "explain",
+      target: "supply",
+      view: "table",
+      title: "Two new victories",
+      body: "Cultural and Diplomatic Victory exist only in Legacy & Diplomacy. Cultural: build 2 or more monuments than your opponent (its tug-of-war sits in the Monuments section). Diplomatic: a higher relation than your opponent with 3 of the 4 World Powers.",
+    },
+    {
+      kind: "explain",
       target: "world",
       view: "table",
       title: "Relations",
-      body: "Every event you buy is +1 relation with its World Power. Diplomatic Victory: a higher relation than your opponent with 3 of the 4 powers. You lead the North and the South; the West is 0–0.",
+      body: "Every event you buy is +1 relation with its World Power. You lead the North and the South; the West is 0–0. One more power and Diplomatic Victory is yours, once it's switched on.",
     },
     {
       kind: "do",
@@ -226,4 +234,4 @@ const worldOrder: Lesson = {
   ],
 };
 
-export const EXPANSION_LESSONS: Lesson[] = [foreignAffairs, worldOrder];
+export const EXPANSION_LESSONS: Lesson[] = [foreignAffairs, intoTheFuture];
