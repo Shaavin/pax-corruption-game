@@ -6,12 +6,12 @@ import { join, relative } from "node:path";
  * The service worker that makes the installed app work offline. Built once per deploy: the
  * build id names the caches (a new deploy replaces the old pages and scripts), and the card
  * list is read from `public/cards` (every card image is saved on install), and so are the victory
- * scenes in `public/art/victory`.
+ * scenes in `public/art/victory` and the computer opponents' portraits in `public/art/cast`.
  *
  * Card images are saved through the image optimizer at one width (a few MB in all); offline,
  * a card at any other width is answered with the saved copy. Card files are never edited in
  * place: a changed face gets a new file name (e.g. `profectus-v2.png`), so caches never go stale.
- * Victory scenes may be replaced in place: their contents are part of the card cache's name.
+ * Victory scenes and portraits may be replaced in place: their contents are part of the card cache's name.
  */
 export const dynamic = "force-static";
 
@@ -35,8 +35,9 @@ function imageFiles(folder: string): string[] {
 
 export function GET(): Response {
   const cards = imageFiles("cards");
-  // The victory scenes, saved as they are (full-screen, so not through the card-size optimizer).
-  const art = imageFiles(join("art", "victory"));
+  // The victory scenes and the computer opponents' portraits, saved as they are (not through
+  // the card-size optimizer).
+  const art = [...imageFiles(join("art", "victory")), ...imageFiles(join("art", "cast"))];
   const build = process.env.PAX_BUILD || "dev";
   // A new card or scene list (one added or renamed), or a scene redrawn, starts a fresh card cache; otherwise it's kept.
   const tag = createHash("sha1").update([...cards, ...art].join("\n"));

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { ContinueGame } from "../game/ContinueGame";
+import { Portrait } from "../game/Portrait";
 import { rememberedNames, rememberNames } from "../game/players";
 import { createOnlineGame, onlineConfigured } from "../online/online-client";
 import { cleanName, MAX_NAME_LENGTH, nameProblem } from "@/lib/game/names";
@@ -154,6 +155,9 @@ export function HomeLauncher({ onlineOnly = false }: { onlineOnly?: boolean } = 
                   className="group relative flex cursor-pointer items-start gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.03] px-3.5 py-2.5 transition hover:border-white/20 hover:bg-white/[0.05] has-[:checked]:border-stamp-blue/70 has-[:checked]:bg-stamp-blue/[0.08] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-stamp-blue"
                 >
                   <input type="radio" name="ai" value={level.id} defaultChecked={level.id === "normal"} className="peer sr-only" />
+                  <span className="mt-0.5">
+                    <Portrait src={level.persona.portrait} color={level.persona.color} title={level.persona.portraitCredit} />
+                  </span>
                   <span className="min-w-0 flex-1">
                     <span className="flex flex-wrap items-baseline gap-x-2">
                       <span className="text-sm font-semibold text-stone-100">{level.persona.name}</span>

@@ -160,6 +160,8 @@ export type RemoteGame = {
   onStage?: (stage: MoveStage) => void;
   /** A table moment (parties revealed, an election) is playing: a lesson holds its end screen until it's over. */
   onMoment?: (playing: boolean) => void;
+  /** The computer opponent's portrait (a lesson's cast member). */
+  opponentPortrait?: string;
 };
 
 type LocalProps = { remote?: undefined };
@@ -985,6 +987,7 @@ export function HotseatSession(props: HotseatSessionProps) {
                 aiPersona(ai.level).thinking[session.replay.steps.length % aiPersona(ai.level).thinking.length]!
               : statusLine(state)
       }
+      opponentPortrait={remote ? remote.opponentPortrait : ai ? aiPersona(ai.level).portrait : undefined}
       showTour={(remote?.showTour ?? true) && !veiled && !waitingFirstSeat && !inSetup && !state.victory}
       veiled={veiled || waitingFirstSeat}
       hotseat={viewer}

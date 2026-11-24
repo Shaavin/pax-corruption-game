@@ -40,6 +40,11 @@ export type AiPersona = {
   tagline: string;
   /** "… is thinking" lines, rotated move by move. */
   thinking: readonly string[];
+  /** Their portrait (public/art/cast, made by scripts/make-cast-art.py) and the painting it's from. */
+  portrait: string;
+  portraitCredit: string;
+  /** Their color, for the portrait's ring outside a game (in a game the seat's color rings it). */
+  color: string;
 };
 
 export const AI_LEVELS: readonly { id: AiLevel; name: string; blurb: string; persona: AiPersona }[] = [
@@ -57,6 +62,9 @@ export const AI_LEVELS: readonly { id: AiLevel; name: string; blurb: string; per
         "Mayor Mildred is counting votes on her fingers…",
         "Mayor Mildred is cutting a ribbon somewhere…",
       ],
+      portrait: "/art/cast/mildred.webp",
+      portraitCredit: "Portrait of a Lady, French or Swiss, 1725–50. Art Institute of Chicago (public domain).",
+      color: "#d9a441",
     },
   },
   {
@@ -73,6 +81,9 @@ export const AI_LEVELS: readonly { id: AiLevel; name: string; blurb: string; per
         "Chancellor Crane is calling in a favor…",
         "Chancellor Crane is weighing the options…",
       ],
+      portrait: "/art/cast/crane.webp",
+      portraitCredit: "Portrait of a Man, attributed to Nicolaes Maes, c. 1655. Art Institute of Chicago (public domain).",
+      color: "#6f9fc8",
     },
   },
   {
@@ -89,6 +100,9 @@ export const AI_LEVELS: readonly { id: AiLevel; name: string; blurb: string; per
         "Grand Vizier Vex is smiling at the Senate…",
         "Grand Vizier Vex is rearranging the ballots…",
       ],
+      portrait: "/art/cast/vex.webp",
+      portraitCredit: "An Old Man in a Fur Cap, Karel van der Pluym, c. 1655. Art Institute of Chicago (public domain).",
+      color: "#a66bd3",
     },
   },
 ];

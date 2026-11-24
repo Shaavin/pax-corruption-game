@@ -1,7 +1,7 @@
 /**
  * The tutorial's opponents: the three computer personalities, met in order of skill.
- * Names come from the computer opponent itself (`ai.ts`), so the lessons and the
- * "vs Computer" games share one cast.
+ * Names, portraits, and colors come from the computer opponent itself (`ai.ts`), so the
+ * lessons and the "vs Computer" games share one cast.
  */
 import { aiPersona, type AiLevel } from "../game/ai.ts";
 
@@ -14,18 +14,18 @@ export type CastMember = {
   name: string;
   /** Where you meet them. */
   role: string;
-  /** Monogram for the portrait. */
-  initials: string;
-  /** Portrait color. */
+  /** Their portrait (an image path) and its ring color. */
+  portrait: string;
   color: string;
 };
 
-function member(id: CastId, level: AiLevel, role: string, initials: string, color: string): CastMember {
-  return { id, level, name: aiPersona(level).name, role, initials, color };
+function member(id: CastId, level: AiLevel, role: string): CastMember {
+  const persona = aiPersona(level);
+  return { id, level, name: persona.name, role, portrait: persona.portrait, color: persona.color };
 }
 
 export const CAST: Record<CastId, CastMember> = {
-  mildred: member("mildred", "easy", "Mayor of Town Hall", "MM", "#d9a441"),
-  crane: member("crane", "normal", "Chancellor of the Capital", "CC", "#6f9fc8"),
-  vex: member("vex", "hard", "retired Grand Vizier of the Old Palace", "GV", "#a66bd3"),
+  mildred: member("mildred", "easy", "Mayor of Town Hall"),
+  crane: member("crane", "normal", "Chancellor of the Capital"),
+  vex: member("vex", "hard", "retired Grand Vizier of the Old Palace"),
 };

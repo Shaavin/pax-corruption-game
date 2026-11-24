@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { CardBack, CardView } from "./CardView";
 import { resolveCard, type FixtureCard } from "./layout-fixture";
 import { NetworkIcon } from "./NetworkIcon";
+import { Portrait } from "./Portrait";
 import type { PartyIdValue } from "@/lib/cards/schema";
 
 type PlayerBarProps = {
@@ -28,6 +29,8 @@ type PlayerBarProps = {
   compact?: boolean;
   /** Phone layout: the opponent's hand as a count instead of fanned backs. */
   handCount?: number;
+  /** A computer opponent's portrait, in place of the seat's color dot. */
+  portrait?: string;
   children?: ReactNode;
 };
 
@@ -46,6 +49,7 @@ export function PlayerBar({
   active,
   compact = false,
   handCount,
+  portrait,
   children,
 }: PlayerBarProps) {
   const color = seat === "you" ? "var(--you)" : "var(--opp)";
@@ -73,10 +77,18 @@ export function PlayerBar({
               aria-hidden
             />
           ) : null}
+          {/* Phones: a computer opponent's face on the party card's corner, so the name keeps its room. */}
+          {portrait && compact ? (
+            <span className="absolute -right-1 -bottom-1.5">
+              <Portrait src={portrait} color={color} size="xs" />
+            </span>
+          ) : null}
         </div>
+        {/* A computer opponent's face, beside both lines (in place of the seat's color dot). */}
+        {portrait && !compact ? <Portrait src={portrait} color={color} size="md" /> : null}
         <div className="min-w-0 leading-tight">
           <div className="flex min-w-0 items-center gap-1.5">
-            <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: color }} aria-hidden />
+            {portrait ? null : <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: color }} aria-hidden />}
             <span className={["truncate font-semibold whitespace-nowrap text-stone-100", compact ? "text-xs" : "text-sm"].join(" ")}>
               {name}
             </span>

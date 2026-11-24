@@ -135,8 +135,9 @@ function LessonTable({ lesson, onRestart }: { lesson: Lesson; onRestart: () => v
       showHand: step?.kind === "explain" && step.target === "your-hand",
       onStage: setStage,
       onMoment: setMomentPlaying,
+      opponentPortrait: opponent.portrait,
     }),
-    [run, lesson, opponent.name, playerName, send, onRestart, step],
+    [run, lesson, opponent.name, opponent.portrait, playerName, send, onRestart, step],
   );
 
   const classes = [

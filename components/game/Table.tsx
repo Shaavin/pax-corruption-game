@@ -77,6 +77,8 @@ type TableProps = {
   history: readonly GameEvent[];
   /** Shown in the turn dock when it isn't this seat's move (setup, waiting, game over). */
   idlePrompt: string;
+  /** A computer opponent's portrait, shown by their name. */
+  opponentPortrait?: string;
   interaction?: TableInteraction | null;
   /** Opens the "Report a problem" dialog. */
   onReport?: () => void;
@@ -117,6 +119,7 @@ function TableView({
   hotseat,
   history,
   idlePrompt,
+  opponentPortrait,
   interaction,
   onReport,
   extraMenu,
@@ -376,6 +379,7 @@ function TableView({
       <PeekContext.Provider value={{ setPeek: setPeekSafe }}>
         <CompactTable
           model={model}
+          opponentPortrait={opponentPortrait}
           hotseat={hotseat}
           veiled={veiled}
           history={history}
@@ -438,6 +442,7 @@ function TableView({
               lords={model.opponent.lords}
               lordsLead={lordsLead(model.opponent.lords, model.you.lords)}
               active={!yourTurn && live}
+              portrait={opponentPortrait}
             />
             <Hand cards={model.opponent.hand} variant="opponent" />
             <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1 text-[0.68rem] whitespace-nowrap text-stone-400">
@@ -540,6 +545,7 @@ function TableView({
 
 type CompactTableProps = {
   model: TableModel;
+  opponentPortrait?: string;
   hotseat: PlayerId;
   veiled: boolean;
   history: readonly GameEvent[];
@@ -574,6 +580,7 @@ type CompactView = "districts" | "table";
  */
 function CompactTable({
   model,
+  opponentPortrait,
   hotseat,
   veiled,
   history,
@@ -652,6 +659,7 @@ function CompactTable({
           lordsLead={lordsLead(model.opponent.lords, model.you.lords)}
           active={!yourTurn && live}
           handCount={model.opponent.hand.length}
+          portrait={opponentPortrait}
         />
       </div>
       <details className="relative shrink-0">
