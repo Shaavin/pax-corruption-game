@@ -224,7 +224,7 @@ The passage is Joe's text for each victory (lightly edited with his OK), filled 
 | Popularity | every district the winner leads by 9+ support |
 | Ideological | the ideology: Authority = authoritative order, Science = scientific endeavor, Economy = economic growth, Justice = judicial equality |
 
-The passage is set in Fondamento Italic, the nearest web font to the rulebook's Kokonor. The scenes are Joe's band art, already in the band colors (`<Kind> Victory.jpg`, 1204 x 658). `scripts/make-victory-art.py <folder>` trims their frame, enlarges them to 1920 wide, and writes `public/art/victory/<kind>.webp`. The service worker saves them for offline play; their contents are part of its card cache's name, so a redrawn scene reaches installed apps under the same file name.
+The passage is set in Rosarivo Italic, the nearest web font to the rulebook's Kokonor at its light weight (Fondamento, used first, read as bold). The scenes are Joe's band art, already in the band colors (`<Kind> Victory.jpg`, 1204 x 658). `scripts/make-victory-art.py <folder>` trims their frame, enlarges them to 1920 wide, and writes `public/art/victory/<kind>.webp`. The service worker saves them for offline play; their contents are part of its card cache's name, so a redrawn scene reaches installed apps under the same file name.
 
 ## Tutorial (Learn to play)
 
