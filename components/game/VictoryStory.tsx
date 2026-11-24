@@ -1,14 +1,11 @@
 "use client";
 
-import { Rosarivo } from "next/font/google";
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import { calligraphy } from "./fonts";
 import { KIND_LABEL } from "./GameOverOverlay";
 import { usePlayerLabel } from "./players";
 import { getSettings } from "./settings";
 import type { Victory, VictoryKindId } from "@/lib/game";
-
-/** The rulebooks set these passages in Kokonor's calligraphic italic (a Mac font); this is the nearest web font at its light weight. */
-const calligraphy = Rosarivo({ weight: "400", style: "italic", subsets: ["latin"], preload: false, display: "swap" });
 
 type Future = {
   title: string;

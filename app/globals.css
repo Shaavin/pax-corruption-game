@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Screens too short for a full overlay, such as a phone held sideways. */
+@custom-variant short (@media (max-height: 520px));
+
 :root {
   --background: #0a0c10;
   --foreground: #eef1f5;
@@ -302,7 +305,7 @@ body {
 }
 
 /* Elections (components/game/ElectionMoment.tsx): the polls open, then the votes are counted.
-   `--moment-scale` follows the animation speed setting. */
+   `--moment-scale` follows the animation speed setting (every table moment sets it). */
 .election-veil {
   background: radial-gradient(ellipse at center, rgb(0 0 0 / 0.62), rgb(0 0 0 / 0.3) 70%);
   animation: victory-fade calc(300ms * var(--moment-scale, 1)) ease-out both;
@@ -479,16 +482,16 @@ body {
   animation: victory-rise calc(600ms * var(--moment-scale, 1)) cubic-bezier(0.2, 0.8, 0.2, 1) calc(220ms * var(--moment-scale, 1)) both;
 }
 
-/* While a screen waits to be read: a bar runs down (duration and delay set inline), and a hint
-   says a click moves on. */
-.election-timer {
+/* While a moment's screen waits to be read (components/game/moment-kit.tsx): a bar runs down
+   (duration and delay set inline), and a hint says a click moves on. */
+.moment-timer {
   transform-origin: left;
-  animation-name: election-timer;
+  animation-name: moment-timer;
   animation-timing-function: linear;
   animation-fill-mode: both;
 }
 
-@keyframes election-timer {
+@keyframes moment-timer {
   from {
     transform: scaleX(1);
   }
@@ -497,8 +500,217 @@ body {
   }
 }
 
-.election-hint {
+.moment-hint {
   animation: victory-fade 600ms ease-out both;
+}
+
+/* The parties revealed (components/game/PartiesMoment.tsx): a band in the brand's red opens from
+   the middle of the table, both party cards slide in face down and turn up together, a seal
+   comes down between them, and the first player's card is lifted out. */
+.parties-band {
+  background:
+    radial-gradient(55% 110% at 50% 42%, rgb(168 29 17 / 0.55), transparent 72%),
+    linear-gradient(90deg, transparent, rgb(44 8 5 / 0.95) 9%, rgb(44 8 5 / 0.95) 91%, transparent);
+  border-block: 1px solid rgb(239 106 76 / 0.55);
+  box-shadow:
+    0 0 60px rgb(168 29 17 / 0.3),
+    0 20px 60px rgb(0 0 0 / 0.5);
+  animation: parties-open calc(650ms * var(--moment-scale, 1)) cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.parties-band.is-leaving {
+  animation: parties-close calc(450ms * var(--moment-scale, 1)) cubic-bezier(0.6, 0, 0.8, 0.4) both;
+}
+
+@keyframes parties-open {
+  from {
+    clip-path: inset(0 50% 0 50%);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes parties-close {
+  from {
+    clip-path: inset(0 0 0 0);
+  }
+  to {
+    clip-path: inset(0 50% 0 50%);
+  }
+}
+
+.parties-sheen {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 38%, rgb(239 106 76 / 0.2) 50%, transparent 62%);
+  background-size: 260% 100%;
+  animation: election-sheen calc(1500ms * var(--moment-scale, 1)) ease-in-out calc(1300ms * var(--moment-scale, 1)) both;
+}
+
+.parties-eyebrow {
+  animation: victory-rise calc(600ms * var(--moment-scale, 1)) cubic-bezier(0.2, 0.8, 0.2, 1) calc(200ms * var(--moment-scale, 1)) both;
+}
+
+/* A party card's width: 16% of the screen's height (the band fits a phone held sideways),
+   between 68 and 128 px. */
+.parties-row {
+  --party-card: clamp(4.25rem, 16dvh, 8rem);
+}
+
+.parties-slot {
+  animation: parties-slide-left calc(600ms * var(--moment-scale, 1)) cubic-bezier(0.2, 0.8, 0.2, 1) calc(250ms * var(--moment-scale, 1)) both;
+}
+
+.parties-slot-right {
+  animation-name: parties-slide-right;
+  animation-delay: calc(380ms * var(--moment-scale, 1));
+}
+
+@keyframes parties-slide-left {
+  from {
+    opacity: 0;
+    transform: translateX(-80px) rotate(-10deg);
+  }
+  to {
+    opacity: 1;
+    transform: rotate(-3deg);
+  }
+}
+
+@keyframes parties-slide-right {
+  from {
+    opacity: 0;
+    transform: translateX(80px) rotate(10deg);
+  }
+  to {
+    opacity: 1;
+    transform: rotate(3deg);
+  }
+}
+
+/* Both cards turn face up at once, as the parties are revealed at the table. */
+.parties-flip {
+  transform-style: preserve-3d;
+  animation: parties-flip calc(750ms * var(--moment-scale, 1)) cubic-bezier(0.3, 0.7, 0.2, 1.1) calc(1000ms * var(--moment-scale, 1)) both;
+}
+
+@keyframes parties-flip {
+  from {
+    transform: perspective(900px) rotateY(180deg);
+  }
+  to {
+    transform: perspective(900px) rotateY(0deg);
+  }
+}
+
+.parties-face {
+  backface-visibility: hidden;
+}
+
+.parties-back {
+  transform: rotateY(180deg);
+}
+
+.parties-lift.is-first {
+  animation: parties-lift calc(600ms * var(--moment-scale, 1)) cubic-bezier(0.2, 0.9, 0.3, 1.2) calc(2000ms * var(--moment-scale, 1)) both;
+}
+
+@keyframes parties-lift {
+  from {
+    transform: none;
+    box-shadow: 0 0 0 0 transparent;
+  }
+  to {
+    transform: translateY(-6px) scale(1.04);
+    box-shadow:
+      0 0 0 2px rgb(239 106 76 / 0.9),
+      0 0 34px rgb(239 106 76 / 0.55);
+  }
+}
+
+.parties-first {
+  transform: translateX(-50%);
+  animation: parties-first calc(500ms * var(--moment-scale, 1)) cubic-bezier(0.2, 0.9, 0.3, 1.4) calc(2050ms * var(--moment-scale, 1)) both;
+}
+
+@keyframes parties-first {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.4);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+}
+
+/* A wax seal between the parties, centered on the cards. */
+.parties-seal {
+  width: 3rem;
+  height: 3rem;
+  margin-top: calc(var(--party-card) * 0.68 - 1.5rem);
+  background: radial-gradient(circle at 38% 32%, #c8321f, var(--pax-red) 55%, var(--pax-red-deep));
+  box-shadow:
+    inset 0 0 0 3px rgb(0 0 0 / 0.18),
+    inset 0 0 0 5px rgb(239 106 76 / 0.45),
+    0 6px 18px rgb(0 0 0 / 0.55);
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.45);
+  transform: rotate(-8deg);
+  animation: parties-seal calc(520ms * var(--moment-scale, 1)) cubic-bezier(0.2, 0.9, 0.25, 1.15) calc(1550ms * var(--moment-scale, 1)) both;
+}
+
+@media (min-width: 640px) {
+  .parties-seal {
+    width: 3.5rem;
+    height: 3.5rem;
+    margin-top: calc(var(--party-card) * 0.68 - 1.75rem);
+  }
+}
+
+@keyframes parties-seal {
+  0% {
+    opacity: 0;
+    transform: scale(2.6) rotate(-20deg);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(0.9) rotate(-6deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(-8deg);
+  }
+}
+
+.parties-caption {
+  animation: victory-rise calc(600ms * var(--moment-scale, 1)) cubic-bezier(0.2, 0.8, 0.2, 1) calc(1650ms * var(--moment-scale, 1)) both;
+}
+
+/* Comes into focus without changing its size, so the band never jumps. */
+.parties-headline {
+  animation: parties-headline calc(850ms * var(--moment-scale, 1)) cubic-bezier(0.2, 0.8, 0.2, 1) calc(2050ms * var(--moment-scale, 1)) both;
+}
+
+@keyframes parties-headline {
+  from {
+    opacity: 0;
+    transform: scale(1.12);
+    filter: blur(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: blur(0);
+  }
+}
+
+.parties-line {
+  animation: victory-rise calc(600ms * var(--moment-scale, 1)) cubic-bezier(0.2, 0.8, 0.2, 1) calc(2350ms * var(--moment-scale, 1)) both;
+}
+
+.parties-prologue {
+  animation: victory-fade calc(900ms * var(--moment-scale, 1)) ease-out calc(2650ms * var(--moment-scale, 1)) both;
 }
 
 @media (prefers-reduced-motion: reduce) {

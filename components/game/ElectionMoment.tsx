@@ -1,197 +1,44 @@
 "use client";
 
-import { useCallback, useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
+import { ContinueHint, CountdownBar, LEAVE_MS, readingMs, useScale } from "./moment-kit";
 import { usePlayerLabel } from "./players";
-import { motionScale } from "./settings";
-import {
-  ElectionTieBreak,
-  GENERAL_ELECTION_COUNT,
-  otherPlayer,
-  VictoryKind,
-  type ElectionTieBreakId,
-  type GameEvent,
-  type GameState,
-  type PlayerId,
-} from "@/lib/game";
-import type { DistrictId } from "@/lib/cards/schema";
-
-const DISTRICT_NAME: Record<DistrictId, string> = {
-  dragonara: "Dragonara",
-  horsard: "Horsard",
-  shavvinne: "Shavvinne",
-  smarbbit: "Smarbbit",
-};
+import { ElectionTieBreak, GENERAL_ELECTION_COUNT, otherPlayer, type ElectionTieBreakId, type PlayerId } from "@/lib/game";
 
 /** One of the five electorates, and who won it. */
-type Seat = { id: string; label: string; color: string; winner: PlayerId | null };
+export type Seat = { id: string; label: string; color: string; winner: PlayerId | null };
 
-export type ElectionMomentData = { id: number } & (
-  | {
-      kind: "start";
-      /** General Election cards revealed so far, this election's included. */
-      revealed: number;
-      /** General Elections in this election (each one owes its winner a decree). */
-      count: number;
-      final: boolean;
-      expansion: boolean;
-    }
-  | {
-      kind: "result";
-      winner: PlayerId;
-      electorates: [number, number];
-      electors: [number, number];
-      tieBreak: ElectionTieBreakId;
-      /** In table order, Lords last. Null when the tally didn't name them (an older online server). */
-      seats: Seat[] | null;
-      /** Decrees the winner activates next. */
-      decrees: number;
-      /** The game ended with Civil Victory for this player. */
-      civil: PlayerId | null;
-      final: boolean;
-    }
-);
+/** An election opens (TableMoment.tsx queues it on `electionStarted`). */
+export type ElectionStartData = {
+  id: number;
+  kind: "electionStart";
+  /** General Election cards revealed so far, this election's included. */
+  revealed: number;
+  /** General Elections in this election (each one owes its winner a decree). */
+  count: number;
+  final: boolean;
+  expansion: boolean;
+};
 
-type ResultMoment = Extract<ElectionMomentData, { kind: "result" }>;
-type StartMoment = Extract<ElectionMomentData, { kind: "start" }>;
-
-function reducedMotion(): boolean {
-  return typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-}
-
-/** The moments in a batch of new events. `state` is the position after them. */
-function momentsFrom(fresh: readonly GameEvent[], state: GameState, firstId: number): ElectionMomentData[] {
-  const moments: ElectionMomentData[] = [];
-  let result: ResultMoment | null = null;
-  for (const event of fresh) {
-    if (event.type === "electionTallied") {
-      result = {
-        id: firstId + moments.length,
-        kind: "result",
-        winner: event.winner,
-        electorates: event.electorates,
-        electors: event.electors,
-        tieBreak: event.tieBreak,
-        seats: event.districts
-          ? [
-              ...state.districtOrder.map((district) => ({
-                id: district,
-                label: DISTRICT_NAME[district],
-                color: `var(--${district})`,
-                winner: event.districts?.[district] ?? null,
-              })),
-              { id: "lords", label: "Lords", color: "var(--brass)", winner: event.lords ?? null },
-            ]
-          : null,
-        decrees: 0,
-        civil: null,
-        // A result followed by a new election in the same move can't be the last one.
-        final: state.electionsOut.length >= GENERAL_ELECTION_COUNT && !state.election.active,
-      };
-      moments.push(result);
-    } else if (event.type === "decreeChoiceNeeded" && result) {
-      result.decrees = event.count;
-    } else if (event.type === "victory" && result && event.victory.kind === VictoryKind.Civil) {
-      result.civil = event.victory.player;
-    } else if (event.type === "electionStarted") {
-      moments.push({
-        id: firstId + moments.length,
-        kind: "start",
-        revealed: state.electionsOut.length,
-        count: Math.max(1, state.election.generalElections),
-        final: state.electionsOut.length >= GENERAL_ELECTION_COUNT,
-        expansion: Boolean(state.expansion),
-      });
-    }
-  }
-  return moments;
-}
-
-/**
- * Watches the events behind the position on screen and queues an election moment for each
- * election that opens or is counted. Events that disappear (Undo, or a hotseat replay going back
- * to the start of the other player's turn) clear the queue without playing anything.
- */
-export function useElectionMoments(events: readonly GameEvent[], state: GameState) {
-  const [track, setTrack] = useState(() => ({ events, queue: [] as ElectionMomentData[], nextId: 0 }));
-  let current = track;
-  if (track.events !== events) {
-    const before = track.events.length;
-    let queue = track.queue;
-    let nextId = track.nextId;
-    if (events.length < before) {
-      queue = [];
-    } else if (events.length > before && motionScale() > 0 && !reducedMotion()) {
-      const added = momentsFrom(events.slice(before), state, nextId);
-      queue = [...queue, ...added];
-      nextId += added.length;
-    }
-    current = { events, queue, nextId };
-    setTrack(current);
-  }
-  const done = useCallback(() => setTrack((value) => ({ ...value, queue: value.queue.slice(1) })), []);
-  return { moment: current.queue[0] ?? null, done };
-}
-
-/** The moment on screen. Click (or a key) skips it. */
-export function ElectionMoment({ moment, viewer, onDone }: { moment: ElectionMomentData; viewer: PlayerId; onDone: () => void }) {
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape" || event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        onDone();
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onDone]);
-
-  return moment.kind === "start" ? (
-    <ElectionStart key={moment.id} moment={moment} onDone={onDone} />
-  ) : (
-    <ElectionResult key={moment.id} moment={moment} viewer={viewer} onDone={onDone} />
-  );
-}
-
-function useScale(): number {
-  const [scale] = useState(() => motionScale() || 1);
-  return scale;
-}
-
-/**
- * How long a screen stays up once its text is in: a moment to find it, then about 240 words a
- * minute. The animation speed setting doesn't shorten it (a click moves on sooner).
- */
-function readingMs(...texts: (string | null)[]): number {
-  const words = texts.join(" ").split(/\s+/).filter(Boolean).length;
-  return 1200 + words * 250;
-}
-
-/** How long the moment fades out for. */
-const LEAVE_MS = 450;
-
-/** A thin bar along the screen's bottom edge that runs down while the screen waits. */
-function CountdownBar({ delayMs, durationMs, inset }: { delayMs: number; durationMs: number; inset: string }) {
-  return (
-    <div aria-hidden className={`absolute bottom-0 h-0.5 overflow-hidden ${inset}`}>
-      <div
-        className="election-timer h-full bg-[var(--election)]/70"
-        style={{ animationDelay: `${delayMs}ms`, animationDuration: `${durationMs}ms` }}
-      />
-    </div>
-  );
-}
-
-/** The way to move on sooner. */
-function ContinueHint({ delayMs, className = "" }: { delayMs: number; className?: string }) {
-  return (
-    <p className={`election-hint text-[0.65rem] text-stone-500 ${className}`} style={{ animationDelay: `${delayMs}ms` }}>
-      Click or tap to continue
-    </p>
-  );
-}
+/** An election is counted (`electionTallied`). */
+export type ElectionResultData = {
+  id: number;
+  kind: "electionResult";
+  winner: PlayerId;
+  electorates: [number, number];
+  electors: [number, number];
+  tieBreak: ElectionTieBreakId;
+  /** In table order, Lords last. Null when the tally didn't name them (an older online server). */
+  seats: Seat[] | null;
+  /** Decrees the winner activates next. */
+  decrees: number;
+  /** The game ended with Civil Victory for this player. */
+  civil: PlayerId | null;
+  final: boolean;
+};
 
 /** The polls open: a ribbon sweeps across the table and the General Election card flips in. */
-function ElectionStart({ moment, onDone }: { moment: StartMoment; onDone: () => void }) {
+export function ElectionStart({ moment, onDone }: { moment: ElectionStartData; onDone: () => void }) {
   const scale = useScale();
   const [leaving, setLeaving] = useState(false);
 
@@ -228,6 +75,7 @@ function ElectionStart({ moment, onDone }: { moment: StartMoment; onDone: () => 
       role="status"
       aria-live="polite"
       data-election-moment="start"
+      data-modal
       onClick={onDone}
       className="fixed inset-0 z-[70] flex cursor-pointer items-center"
       style={{ "--moment-scale": scale } as CSSProperties}
@@ -265,7 +113,7 @@ const FIRST_SEAT_MS = 700;
 const SEAT_MS = 420;
 
 /** The votes are counted: each electorate lights up in its winner's color, then the winner is stamped. */
-function ElectionResult({ moment, viewer, onDone }: { moment: ResultMoment; viewer: PlayerId; onDone: () => void }) {
+export function ElectionResult({ moment, viewer, onDone }: { moment: ElectionResultData; viewer: PlayerId; onDone: () => void }) {
   const label = usePlayerLabel();
   const scale = useScale();
   const seats = moment.seats;
@@ -319,6 +167,7 @@ function ElectionResult({ moment, viewer, onDone }: { moment: ResultMoment; view
       aria-live="polite"
       aria-label={`${headline}, ${moment.electorates[winner]} electorates to ${moment.electorates[loser]}.`}
       data-election-moment="result"
+      data-modal
       onClick={onDone}
       className="fixed inset-0 z-[70] flex cursor-pointer items-center justify-center px-4"
       style={{ "--moment-scale": scale } as CSSProperties}

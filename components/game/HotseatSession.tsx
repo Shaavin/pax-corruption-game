@@ -7,7 +7,7 @@ import { APP_BUILD, copyText } from "./share";
 import type { TableMenuItem } from "./Table";
 import { ChoiceOverlay } from "./ChoiceOverlay";
 import { DecreeChoice } from "./DecreeChoice";
-import { ElectionMoment, useElectionMoments } from "./ElectionMoment";
+import { TableMoment, useTableMoments } from "./TableMoment";
 import { GameOverOverlay } from "./GameOverOverlay";
 import { VictoryStory } from "./VictoryStory";
 import { PassDeviceGate } from "./PassDeviceGate";
@@ -158,7 +158,7 @@ export type RemoteGame = {
   showHand?: boolean;
   /** Where the player is in a move that takes several clicks (a lesson's note follows along). */
   onStage?: (stage: MoveStage) => void;
-  /** An election moment is playing (a lesson holds its end screen until it's over). */
+  /** A table moment (parties revealed, an election) is playing: a lesson holds its end screen until it's over. */
   onMoment?: (playing: boolean) => void;
 };
 
@@ -247,9 +247,9 @@ export function HotseatSession(props: HotseatSessionProps) {
     () => (playback ? session.replay.steps.slice(0, playback.base + playback.index).flatMap((step) => step.events) : history),
     [playback, session, history],
   );
-  // An election opening or being counted: the table holds still (no computer move, no replay
-  // step, no decree choice or victory) until its moment has played.
-  const { moment, done: momentDone } = useElectionMoments(shownHistory, shownState);
+  // The parties revealed, or an election opening or being counted: the table holds still (no
+  // computer move, no replay step, no setup or decree choice, no victory) until its moment has played.
+  const { moment, done: momentDone, showMissed } = useTableMoments(shownHistory, shownState);
   const momentBusy = moment !== null;
   const inSetup = state.phase === Phase.Setup;
   const allow = remote?.allow;
@@ -312,7 +312,11 @@ export function HotseatSession(props: HotseatSessionProps) {
     const from = lastSeen[next];
     const total = session.replay.steps.length;
     setLastSeen((seen) => ({ ...seen, [next]: total }));
-    if (from === undefined || from >= total || !getSettings().replay) return;
+    if (from === undefined || from >= total) return;
+    // The parties were revealed on the other player's setup move, which no replay shows.
+    const revealed = session.replay.steps.slice(from).flatMap((step) => step.events.filter((event) => event.type === "partiesRevealed"));
+    if (revealed.length) showMissed(revealed, session.replay.state);
+    if (!getSettings().replay) return;
     const record = toRecord(session.replay);
     let step = replayRecord({ ...record, actions: record.actions.slice(0, from) });
     let states = [step.state];
@@ -988,7 +992,7 @@ export function HotseatSession(props: HotseatSessionProps) {
       onReport={remote ? undefined : () => setReportOpen(true)}
       extraMenu={remote?.menu}
     >
-      {veiled || waitingFirstSeat ? null : (
+      {veiled || waitingFirstSeat || momentBusy ? null : (
         <SetupOverlay state={state} viewer={viewer} onAction={dispatch} />
       )}
       {pendingDecrees && !veiled && !waitingFirstSeat && !replaying && !momentBusy ? (
@@ -1093,7 +1097,7 @@ export function HotseatSession(props: HotseatSessionProps) {
           </div>
         </div>
       ) : null}
-      {moment ? <ElectionMoment key={moment.id} moment={moment} viewer={viewer} onDone={momentDone} /> : null}
+      {moment ? <TableMoment key={moment.id} moment={moment} viewer={viewer} onDone={momentDone} /> : null}
       {showGate && !momentBusy ? (
         <PassDeviceGate
           to={actor}

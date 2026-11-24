@@ -50,7 +50,7 @@ function LessonTable({ lesson, onRestart }: { lesson: Lesson; onRestart: () => v
   const [notice, setNotice] = useState<CoachNotice | null>(null);
   /** Where the learner is in a several-click move (the table reports it). */
   const [stage, setStage] = useState<MoveStage>("idle");
-  /** An election's results are on screen: the lesson's end waits for them. */
+  /** A table moment (the parties revealed, an election) is on screen: the opponent and the lesson's end wait for it. */
   const [momentPlaying, setMomentPlaying] = useState(false);
   // The name typed on the menu last time, if any (otherwise the table says "Player 1").
   const [playerName] = useState(() => rememberedNames()[0] || null);
@@ -61,8 +61,10 @@ function LessonTable({ lesson, onRestart }: { lesson: Lesson; onRestart: () => v
 
   const step = shownStep(run);
 
-  // The opponent's moves: one at a time, with a beat between them so they can be followed.
+  // The opponent's moves: one at a time, with a beat between them so they can be followed, and
+  // none while a moment plays over the table.
   useEffect(() => {
+    if (momentPlaying) return;
     const move = opponentMove(run, rng);
     if (!move) return;
     const quiet = move.action.type === "endAction" || move.action.type === "endPolitics" || move.action.type === "passIncome";
@@ -76,7 +78,7 @@ function LessonTable({ lesson, onRestart }: { lesson: Lesson; onRestart: () => v
       (quiet && !move.say ? 450 : 1300) * pace,
     );
     return () => window.clearTimeout(timer);
-  }, [run, rng]);
+  }, [run, rng, momentPlaying]);
 
   // The lesson is over: remember it, and give the opponent the last word.
   const outcome = run.outcome;
