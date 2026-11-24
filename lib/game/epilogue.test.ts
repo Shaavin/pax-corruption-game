@@ -56,7 +56,7 @@ function expect(actual: string, expected: string, label: string): void {
   );
   expect(
     victoryPassage(state, { kind: VictoryKind.Political, player: 0 }),
-    "With a Political Victory, the Trinity Party issues the Imperial Edict of Autocracy. In the period of Pax Imperium and Profectus that follows, their opposition is mostly marginalized with little to no chance of being elected into power.",
+    "With a Political Victory, the Trinity Party issues the Imperial Edict of Autocracy. The opposition is now marginalized, with little to no chance of being elected to power in the period of Pax Imperium and Profectus.",
     "Political",
   );
 }
@@ -101,7 +101,7 @@ function expect(actual: string, expected: string, label: string): void {
   state.players[1].partisans = 2;
   expect(
     victoryPassage(state, { kind: VictoryKind.Military, player: 0 }),
-    "With a Military Victory, the Trinity Party finally wins the Crown of the Vida Vesta. Choirs are sung as the three ambitious partner warlords welcome the party's leaders into power while plotting their downfall.",
+    "With a Military Victory, the Trinity Party finally wins the Crown of the Vida Vesta. Choirs are sung as the three ambitious partner warlords welcome the party's leaders into power while secretly plotting their downfall.",
     "Military",
   );
   state.players[0].partisans = 6;

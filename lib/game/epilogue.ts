@@ -64,7 +64,7 @@ export function victoryPassage(state: GameState, victory: Victory): string {
         .slice(0, 2)
         .map((id) => DECREE_NAME[id]);
       const pax = names.length ? `Pax ${listOf(names)}` : "Pax";
-      return `With a Political Victory, ${party} issues the Imperial Edict of Autocracy. In the period of ${pax} that follows, their opposition is mostly marginalized with little to no chance of being elected into power.`;
+      return `With a Political Victory, ${party} issues the Imperial Edict of Autocracy. The opposition is now marginalized, with little to no chance of being elected to power in the period of ${pax}.`;
     }
 
     case VictoryKind.Cultural: {
@@ -85,7 +85,7 @@ export function victoryPassage(state: GameState, victory: Victory): string {
       // As many warlords as partisans they lead by.
       const lead = seat.partisans - state.players[opponent].partisans;
       const warlords = lead >= 2 ? `the ${NUMBER_WORDS[lead] ?? lead} ambitious partner warlords` : "the ambitious partner warlords";
-      return `With a Military Victory, ${party} finally wins the Crown of the Vida Vesta. Choirs are sung as ${warlords} welcome the party's leaders into power while plotting their downfall.`;
+      return `With a Military Victory, ${party} finally wins the Crown of the Vida Vesta. Choirs are sung as ${warlords} welcome the party's leaders into power while secretly plotting their downfall.`;
     }
 
     case VictoryKind.Popularity: {
