@@ -532,6 +532,12 @@ export type GameEvent =
       electors: [number, number];
       winner: PlayerId;
       tieBreak: ElectionTieBreakId;
+      /**
+       * Who won each electorate (null: nobody). Optional because an online server built
+       * before 2026-11-24 sends tallies without them.
+       */
+      districts?: Partial<Record<DistrictId, PlayerId | null>>;
+      lords?: PlayerId | null;
     }
   | { type: "electionWon"; player: PlayerId; wins: number }
   | { type: "decreeChoiceNeeded"; player: PlayerId; count: number }

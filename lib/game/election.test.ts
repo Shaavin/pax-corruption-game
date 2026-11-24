@@ -12,6 +12,7 @@ import {
   tallyElection,
   VictoryKind,
   type CardInstance,
+  type GameEvent,
   type GameState,
   type PlayerId,
   type Rng,
@@ -145,6 +146,19 @@ function runElection(state: GameState, rng: Rng): GameState {
   const byCards = tallyElection(state);
   assert(byCards.tieBreak === ElectionTieBreak.Electors, "1–1 electorates: compare cards in won electorates");
   assert(byCards.winner === 1, "Two cards beat one");
+
+  // The tally event names each electorate's winner (the election screen reveals them one by one).
+  const events: GameEvent[] = [];
+  state.election.active = true;
+  state.election.generalElections = 1;
+  resolveElection(state, 0, events);
+  const tallied = events.find((event) => event.type === "electionTallied");
+  assert(tallied?.type === "electionTallied", "Resolving an election reports its tally");
+  for (const district of state.districtOrder) {
+    assert(tallied.districts?.[district] === byCards.districts[district].winner, `Tally event names the ${district} winner`);
+  }
+  assert(tallied.lords === byCards.lords.winner, "Tally event names the Lords winner");
+  assert(tallied.districts?.[d1!] === 0 && tallied.districts?.[d2!] === 1, "Each side won its district");
 }
 
 // --- Final election ends the game with Civil Victory ---------------------------------

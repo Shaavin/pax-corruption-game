@@ -50,6 +50,8 @@ function LessonTable({ lesson, onRestart }: { lesson: Lesson; onRestart: () => v
   const [notice, setNotice] = useState<CoachNotice | null>(null);
   /** Where the learner is in a several-click move (the table reports it). */
   const [stage, setStage] = useState<MoveStage>("idle");
+  /** An election's results are on screen: the lesson's end waits for them. */
+  const [momentPlaying, setMomentPlaying] = useState(false);
   // The name typed on the menu last time, if any (otherwise the table says "Player 1").
   const [playerName] = useState(() => rememberedNames()[0] || null);
   const runRef = useRef(run);
@@ -130,6 +132,7 @@ function LessonTable({ lesson, onRestart }: { lesson: Lesson; onRestart: () => v
       // A note about the hand shows it in full color; a step asking for one card still greys the rest.
       showHand: step?.kind === "explain" && step.target === "your-hand",
       onStage: setStage,
+      onMoment: setMomentPlaying,
     }),
     [run, lesson, opponent.name, playerName, send, onRestart, step],
   );
@@ -155,7 +158,7 @@ function LessonTable({ lesson, onRestart }: { lesson: Lesson; onRestart: () => v
           notice={notice}
           onNext={next}
         />
-      ) : (
+      ) : momentPlaying ? null : (
         <LessonEnd lesson={lesson} run={run} onRestart={onRestart} />
       )}
     </div>

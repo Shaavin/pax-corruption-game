@@ -301,6 +301,206 @@ body {
   animation: none;
 }
 
+/* Elections (components/game/ElectionMoment.tsx): the polls open, then the votes are counted.
+   `--moment-scale` follows the animation speed setting. */
+.election-veil {
+  background: radial-gradient(ellipse at center, rgb(0 0 0 / 0.62), rgb(0 0 0 / 0.3) 70%);
+  animation: victory-fade calc(300ms * var(--moment-scale, 1)) ease-out both;
+}
+
+.election-ribbon {
+  background: linear-gradient(90deg, transparent, rgb(7 22 14 / 0.94) 10%, rgb(7 22 14 / 0.94) 90%, transparent);
+  border-block: 1px solid rgb(74 222 128 / 0.5);
+  box-shadow:
+    0 0 50px rgb(74 222 128 / 0.16),
+    0 20px 60px rgb(0 0 0 / 0.5);
+  animation: election-sweep-in calc(560ms * var(--moment-scale, 1)) cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.election-ribbon.is-leaving {
+  animation: election-sweep-out calc(450ms * var(--moment-scale, 1)) cubic-bezier(0.6, 0, 0.8, 0.4) both;
+}
+
+.election-veil.is-leaving,
+.election-panel.is-leaving {
+  animation: election-leave calc(400ms * var(--moment-scale, 1)) ease-in both;
+}
+
+@keyframes election-sweep-in {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes election-sweep-out {
+  from {
+    clip-path: inset(0 0 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 100%);
+  }
+}
+
+@keyframes election-leave {
+  to {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
+/* A band of light passes over the ribbon once it's in. */
+.election-sheen {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 38%, rgb(74 222 128 / 0.2) 50%, transparent 62%);
+  background-size: 260% 100%;
+  animation: election-sheen calc(1500ms * var(--moment-scale, 1)) ease-in-out calc(450ms * var(--moment-scale, 1)) both;
+}
+
+@keyframes election-sheen {
+  from {
+    background-position: 130% 0;
+  }
+  to {
+    background-position: -130% 0;
+  }
+}
+
+/* The General Election card turns face up. */
+.election-card {
+  animation: election-flip calc(800ms * var(--moment-scale, 1)) cubic-bezier(0.2, 0.8, 0.2, 1) calc(150ms * var(--moment-scale, 1)) both;
+}
+
+@keyframes election-flip {
+  from {
+    opacity: 0;
+    transform: perspective(700px) translateX(-50px) rotateY(-150deg) scale(0.7);
+  }
+  45% {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+    transform: perspective(700px) rotate(-4deg);
+  }
+}
+
+.election-title {
+  animation: election-title calc(850ms * var(--moment-scale, 1)) cubic-bezier(0.2, 0.8, 0.2, 1) calc(280ms * var(--moment-scale, 1)) both;
+}
+
+@keyframes election-title {
+  from {
+    opacity: 0;
+    letter-spacing: 0.4em;
+    filter: blur(8px);
+  }
+  to {
+    opacity: 1;
+    letter-spacing: 0;
+    filter: blur(0);
+  }
+}
+
+.election-line {
+  animation: victory-rise calc(600ms * var(--moment-scale, 1)) cubic-bezier(0.2, 0.8, 0.2, 1) calc(200ms * var(--moment-scale, 1)) both;
+}
+
+.election-line-late {
+  animation-delay: calc(650ms * var(--moment-scale, 1));
+}
+
+.election-panel {
+  animation: victory-rise calc(500ms * var(--moment-scale, 1)) cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+/* An electorate waiting to be counted, then lit in its winner's color. */
+.election-seat {
+  border: 1px solid rgb(255 255 255 / 0.08);
+  background: rgb(255 255 255 / 0.03);
+}
+
+.election-seat.is-counted {
+  border-color: color-mix(in srgb, var(--winner) 70%, transparent);
+  background: color-mix(in srgb, var(--winner) 15%, transparent);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--winner) 30%, transparent);
+  animation: election-count calc(450ms * var(--moment-scale, 1)) cubic-bezier(0.2, 0.9, 0.3, 1.3) both;
+}
+
+@keyframes election-count {
+  from {
+    transform: perspective(400px) rotateX(90deg) scale(0.9);
+  }
+  to {
+    transform: none;
+  }
+}
+
+.election-score {
+  animation: election-bump calc(380ms * var(--moment-scale, 1)) cubic-bezier(0.2, 0.9, 0.3, 1.4) both;
+}
+
+@keyframes election-bump {
+  from {
+    transform: scale(1.45);
+    opacity: 0.4;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+/* The winner's "Elected" stamp comes down on the panel. */
+.election-stamp {
+  transform: rotate(-6deg);
+  animation: election-stamp calc(520ms * var(--moment-scale, 1)) cubic-bezier(0.2, 0.9, 0.25, 1.15) both;
+}
+
+@keyframes election-stamp {
+  0% {
+    opacity: 0;
+    transform: scale(2.6) rotate(-16deg);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(0.9) rotate(-5deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(-6deg);
+  }
+}
+
+.election-headline {
+  animation: victory-rise calc(600ms * var(--moment-scale, 1)) cubic-bezier(0.2, 0.8, 0.2, 1) calc(220ms * var(--moment-scale, 1)) both;
+}
+
+/* While a screen waits to be read: a bar runs down (duration and delay set inline), and a hint
+   says a click moves on. */
+.election-timer {
+  transform-origin: left;
+  animation-name: election-timer;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+}
+
+@keyframes election-timer {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+.election-hint {
+  animation: victory-fade 600ms ease-out both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .exalted-frame,
   .rise-in,

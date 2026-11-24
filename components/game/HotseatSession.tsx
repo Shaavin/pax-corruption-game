@@ -7,6 +7,7 @@ import { APP_BUILD, copyText } from "./share";
 import type { TableMenuItem } from "./Table";
 import { ChoiceOverlay } from "./ChoiceOverlay";
 import { DecreeChoice } from "./DecreeChoice";
+import { ElectionMoment, useElectionMoments } from "./ElectionMoment";
 import { GameOverOverlay } from "./GameOverOverlay";
 import { VictoryStory } from "./VictoryStory";
 import { PassDeviceGate } from "./PassDeviceGate";
@@ -157,6 +158,8 @@ export type RemoteGame = {
   showHand?: boolean;
   /** Where the player is in a move that takes several clicks (a lesson's note follows along). */
   onStage?: (stage: MoveStage) => void;
+  /** An election moment is playing (a lesson holds its end screen until it's over). */
+  onMoment?: (playing: boolean) => void;
 };
 
 type LocalProps = { remote?: undefined };
@@ -197,8 +200,11 @@ export function HotseatSession(props: HotseatSessionProps) {
   const [localSeated, setSeated] = useState<PlayerId | null>(null);
   /** Hotseat: how many moves each seat had seen when it last held the device. */
   const [lastSeen, setLastSeen] = useState<Partial<Record<PlayerId, number>>>({});
-  /** Hotseat: the other player's moves, replayed one at a time after the handoff. */
-  const [playback, setPlayback] = useState<{ states: GameState[]; actions: Action[]; index: number } | null>(null);
+  /**
+   * Hotseat: the other player's moves, replayed one at a time after the handoff. `states[0]` is
+   * the position after the game's first `base` moves.
+   */
+  const [playback, setPlayback] = useState<{ states: GameState[]; actions: Action[]; index: number; base: number } | null>(null);
   const replaying = playback !== null;
   const seated = remote ? remote.seat : ai ? otherPlayer(ai.seat) : localSeated;
   const [selectedHandIds, setSelectedHandIds] = useState<string[]>([]);
@@ -236,6 +242,15 @@ export function HotseatSession(props: HotseatSessionProps) {
   // During a replay the table shows the replayed position; everything else uses the real one.
   const shownState = playback ? playback.states[playback.index]! : state;
   const model = useMemo(() => tableModel(shownState, viewer), [shownState, viewer]);
+  // The events behind the position on screen (a replay shows an earlier one).
+  const shownHistory = useMemo(
+    () => (playback ? session.replay.steps.slice(0, playback.base + playback.index).flatMap((step) => step.events) : history),
+    [playback, session, history],
+  );
+  // An election opening or being counted: the table holds still (no computer move, no replay
+  // step, no decree choice or victory) until its moment has played.
+  const { moment, done: momentDone } = useElectionMoments(shownHistory, shownState);
+  const momentBusy = moment !== null;
   const inSetup = state.phase === Phase.Setup;
   const allow = remote?.allow;
   const legal = useMemo(() => {
@@ -313,12 +328,12 @@ export function HotseatSession(props: HotseatSessionProps) {
     states = states.slice(start);
     actions = actions.slice(start);
     if (actions.length === 0) return;
-    setPlayback({ states, actions, index: 0 });
+    setPlayback({ states, actions, index: 0, base: from + start });
   }
 
   // Advance the replay: quiet steps (ending a step) go fast, moves get time to be seen.
   useEffect(() => {
-    if (!playback) return;
+    if (!playback || momentBusy) return;
     if (playback.index >= playback.actions.length) {
       const done = window.setTimeout(() => setPlayback(null), 400);
       return () => window.clearTimeout(done);
@@ -333,10 +348,10 @@ export function HotseatSession(props: HotseatSessionProps) {
       (playback.index === 0 ? 700 : quiet ? 250 : 950) * (getSettings().motion === "fast" ? 0.6 : 1),
     );
     return () => window.clearTimeout(timer);
-  }, [playback]);
+  }, [playback, momentBusy]);
 
   // The computer's turn: pick a move, wait a beat (so its plays can be followed), make it.
-  const aiTurn = Boolean(ai && !state.victory && actor === ai.seat && !replaying);
+  const aiTurn = Boolean(ai && !state.victory && actor === ai.seat && !replaying && !momentBusy);
   const dispatchRef = useRef(dispatch);
   useEffect(() => {
     dispatchRef.current = dispatch;
@@ -867,6 +882,10 @@ export function HotseatSession(props: HotseatSessionProps) {
   useEffect(() => {
     onStage?.(stage);
   }, [onStage, stage]);
+  const onMoment = remote?.onMoment;
+  useEffect(() => {
+    onMoment?.(momentBusy);
+  }, [onMoment, momentBusy]);
 
   const pendingDecrees = state.phase === Phase.DecreeChoice ? state.pendingDecrees : null;
 
@@ -972,7 +991,7 @@ export function HotseatSession(props: HotseatSessionProps) {
       {veiled || waitingFirstSeat ? null : (
         <SetupOverlay state={state} viewer={viewer} onAction={dispatch} />
       )}
-      {pendingDecrees && !veiled && !waitingFirstSeat && !replaying ? (
+      {pendingDecrees && !veiled && !waitingFirstSeat && !replaying && !momentBusy ? (
         <DecreeChoice
           winner={pendingDecrees.player}
           chooserIsYou={viewer === pendingDecrees.player}
@@ -1025,7 +1044,7 @@ export function HotseatSession(props: HotseatSessionProps) {
       {choice && choice.player === viewer && !veiled && !waitingFirstSeat && !replaying ? (
         <ChoiceOverlay state={state} choice={choice} viewer={viewer} onAction={dispatch} />
       ) : null}
-      {state.victory && !remote?.hideGameOver && storySeen !== victoryKey ? (
+      {momentBusy ? null : state.victory && !remote?.hideGameOver && storySeen !== victoryKey ? (
         <VictoryStory
           victory={state.victory}
           text={victoryPassage(state, state.victory)}
@@ -1074,7 +1093,8 @@ export function HotseatSession(props: HotseatSessionProps) {
           </div>
         </div>
       ) : null}
-      {showGate ? (
+      {moment ? <ElectionMoment key={moment.id} moment={moment} viewer={viewer} onDone={momentDone} /> : null}
+      {showGate && !momentBusy ? (
         <PassDeviceGate
           to={actor}
           firstHandoff={waitingFirstSeat}

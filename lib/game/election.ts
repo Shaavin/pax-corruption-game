@@ -237,6 +237,8 @@ export function resolveElection(state: GameState, nextPlayer: PlayerId, events: 
     electors: tally.electors,
     winner: tally.winner,
     tieBreak: tally.tieBreak,
+    districts: Object.fromEntries(state.districtOrder.map((district) => [district, tally.districts[district].winner])),
+    lords: tally.lords.winner,
   });
 
   const winner = tally.winner;

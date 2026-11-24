@@ -226,6 +226,15 @@ The passage is Joe's text for each victory (lightly edited with his OK), filled 
 
 The passage is set in Rosarivo Italic, the nearest web font to the rulebook's Kokonor at its light weight (Fondamento, used first, read as bold). The scenes are Joe's band art, already in the band colors (`<Kind> Victory.jpg`, 1204 x 658). `scripts/make-victory-art.py <folder>` trims their frame, enlarges them to 1920 wide, and writes `public/art/victory/<kind>.webp`. The service worker saves them for offline play; their contents are part of its card cache's name, so a redrawn scene reaches installed apps under the same file name.
 
+## Election moments
+
+Added 2026-11-24, so the game's turning points don't pass in silence. `components/game/ElectionMoment.tsx`, styles under `.election-*` in `globals.css`:
+
+- **The polls open** (`electionStarted`): a ribbon sweeps across the table, the General Election card flips face up, and a line says what changes (which General Election it is, the Market growing to 8 or opening a second row, and what's at stake when more than one came up or it's the final one).
+- **The votes are in** (`electionTallied`): each electorate (the four districts in table order, then the Lords) lights up in its winner's color while the score counts up, then an "Elected" stamp, the winner, the tie-break if one decided it, and what follows (decrees to activate, or Civil Victory). The tally event names each electorate's winner (`districts`, `lords`); an online server from before these fields shows the score without the electorates.
+
+`useElectionMoments` watches the events behind the position on screen (`HotseatSession`'s `shownHistory`, so a hotseat replay plays them again for the other player) and queues one moment per election opened or counted; events that disappear (Undo) drop the queue. While one plays, the table holds still: no computer move, no replay step, no decree choice, no victory scene, no pass-device screen, and a lesson waits to show its end (`RemoteGame.onMoment`). Each screen stays up long enough to read (`readingMs`: a moment to find the text, then about 240 words a minute), with a bar running down and a "Click or tap to continue" hint; a click, Escape, Enter, or Space moves on sooner. Motion: fast speeds up the animations but not the reading time; Motion: off or reduced motion skips the moments.
+
 ## Tutorial (Learn to play)
 
 Added 2026-11-21; restructured 2026-11-22 from Joe's feedback (fewer lessons, and a "climb the ladder before leading your party" story). Eight lessons, each from a prepared position except the last base lesson, which is a whole game. The opponents are the computer's three personalities, met in order of skill:
