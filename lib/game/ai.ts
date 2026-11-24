@@ -4,23 +4,31 @@
  * - "easy": usually does something rather than passing, picked at random; takes a win when offered.
  * - "normal": plays the move that looks best one step ahead, and now and then settles for
  *   one of its next best.
- * - "hard": plans its whole turn ahead (a short search over its own decisions) and plays
- *   the first move of the best plan.
+ * - "hard": plans its whole turn ahead (a short search over its own decisions), plays the
+ *   leading plans on through the opponent's reply and its own next turn, and plays the first
+ *   move of the best.
+ *
+ * Positions are judged by `positionScore` (ai-score.ts). Each level also follows an agenda
+ * (ai-agenda.ts): what it plays for this game, which shifts what counts most, so games against
+ * it differ and it changes course when the board turns.
  *
  * Fair play: moves are tried on a copy whose hidden piles (draw deck, monument deck, event
- * deck) are reshuffled, so simulating a draw tells it nothing about the real next card, and
- * the position score never looks at the opponent's hand.
+ * deck) are reshuffled, so simulating a draw tells it nothing about the real next card. The
+ * position score never looks at the opponent's hand, and Hard's look past its turn deals the
+ * opponent a guessed hand from the cards it can't see (keeping the ones they took face up from
+ * the Market).
  */
 import { getCard } from "../cards/catalog.ts";
-import { CardKind, type DistrictId } from "../cards/schema.ts";
+import { CardKind } from "../cards/schema.ts";
+import { chooseAgenda, focusWeights, type AgendaId } from "./ai-agenda.ts";
+import { CLASSIC, positionScore, type Weights } from "./ai-score.ts";
 import { apply, currentActor, legalActions } from "./engine.ts";
-import { isFinalElection, lordsSymbols, tallyElection } from "./election.ts";
-import { playerDistrictInfluence } from "./influence.ts";
-import { canRecruitIn } from "./main.ts";
-import { victoryRace } from "./progress.ts";
-import type { Rng } from "./rng.ts";
-import { type Action, type GameState, type PlayerId, type VictoryKindId } from "./types.ts";
+import { createSeededRng, type Rng } from "./rng.ts";
+import type { Action, GameState, PlayerId } from "./types.ts";
 import { otherPlayer } from "./zones.ts";
+
+export { positionScore, type Weights } from "./ai-score.ts";
+export { Agenda, type AgendaId } from "./ai-agenda.ts";
 
 export type AiLevel = "easy" | "normal" | "hard";
 
@@ -70,7 +78,7 @@ export const AI_LEVELS: readonly { id: AiLevel; name: string; blurb: string; per
   {
     id: "hard",
     name: "Hard",
-    blurb: "Plans its whole turn before it moves.",
+    blurb: "Plans past your reply to its next turn.",
     persona: {
       name: "Grand Vizier Vex",
       tagline: "Three moves ahead, and counting yours.",
@@ -106,8 +114,11 @@ function aiOptions(state: GameState, seat: PlayerId): Action[] {
   return legalActions(state, seat).filter((action) => action.type !== "fromNetwork");
 }
 
-/** The computer's move for `seat` (which must be the current actor), or null if it has none. */
-export function chooseAiAction(state: GameState, seat: PlayerId, level: AiLevel, rng: Rng): Action | null {
+/**
+ * The computer's move for `seat` (which must be the current actor), or null if it has none.
+ * `weights` overrides how it judges positions (for tuning).
+ */
+export function chooseAiAction(state: GameState, seat: PlayerId, level: AiLevel, rng: Rng, weights?: Weights): Action | null {
   if (state.victory || currentActor(state) !== seat) return null;
   const options = aiOptions(state, seat);
   if (options.length === 0) return null;
@@ -117,39 +128,86 @@ export function chooseAiAction(state: GameState, seat: PlayerId, level: AiLevel,
   const win = options.find((action) => action.type === "declareVictory");
   if (win) return win;
 
+  const w = weights ?? weightsFor(state, seat, level);
   if (level === "easy") {
     const busy = options.filter((action) => !QUIET.has(action.type));
     // Mostly random but active; now and then a sensible move so it isn't hopeless.
-    if (rng.nextInt(3) === 0) return bestAction(state, seat, options, rng);
+    if (rng.nextInt(3) === 0) return rankActions(state, seat, options, rng, w)[0]!;
     const pool = busy.length > 0 && rng.nextInt(5) > 0 ? busy : options;
     return pool[rng.nextInt(pool.length)]!;
   }
   if (level === "normal") {
     // The best-looking move one step ahead; now and then one of the next best instead.
-    const ranked = rankActions(state, seat, options, rng);
+    const ranked = rankActions(state, seat, options, rng, w);
     return rng.nextInt(SLIP_ONE_IN) === 0 ? ranked[rng.nextInt(Math.min(3, ranked.length))]! : ranked[0]!;
   }
-  return planTurn(state, seat, rng) ?? bestAction(state, seat, options, rng);
+  return planTurn(state, seat, rng, w) ?? rankActions(state, seat, options, rng, w)[0]!;
+}
+
+/**
+ * How each level judges positions: its weights, leaning toward its current agenda.
+ * `temperament`: how much its own leaning counts against what the board offers (Hard follows
+ * the board more). `strength`: how hard it leans toward the agenda.
+ */
+const STYLE: Record<AiLevel, { base: Weights; temperament: number; strength: number }> = {
+  easy: { base: CLASSIC, temperament: 0.8, strength: 1 },
+  normal: { base: CLASSIC, temperament: 0.6, strength: 0.9 },
+  hard: { base: CLASSIC, temperament: 0.45, strength: 0.45 },
+};
+
+/**
+ * The agenda each seat of each game played for last, so it sticks with a plan until another is
+ * clearly better (by `STICK`). Forgotten when the game goes back (Undo) or a new one starts.
+ */
+const lastAgenda = new Map<string, { agenda: AgendaId; drawn: number }>();
+const STICK = 0.15;
+
+/** The agenda `seat` plays for now, at this level. */
+export function aiAgenda(state: GameState, seat: PlayerId, level: AiLevel): AgendaId {
+  const key = [state.seed, seat, level, state.players[0].partyId, state.players[1].partyId, state.expansion ? "x" : ""].join("|");
+  // The draw deck only shrinks during a game.
+  const drawn = -state.deck.length;
+  const held = lastAgenda.get(key);
+  const agenda = chooseAgenda(state, seat, STYLE[level].temperament, held && held.drawn <= drawn ? held.agenda : null, STICK);
+  lastAgenda.delete(key);
+  lastAgenda.set(key, { agenda, drawn });
+  if (lastAgenda.size > 32) lastAgenda.delete(lastAgenda.keys().next().value!);
+  return agenda;
+}
+
+function weightsFor(state: GameState, seat: PlayerId, level: AiLevel): Weights {
+  const style = STYLE[level];
+  if (state.phase === "setup") return style.base;
+  return focusWeights(style.base, aiAgenda(state, seat, level), style.strength);
 }
 
 /** Normal: how often it settles for one of its top three moves instead of the best. */
 const SLIP_ONE_IN = 4;
 
-/** Hard: how many partial turns to keep at each step, and how many decisions ahead to look. */
+/** Hard: partial turns kept at each step of its plan, and decisions looked ahead. */
 const BEAM = 6;
 const DEPTH = 8;
+/** Hard: leading plans played on past the turn, and on how many guesses of the hidden cards. */
+const CANDIDATES = 4;
+const SAMPLES = 3;
+/** Hard: how much the board after its next turn counts against the board after this one. */
+const LOOKAHEAD = 0.75;
+/** Hard: one guess's score is held within this, so no single lucky (or unlucky) guess decides. */
+const CAP = 5000;
 
 /**
  * Hard: plan the rest of this turn. Grow sequences of its own decisions (main action, free
  * actions, politics, income) step by step, keeping the most promising few, until the turn
- * passes or the game ends; then return the first move of the best finished sequence.
+ * passes or the game ends. Then play the leading plans on: the opponent's reply and its own
+ * next turn, on a few guesses of the hidden cards (the draw deck, the opponent's hand), the
+ * same guesses for every plan so luck doesn't pick between them. Plans the opponent wins
+ * against sink; plans that set up its own win next turn rise. Play the first move of the best.
  */
-function planTurn(state: GameState, seat: PlayerId, rng: Rng): Action | null {
-  const size = { beam: BEAM, depth: DEPTH };
-  type Node = { state: GameState; first: Action | null; score: number };
-  let beam: Node[] = [{ state: withHiddenPilesShuffled(state, rng), first: null, score: 0 }];
+function planTurn(state: GameState, seat: PlayerId, rng: Rng, w: Weights): Action | null {
+  type Node = { state: GameState; actions: Action[]; score: number };
+  let beam: Node[] = [{ state: withHiddenPilesShuffled(state, rng), actions: [], score: 0 }];
   const finished: Node[] = [];
-  for (let depth = 0; depth < size.depth && beam.length > 0; depth++) {
+  for (let depth = 0; depth < DEPTH && beam.length > 0; depth++) {
     const next: Node[] = [];
     for (const node of beam) {
       for (const action of aiOptions(node.state, seat)) {
@@ -159,33 +217,127 @@ function planTurn(state: GameState, seat: PlayerId, rng: Rng): Action | null {
         } catch {
           continue;
         }
-        const entry = { state: child, first: node.first ?? action, score: positionScore(child, seat) + rng.nextInt(1000) / 1e6 };
+        const entry = { state: child, actions: [...node.actions, action], score: positionScore(child, seat, w) + rng.nextInt(1000) / 1e6 };
         // The turn is over (or the game): this sequence is done.
         if (child.victory || currentActor(child) !== seat) finished.push(entry);
         else next.push(entry);
       }
     }
     next.sort((a, b) => b.score - a.score);
-    beam = next.slice(0, size.beam);
+    beam = next.slice(0, BEAM);
   }
   finished.push(...beam);
-  let best: Node | null = null;
-  for (const node of finished) if (node.first && (!best || node.score > best.score)) best = node;
-  return best?.first ?? null;
+
+  // The best plan for each first move, best first.
+  const byFirst = new Map<string, Node>();
+  for (const node of finished) {
+    if (node.actions.length === 0) continue;
+    const key = JSON.stringify(node.actions[0]);
+    const held = byFirst.get(key);
+    if (!held || node.score > held.score) byFirst.set(key, node);
+  }
+  const plans = [...byFirst.values()].sort((a, b) => b.score - a.score).slice(0, CANDIDATES);
+  if (plans.length <= 1) return plans[0]?.actions[0] ?? null;
+
+  // The same guesses for every plan: seeds drawn once.
+  const seeds = Array.from({ length: SAMPLES }, () => rng.nextInt(2 ** 31));
+  let best: { first: Action; value: number } | null = null;
+  for (const plan of plans) {
+    let value = plan.score;
+    if (!plan.state.victory && currentActor(plan.state) !== seat) {
+      let later = 0;
+      for (const seed of seeds) {
+        const guess = createSeededRng(seed);
+        const after = ownTurnFrom(replyFrom(plan.state, seat, guess), seat, guess, w);
+        later += Math.max(-CAP, Math.min(CAP, positionScore(after, seat, w))) / seeds.length;
+      }
+      value = (1 - LOOKAHEAD) * plan.score + LOOKAHEAD * later;
+    }
+    if (!best || value > best.value) best = { first: plan.actions[0]!, value };
+  }
+  return best!.first;
 }
 
-function bestAction(state: GameState, seat: PlayerId, options: readonly Action[], rng: Rng): Action {
-  return rankActions(state, seat, options, rng)[0]!;
+/** Its own next turn, each move the best-looking one step ahead. */
+function ownTurnFrom(state: GameState, seat: PlayerId, rng: Rng, w: Weights): GameState {
+  let current = state;
+  for (let step = 0; step < 16 && !current.victory && currentActor(current) === seat; step++) {
+    const options = aiOptions(current, seat);
+    if (options.length === 0) break;
+    const pick = options.find((action) => action.type === "declareVictory") ?? bestNext(current, seat, options, rng, w);
+    try {
+      current = apply(current, pick, rng).state;
+    } catch {
+      break;
+    }
+  }
+  return current;
+}
+
+/**
+ * The position after the opponent's turn, played as Normal would (the best move one step ahead
+ * each time) from a guess at their hand.
+ */
+function replyFrom(state: GameState, seat: PlayerId, rng: Rng): GameState {
+  let current = guessOpponentHand(state, seat, rng);
+  for (let step = 0; step < 24 && !current.victory && currentActor(current) !== seat; step++) {
+    const actor = currentActor(current);
+    const options = aiOptions(current, actor);
+    if (options.length === 0) break;
+    const pick = options.find((action) => action.type === "declareVictory") ?? bestNext(current, actor, options, rng);
+    try {
+      current = apply(current, pick, rng).state;
+    } catch {
+      break;
+    }
+  }
+  return current;
+}
+
+/** The best-looking move one step ahead, on a position that's already safe to try moves on. */
+function bestNext(state: GameState, seat: PlayerId, options: readonly Action[], rng: Rng, w: Weights = CLASSIC): Action {
+  let pick = options[0]!;
+  let top = -Infinity;
+  for (const action of options) {
+    let score: number;
+    try {
+      score = positionScore(apply(state, action, rng).state, seat, w) + rng.nextInt(1000) / 1e6;
+    } catch {
+      continue;
+    }
+    if (score > top) [top, pick] = [score, action];
+  }
+  return pick;
+}
+
+/**
+ * A copy where the opponent's face-down hand is dealt again from everything `seat` can't see
+ * (their face-down cards and the draw deck). Cards they took from the Market stay: those are public.
+ */
+export function guessOpponentHand(state: GameState, seat: PlayerId, rng: Rng): GameState {
+  const copy = withHiddenPilesShuffled(state, rng);
+  const opponent = copy.players[otherPlayer(seat)];
+  const hidden = opponent.hand.filter((card) => !card.faceUp);
+  if (hidden.length === 0) return copy;
+  const pool = [...hidden, ...copy.deck];
+  shuffle(pool, rng);
+  const dealt: typeof pool = [];
+  const rest: typeof pool = [];
+  // General Elections never stay in a hand.
+  for (const card of pool) (dealt.length < hidden.length && getCard(card.cardId).kind !== CardKind.Election ? dealt : rest).push(card);
+  opponent.hand = [...opponent.hand.filter((card) => card.faceUp), ...dealt];
+  copy.deck = rest;
+  return copy;
 }
 
 /** Options from best to worst, judged one step ahead (never empty when `options` isn't). */
-function rankActions(state: GameState, seat: PlayerId, options: readonly Action[], rng: Rng): Action[] {
+function rankActions(state: GameState, seat: PlayerId, options: readonly Action[], rng: Rng, w: Weights): Action[] {
   const fair = withHiddenPilesShuffled(state, rng);
   const scored: { action: Action; score: number }[] = [];
   for (const action of options) {
     try {
       // A hair of noise so equal moves don't always resolve the same way.
-      scored.push({ action, score: positionScore(apply(fair, action, rng).state, seat) + rng.nextInt(1000) / 1e6 });
+      scored.push({ action, score: positionScore(apply(fair, action, rng).state, seat, w) + rng.nextInt(1000) / 1e6 });
     } catch {
       continue;
     }
@@ -208,92 +360,4 @@ function shuffle<T>(items: T[], rng: Rng): void {
     const swap = rng.nextInt(index + 1);
     [items[index], items[swap]] = [items[swap]!, items[index]!];
   }
-}
-
-/** How much each victory's progress is worth (0 → 1 of the way to the target). */
-const VICTORY_WEIGHT: Record<VictoryKindId, number> = {
-  civil: 0,
-  political: 45,
-  military: 40,
-  popularity: 30,
-  ideological: 30,
-  cultural: 30,
-  diplomatic: 30,
-};
-
-/**
- * How good a position is for `seat`, from public information plus its own hand size:
- * winning, victory progress (and the opponent's threats), the election outlook, district
- * influence, monuments, Lords, and cards in hand.
- */
-export function positionScore(state: GameState, seat: PlayerId): number {
-  const opponent = otherPlayer(seat);
-  if (state.victory) return state.victory.player === seat ? 1e6 : -1e6;
-  if (state.phase === "setup") return 0;
-
-  let score = 0;
-  const race = victoryRace(state);
-  for (const row of race.rows) {
-    if (!row.active) continue;
-    const weight = VICTORY_WEIGHT[row.kind];
-    const progress = (standing: { value: number; target: number }) => Math.max(-1, Math.min(1, standing.value / standing.target));
-    score += weight * (progress(row.standing[seat]) - progress(row.standing[opponent]));
-    // A victory either player could declare next Politics step is decisive.
-    if (row.standing[seat].met) score += 400;
-    if (row.standing[opponent].met) score -= 600;
-    else if (row.standing[opponent].target - row.standing[opponent].value === 1) score -= 60;
-  }
-
-  // The election: electorates now, more so while one is under way and when it's the last.
-  const tally = tallyElection(state);
-  // As an election's Market runs down, its result is closer to settled.
-  const closing = state.election.active ? 1 + Math.max(0, 8 - state.market.length) / 8 : 1;
-  const stakes = (state.election.active ? 2 : 1) * closing * (isFinalElection(state) ? 3 : 1);
-  score += stakes * 10 * (tally.electorates[seat] - tally.electorates[opponent]);
-  score += stakes * 0.4 * (tally.electors[seat] - tally.electors[opponent]);
-  score += 15 * (state.players[seat].electionWins - state.players[opponent].electionWins);
-
-  // Districts: holding one is what counts, so a close district is worth fighting over and a
-  // safely won one isn't worth piling into (tanh flattens big margins).
-  for (const district of state.districtOrder) {
-    const margin =
-      playerDistrictInfluence(state, seat, district).total - playerDistrictInfluence(state, opponent, district).total;
-    score += stakes * 7 * Math.tanh(margin / 5);
-  }
-  score += 6 * (state.players[seat].monuments.length - state.players[opponent].monuments.length);
-  score += 2 * (lordsSymbols(state, seat) - lordsSymbols(state, opponent));
-  // Cards in hand are options; the opponent's hand only counts by size (its faces are hidden).
-  score += 1.5 * Math.min(state.players[seat].hand.length, 7) - 1.5 * Math.min(state.players[opponent].hand.length, 7);
-  score += handPlans(state, seat);
-  return score;
-}
-
-/**
- * Its own hand (which it may look at): cards of one district work together. Three make a
- * recruit (if it already has support there), five a monument (if one of that district is
- * available to build).
- */
-function handPlans(state: GameState, seat: PlayerId): number {
-  const counts = new Map<string, number>();
-  for (const card of state.players[seat].hand) {
-    const def = getCard(card.cardId);
-    if ("district" in def) counts.set(def.district, (counts.get(def.district) ?? 0) + 1);
-  }
-  let score = 0;
-  // Strong civil cards in hand are future influence.
-  for (const card of state.players[seat].hand) {
-    const def = getCard(card.cardId);
-    if (def.kind === CardKind.Civil) score += 0.25 * def.influence;
-  }
-  for (const [district, count] of counts) {
-    score += 0.5 * Math.min(count, 5) ** 1.4;
-    const supported = canRecruitIn(state, seat, district as DistrictId); // counts zeroed support as none
-    if (count >= 3 && supported) score += 4;
-    const buildable = state.availableMonuments.some((monument) => {
-      const def = getCard(monument.cardId);
-      return "district" in def && def.district === district;
-    });
-    if (count >= 5 && buildable) score += 5;
-  }
-  return score;
 }
