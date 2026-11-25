@@ -504,6 +504,11 @@ body {
   animation: victory-fade 600ms ease-out both;
 }
 
+/* A computer opponent's line (The Ninth), its delay set inline. */
+.moment-voice {
+  animation: victory-rise 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
 /* The parties revealed (components/game/PartiesMoment.tsx): a band in the brand's red opens from
    the middle of the table, both party cards slide in face down and turn up together, a seal
    comes down between them, and the first player's card is lifted out. */

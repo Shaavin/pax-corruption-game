@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type CSSProperties } from "react";
-import { ContinueHint, CountdownBar, LEAVE_MS, readingMs, useScale } from "./moment-kit";
+import { ContinueHint, CountdownBar, LEAVE_MS, readingMs, useScale, voiceLine, VoiceLine, type MomentVoice } from "./moment-kit";
 import { usePlayerLabel } from "./players";
 import { ElectionTieBreak, GENERAL_ELECTION_COUNT, otherPlayer, type ElectionTieBreakId, type PlayerId } from "@/lib/game";
 
@@ -113,7 +113,18 @@ const FIRST_SEAT_MS = 700;
 const SEAT_MS = 420;
 
 /** The votes are counted: each electorate lights up in its winner's color, then the winner is stamped. */
-export function ElectionResult({ moment, viewer, onDone }: { moment: ElectionResultData; viewer: PlayerId; onDone: () => void }) {
+export function ElectionResult({
+  moment,
+  viewer,
+  voice,
+  onDone,
+}: {
+  moment: ElectionResultData;
+  viewer: PlayerId;
+  /** The Ninth has a word for the result. */
+  voice?: MomentVoice;
+  onDone: () => void;
+}) {
   const label = usePlayerLabel();
   const scale = useScale();
   const seats = moment.seats;
@@ -148,7 +159,8 @@ export function ElectionResult({ moment, viewer, onDone }: { moment: ElectionRes
   const count = seats?.length ?? 0;
   const stampAt = (FIRST_SEAT_MS + count * SEAT_MS + 250) * scale;
   const readFrom = stampAt + 300 * scale;
-  const hold = readingMs("Elected", headline, tieLine, next);
+  const spoken = voice ? voiceLine(winner === voice.seat ? voice.lines.electionWon : voice.lines.electionLost, moment.id) : null;
+  const hold = readingMs("Elected", headline, tieLine, next, spoken);
 
   useEffect(() => {
     const timers: number[] = [];
@@ -226,6 +238,7 @@ export function ElectionResult({ moment, viewer, onDone }: { moment: ElectionRes
               <h2 className="election-headline mt-3 text-2xl font-semibold text-stone-50 sm:text-3xl">{headline}</h2>
               {tieLine ? <p className="election-headline mt-1.5 max-w-md text-xs text-stone-400 sm:text-sm">{tieLine}</p> : null}
               {next ? <p className="election-headline mt-1.5 text-sm font-semibold text-[var(--act)]">{next}</p> : null}
+              {voice && spoken ? <VoiceLine voice={voice} line={spoken} delayMs={700 * scale} className="mt-3" /> : null}
               {/* Its delay counts from when the verdict is stamped (it mounts then). */}
               <ContinueHint delayMs={300 * scale} className="mt-3" />
             </>

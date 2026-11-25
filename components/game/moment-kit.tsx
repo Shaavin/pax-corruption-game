@@ -1,7 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { Portrait } from "./Portrait";
 import { motionScale } from "./settings";
+import type { AiVoice } from "@/lib/game/ai";
+import type { PlayerId } from "@/lib/game";
 
 /**
  * What the table's moments share (TableMoment.tsx): when they play, how long they wait to be
@@ -52,6 +55,26 @@ export function CountdownBar({
     <div aria-hidden className={`absolute bottom-0 h-0.5 overflow-hidden ${inset}`}>
       <div className={`moment-timer h-full ${tone}`} style={{ animationDelay: `${delayMs}ms`, animationDuration: `${durationMs}ms` }} />
     </div>
+  );
+}
+
+/** A computer opponent who speaks at turning points (The Ninth): who, and in which seat. */
+export type MomentVoice = { seat: PlayerId; name: string; portrait: string; color: string; lines: AiVoice };
+
+/** One of their lines, picked by the moment so it stays the same while the moment plays. */
+export function voiceLine(lines: readonly string[], id: number): string {
+  return lines[id % lines.length]!;
+}
+
+/** Their line, beside their portrait. `delayMs`: when it comes in. */
+export function VoiceLine({ voice, line, delayMs, className = "" }: { voice: MomentVoice; line: string; delayMs: number; className?: string }) {
+  return (
+    <p className={`moment-voice flex items-center justify-center gap-2.5 ${className}`} style={{ animationDelay: `${delayMs}ms` }}>
+      <Portrait src={voice.portrait} color={voice.color} size="sm" />
+      <span className="text-left text-sm leading-snug italic sm:text-base" style={{ color: `color-mix(in srgb, ${voice.color} 45%, #ffe3da)` }}>
+        <span className="sr-only">{voice.name}: </span>“{line}”
+      </span>
+    </p>
   );
 }
 

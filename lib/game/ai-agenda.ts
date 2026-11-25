@@ -7,14 +7,15 @@
  * party), and it switches when the board makes another more promising or its own hopeless.
  */
 import { getCard, getParty } from "../cards/catalog.ts";
-import { MonumentId, type DistrictId } from "../cards/schema.ts";
+import { DecreeId, MonumentId, SYMBOLS, type DistrictId } from "../cards/schema.ts";
 import type { Weights } from "./ai-score.ts";
-import { activeDecrees, satisfiedDecrees } from "./decrees.ts";
+import { activeDecrees, meetsDecree, satisfiedDecrees } from "./decrees.ts";
 import { GENERAL_ELECTION_COUNT, tallyElection } from "./election.ts";
 import { canRecruitIn } from "./main.ts";
 import { victoryRace } from "./progress.ts";
 import { VictoryKind, type GameState, type PlayerId, type VictoryKindId } from "./types.ts";
-import { victoryActive } from "./world.ts";
+import { IDEOLOGICAL_COUNT, privateSymbols, totalSymbols } from "./victory.ts";
+import { relationLeads, supportCount, victoryActive } from "./world.ts";
 import { otherPlayer } from "./zones.ts";
 
 export const Agenda = {
@@ -169,6 +170,53 @@ function prospect(state: GameState, seat: PlayerId, agenda: AgendaId): number {
     }
   }
 }
+
+/**
+ * How far `seat` has come along an agenda's road (about −1 → 1), for The Ninth: its learned
+ * evaluator judges the whole board, and this nudges it toward the agenda when plans are close.
+ * Cheap on purpose (it runs on every position its search looks at).
+ */
+export function agendaProgress(state: GameState, seat: PlayerId, agenda: AgendaId): number {
+  // Nothing to measure before the game starts (no first player yet for an election tally).
+  if (state.phase === "setup") return 0;
+  const opponent = otherPlayer(seat);
+  const me = state.players[seat];
+  const them = state.players[opponent];
+  const clip = (value: number) => Math.max(-1, Math.min(1, value));
+  switch (agenda) {
+    case Agenda.Military:
+      return clip((me.partisans - them.partisans) / 3);
+    case Agenda.Popularity: {
+      let best = -Infinity;
+      for (const district of state.districtOrder) best = Math.max(best, supportCount(state, seat, district) - supportCount(state, opponent, district));
+      return clip(best / 9);
+    }
+    case Agenda.Elections: {
+      const tally = tallyElection(state);
+      return clip((tally.electorates[seat] - tally.electorates[opponent]) / 3 + 0.3 * (me.electionWins - them.electionWins));
+    }
+    case Agenda.Decrees:
+      return clip(0.5 * satisfiedDecrees(state, seat).length + 0.15 * DECREES.filter((decree) => meetsDecree(state, seat, decree)).length - 0.4);
+    case Agenda.Ideology: {
+      const mine = privateSymbols(state, seat);
+      const theirs = privateSymbols(state, opponent);
+      const totals = totalSymbols(state);
+      let best = -1;
+      for (const symbol of SYMBOLS) {
+        if (mine[symbol] <= theirs[symbol]) continue;
+        const others = Math.max(...SYMBOLS.filter((other) => other !== symbol).map((other) => totals[other]));
+        best = Math.max(best, clip((totals[symbol] - Math.max(IDEOLOGICAL_COUNT, others + 1) + 2) / 2));
+      }
+      return best;
+    }
+    case Agenda.Monuments:
+      return clip(0.5 * (me.monuments.length - them.monuments.length) + monumentSet(state, seat) / 10);
+    case Agenda.Diplomacy:
+      return clip(relationLeads(state, seat) / 3);
+  }
+}
+
+const DECREES = Object.values(DecreeId);
 
 /** Three cards of a district it already has support in: a recruit in hand. */
 function recruitReady(state: GameState, seat: PlayerId): boolean {

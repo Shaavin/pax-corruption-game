@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type CSSProperties } from "react";
 import { calligraphy } from "./fonts";
-import { ContinueHint, CountdownBar, LEAVE_MS, readingMs, useScale } from "./moment-kit";
+import { ContinueHint, CountdownBar, LEAVE_MS, readingMs, useScale, voiceLine, VoiceLine, type MomentVoice } from "./moment-kit";
 import { usePlayerLabel } from "./players";
 import { getParty } from "@/lib/cards/catalog";
 import type { PartyIdValue } from "@/lib/cards/schema";
@@ -28,7 +28,18 @@ const FIRST_MS = 2050;
  * The game begins: a band in the brand's red opens across the table, both party cards slide in
  * face down and turn up together, and the lower party number is named first player.
  */
-export function PartiesReveal({ moment, viewer, onDone }: { moment: PartiesRevealData; viewer: PlayerId; onDone: () => void }) {
+export function PartiesReveal({
+  moment,
+  viewer,
+  voice,
+  onDone,
+}: {
+  moment: PartiesRevealData;
+  viewer: PlayerId;
+  /** The Ninth speaks instead of the rulebook's line. */
+  voice?: MomentVoice;
+  onDone: () => void;
+}) {
   const label = usePlayerLabel();
   const scale = useScale();
   const [leaving, setLeaving] = useState(false);
@@ -41,8 +52,9 @@ export function PartiesReveal({ moment, viewer, onDone }: { moment: PartiesRevea
   const detail = `The lower party number goes first. ${keeps} starting cards, and ${takes}.`;
   const names = [viewer, otherPlayer(viewer)].map((player) => getParty(moment.parties[player]).name);
 
+  const spoken = voice ? voiceLine(voice.lines.reveal, moment.id) : null;
   const readFrom = FIRST_MS * scale;
-  const hold = readingMs(headline, detail, PROLOGUE, ...names);
+  const hold = readingMs(headline, detail, spoken ?? PROLOGUE, ...names);
 
   useEffect(() => {
     const leave = window.setTimeout(() => setLeaving(true), readFrom + hold);
@@ -90,7 +102,11 @@ export function PartiesReveal({ moment, viewer, onDone }: { moment: PartiesRevea
 
           <h2 className="parties-headline mt-4 text-3xl leading-tight font-semibold text-white sm:mt-5 sm:text-5xl short:mt-2 short:text-3xl">{headline}</h2>
           <p className="parties-line mt-2 max-w-lg text-xs leading-relaxed text-stone-300 sm:text-sm short:mt-1 short:max-w-2xl">{detail}</p>
-          <p className={`parties-prologue ${calligraphy.className} mt-2.5 text-base text-white/85 sm:text-xl short:mt-1 short:text-base`}>{PROLOGUE}</p>
+          {voice && spoken ? (
+            <VoiceLine voice={voice} line={spoken} delayMs={2650 * scale} className="mt-3 short:mt-1.5" />
+          ) : (
+            <p className={`parties-prologue ${calligraphy.className} mt-2.5 text-base text-white/85 sm:text-xl short:mt-1 short:text-base`}>{PROLOGUE}</p>
+          )}
           <ContinueHint delayMs={readFrom} className="mt-2.5 short:mt-1" />
         </div>
         <CountdownBar delayMs={readFrom} durationMs={hold} inset="inset-x-0" tone="bg-ember/70" />

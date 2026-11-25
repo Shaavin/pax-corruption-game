@@ -24,6 +24,8 @@ The rules were revised in 2026-11: the Senate and decree objectives replaced pol
 
 The tutorial (**Learn to play**, `/learn`, added 2026-11-21) teaches the rules in prepared lessons (`lib/tutorial/`). Its notes quote rules and numbers: when a rule or card changes, update the lessons it touches. `lib/tutorial/lessons.test.ts` plays every lesson through the engine and checks the numbers the coach quotes.
 
+The hardest computer opponent, **The Ninth** (`ninth` level, added 2026-11-24), judges positions with a small neural network trained by self-play: rules and encoding in TypeScript (`lib/game/ai-features.ts`, `lib/game/ai-net.ts`), learning in Python (`training/`, see `training/README.md`), weights in `public/ai/evaluator.bin` (and `evaluator-expansion.bin` for Legacy & Diplomacy). When a rule or card changes, its training games no longer match the game: play a fresh round and retrain before relying on its strength. Changing the encoding needs a new `FEATURE_VERSION`.
+
 Source priority: current printed card text (the Tabletop Simulator save faces) > the current rulebook PDF > these docs > marketing copy. Paths are in [card-catalog.md](docs/agents/card-catalog.md#sources-of-truth).
 
 Do not implement a card ability from memory. Use the catalog and the current printed card image. If a rule is listed as open, stop and ask.

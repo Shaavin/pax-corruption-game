@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 
 /**
@@ -22,12 +22,13 @@ const CARD_WIDTH = 640;
 const CARD_QUALITY = 75;
 
 /** Public image files under `public/<folder>`, as site paths. */
-function imageFiles(folder: string): string[] {
+function imageFiles(folder: string, pattern = /\.(png|jpe?g|webp)$/i): string[] {
   const root = join(process.cwd(), "public");
   const walk = (dir: string): string[] =>
     readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
-      entry.isDirectory() ? walk(join(dir, entry.name)) : /\.(png|jpe?g|webp)$/i.test(entry.name) ? [join(dir, entry.name)] : [],
+      entry.isDirectory() ? walk(join(dir, entry.name)) : pattern.test(entry.name) ? [join(dir, entry.name)] : [],
     );
+  if (!existsSync(join(root, folder))) return [];
   return walk(join(root, folder))
     .map((file) => `/${relative(root, file).split("\\").join("/")}`)
     .sort();
@@ -37,7 +38,8 @@ export function GET(): Response {
   const cards = imageFiles("cards");
   // The victory scenes and the computer opponents' portraits, saved as they are (not through
   // the card-size optimizer).
-  const art = [...imageFiles(join("art", "victory")), ...imageFiles(join("art", "cast"))];
+  // The Ninth's trained evaluator too: a new one is a new file content, so a fresh cache.
+  const art = [...imageFiles(join("art", "victory")), ...imageFiles(join("art", "cast"), /\.(webp|svg)$/i), ...imageFiles("ai", /\.bin$/i)];
   const build = process.env.PAX_BUILD || "dev";
   // A new card or scene list (one added or renamed), or a scene redrawn, starts a fresh card cache; otherwise it's kept.
   const tag = createHash("sha1").update([...cards, ...art].join("\n"));
@@ -180,7 +182,7 @@ self.addEventListener("fetch", (event) => {
   if (request.mode === "navigate") return event.respondWith(page(request));
   if (url.pathname.startsWith("/_next/static/")) return event.respondWith(staticAsset(request));
   if (url.pathname === "/_next/image") return event.respondWith(optimizedImage(request));
-  if (/^\/(cards|art|icons)\//.test(url.pathname) || /\.(png|jpe?g|webp|svg|ico|webmanifest)$/.test(url.pathname)) {
+  if (/^\/(cards|art|icons|ai)\//.test(url.pathname) || /\.(png|jpe?g|webp|svg|ico|webmanifest)$/.test(url.pathname)) {
     return event.respondWith(publicFile(request));
   }
 });

@@ -1,0 +1,5 @@
+# Local Python environment and generated training data (rebuild with the commands in README.md).
+.venv/
+data/
+runs/
+__pycache__/

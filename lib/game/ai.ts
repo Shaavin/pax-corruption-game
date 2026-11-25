@@ -20,7 +20,8 @@
  */
 import { getCard } from "../cards/catalog.ts";
 import { CardKind } from "../cards/schema.ts";
-import { chooseAgenda, focusWeights, type AgendaId } from "./ai-agenda.ts";
+import { agendaProgress, chooseAgenda, focusWeights, type AgendaId } from "./ai-agenda.ts";
+import { netEvaluator, type Net } from "./ai-net.ts";
 import { CLASSIC, positionScore, type Weights } from "./ai-score.ts";
 import { apply, currentActor, legalActions } from "./engine.ts";
 import { createSeededRng, type Rng } from "./rng.ts";
@@ -30,7 +31,7 @@ import { otherPlayer } from "./zones.ts";
 export { positionScore, type Weights } from "./ai-score.ts";
 export { Agenda, type AgendaId } from "./ai-agenda.ts";
 
-export type AiLevel = "easy" | "normal" | "hard";
+export type AiLevel = "easy" | "normal" | "hard" | "ninth";
 
 /** Each level is a character: a name for the table and lines to show while it decides. */
 export type AiPersona = {
@@ -45,6 +46,16 @@ export type AiPersona = {
   portraitCredit: string;
   /** Their color, for the portrait's ring outside a game (in a game the seat's color rings it). */
   color: string;
+  /** Lines they speak at turning points (only The Ninth speaks), one picked per moment. */
+  voice?: AiVoice;
+};
+
+export type AiVoice = {
+  /** When the parties are revealed. */
+  reveal: readonly string[];
+  /** When an election is counted: one they won, one they lost. */
+  electionWon: readonly string[];
+  electionLost: readonly string[];
 };
 
 export const AI_LEVELS: readonly { id: AiLevel; name: string; blurb: string; persona: AiPersona }[] = [
@@ -105,6 +116,30 @@ export const AI_LEVELS: readonly { id: AiLevel; name: string; blurb: string; per
       color: "#a66bd3",
     },
   },
+  {
+    id: "ninth",
+    name: "IX",
+    blurb: "Taught itself by playing thousands and thousands of games. Nobody taught it mercy.",
+    persona: {
+      name: "The Ninth",
+      tagline: "There were always nine.",
+      thinking: [
+        "The Ninth is listening…",
+        "Somewhere, a vote changes…",
+        "A ballot burns in a quiet room…",
+        "The Ninth remembers the war…",
+        "…",
+      ],
+      portrait: "/art/cast/ninth.svg",
+      portraitCredit: "The ninth party was never on any ballot.",
+      color: "#b3261e",
+      voice: {
+        reveal: ["There were always nine.", "I have watched every party you have ever led.", "Your party. My Union."],
+        electionWon: ["As it was always going to be.", "The votes were counted long before tonight.", "Somewhere, a ballot burns."],
+        electionLost: ["Enjoy it.", "Interesting.", "One election. There are others."],
+      },
+    },
+  },
 ];
 
 export function aiPersona(level: AiLevel): AiPersona {
@@ -112,7 +147,53 @@ export function aiPersona(level: AiLevel): AiPersona {
 }
 
 export function isAiLevel(value: unknown): value is AiLevel {
-  return value === "easy" || value === "normal" || value === "hard";
+  return value === "easy" || value === "normal" || value === "hard" || value === "ninth";
+}
+
+/**
+ * The Ninth judges positions with the learned evaluator (ai-net.ts), once it's loaded: the
+ * browser fetches the weights, tools read them from disk. In Legacy & Diplomacy games it uses its
+ * expansion specialist if it has one, else the main evaluator if that learned the expansion (its
+ * header says). Without a fitting evaluator it plays as Hard.
+ */
+let ninthEvaluate: Evaluator | null = null;
+/** Whether its main evaluator learned from Legacy & Diplomacy games. */
+let ninthKnowsExpansion = false;
+/** Its Legacy & Diplomacy specialist, if it has one. */
+let ninthExpansionEvaluate: Evaluator | null = null;
+/** The Ninth's agenda nudge by default (see `setNinthEvaluator`). */
+const NINTH_LEAN = 0;
+/**
+ * How strongly The Ninth's agenda nudges its evaluator (in the evaluator's units, 100 per logit):
+ * enough to choose between plans that are close, so its games take different roads, never
+ * enough to pass up a clearly better one.
+ */
+let ninthLean = NINTH_LEAN;
+/** Whether The Ninth also predicts the opponent's reply with its evaluator (else with Hard's score). */
+let ninthReply = false;
+/** How wide The Ninth searches (by default as Hard does). */
+const NINTH_WIDTH: SearchWidth = { beam: 6, depth: 8, candidates: 4, samples: 3 };
+let ninthWidth: SearchWidth = NINTH_WIDTH;
+
+/**
+ * Set The Ninth's evaluators: `net` for every game it learned (its header says whether that
+ * includes Legacy & Diplomacy), and `options.expansion` for Legacy & Diplomacy games in its place.
+ */
+export function setNinthEvaluator(
+  net: Net | null,
+  options: { expansion?: Net | null; lean?: number; reply?: boolean; width?: Partial<SearchWidth> } = {},
+): void {
+  ninthEvaluate = net ? netEvaluator(net) : null;
+  ninthKnowsExpansion = Boolean(net?.header.expansion);
+  if (options.expansion && !options.expansion.header.expansion) throw new Error("The expansion evaluator didn't learn Legacy & Diplomacy games");
+  ninthExpansionEvaluate = options.expansion ? netEvaluator(options.expansion) : null;
+  ninthLean = options.lean ?? NINTH_LEAN;
+  ninthReply = options.reply ?? false;
+  ninthWidth = { ...NINTH_WIDTH, ...options.width };
+}
+
+export function ninthEvaluatorLoaded(): boolean {
+  return ninthEvaluate !== null;
 }
 
 /** Which seat the computer plays, and how well. */
@@ -142,6 +223,15 @@ export function chooseAiAction(state: GameState, seat: PlayerId, level: AiLevel,
   const win = options.find((action) => action.type === "declareVictory");
   if (win) return win;
 
+  const ninthJudge = !state.expansion ? ninthEvaluate : (ninthExpansionEvaluate ?? (ninthKnowsExpansion ? ninthEvaluate : null));
+  if (level === "ninth" && ninthJudge && !weights) {
+    const judge = ninthJudge;
+    const agenda = aiAgenda(state, seat, level);
+    const lean = ninthLean;
+    const evaluate: Evaluator =
+      lean > 0 ? (position, player) => judge(position, player) + (position.victory ? 0 : lean * agendaProgress(position, player, agenda)) : judge;
+    return planTurn(state, seat, rng, evaluate, true, ninthReply ? judge : positionScore, ninthWidth) ?? options[0]!;
+  }
   const w = weights ?? weightsFor(state, seat, level);
   if (level === "easy") {
     const busy = options.filter((action) => !QUIET.has(action.type));
@@ -155,7 +245,23 @@ export function chooseAiAction(state: GameState, seat: PlayerId, level: AiLevel,
     const ranked = rankActions(state, seat, options, rng, w);
     return rng.nextInt(SLIP_ONE_IN) === 0 ? ranked[rng.nextInt(Math.min(3, ranked.length))]! : ranked[0]!;
   }
-  return planTurn(state, seat, rng, w) ?? rankActions(state, seat, options, rng, w)[0]!;
+  return planTurn(state, seat, rng, (position, player) => positionScore(position, player, w)) ?? rankActions(state, seat, options, rng, w)[0]!;
+}
+
+/** How a search judges a position for `seat` (higher is better; a won game ±1e6). */
+export type Evaluator = (state: GameState, seat: PlayerId) => number;
+
+/**
+ * Hard's search with another judge of positions (the learned evaluator, or tools generating
+ * training games). `lookahead: false` plans this turn only, much faster.
+ */
+export function planMove(state: GameState, seat: PlayerId, rng: Rng, evaluate: Evaluator, lookahead = true): Action | null {
+  if (state.victory || currentActor(state) !== seat) return null;
+  const options = aiOptions(state, seat);
+  if (options.length <= 1) return options[0] ?? null;
+  const win = options.find((action) => action.type === "declareVictory");
+  if (win) return win;
+  return planTurn(state, seat, rng, evaluate, lookahead) ?? options[0]!;
 }
 
 /**
@@ -167,6 +273,8 @@ const STYLE: Record<AiLevel, { base: Weights; temperament: number; strength: num
   easy: { base: CLASSIC, temperament: 0.8, strength: 1 },
   normal: { base: CLASSIC, temperament: 0.6, strength: 0.9 },
   hard: { base: CLASSIC, temperament: 0.45, strength: 0.45 },
+  // When it plays as Hard (no evaluator loaded, or an expansion game).
+  ninth: { base: CLASSIC, temperament: 0.45, strength: 0.45 },
 };
 
 /**
@@ -217,11 +325,23 @@ const CAP = 5000;
  * same guesses for every plan so luck doesn't pick between them. Plans the opponent wins
  * against sink; plans that set up its own win next turn rise. Play the first move of the best.
  */
-function planTurn(state: GameState, seat: PlayerId, rng: Rng, w: Weights): Action | null {
+/** How wide Hard's search looks (The Ninth may look wider). */
+export type SearchWidth = { beam: number; depth: number; candidates: number; samples: number };
+const HARD_WIDTH: SearchWidth = { beam: BEAM, depth: DEPTH, candidates: CANDIDATES, samples: SAMPLES };
+
+function planTurn(
+  state: GameState,
+  seat: PlayerId,
+  rng: Rng,
+  evaluate: Evaluator,
+  lookahead = true,
+  opponentJudge: Evaluator = positionScore,
+  width: SearchWidth = HARD_WIDTH,
+): Action | null {
   type Node = { state: GameState; actions: Action[]; score: number };
   let beam: Node[] = [{ state: withHiddenPilesShuffled(state, rng), actions: [], score: 0 }];
   const finished: Node[] = [];
-  for (let depth = 0; depth < DEPTH && beam.length > 0; depth++) {
+  for (let depth = 0; depth < width.depth && beam.length > 0; depth++) {
     const next: Node[] = [];
     for (const node of beam) {
       for (const action of aiOptions(node.state, seat)) {
@@ -231,14 +351,14 @@ function planTurn(state: GameState, seat: PlayerId, rng: Rng, w: Weights): Actio
         } catch {
           continue;
         }
-        const entry = { state: child, actions: [...node.actions, action], score: positionScore(child, seat, w) + rng.nextInt(1000) / 1e6 };
+        const entry = { state: child, actions: [...node.actions, action], score: evaluate(child, seat) + rng.nextInt(1000) / 1e6 };
         // The turn is over (or the game): this sequence is done.
         if (child.victory || currentActor(child) !== seat) finished.push(entry);
         else next.push(entry);
       }
     }
     next.sort((a, b) => b.score - a.score);
-    beam = next.slice(0, BEAM);
+    beam = next.slice(0, width.beam);
   }
   finished.push(...beam);
 
@@ -250,11 +370,11 @@ function planTurn(state: GameState, seat: PlayerId, rng: Rng, w: Weights): Actio
     const held = byFirst.get(key);
     if (!held || node.score > held.score) byFirst.set(key, node);
   }
-  const plans = [...byFirst.values()].sort((a, b) => b.score - a.score).slice(0, CANDIDATES);
-  if (plans.length <= 1) return plans[0]?.actions[0] ?? null;
+  const plans = [...byFirst.values()].sort((a, b) => b.score - a.score).slice(0, width.candidates);
+  if (plans.length <= 1 || !lookahead) return plans[0]?.actions[0] ?? null;
 
   // The same guesses for every plan: seeds drawn once.
-  const seeds = Array.from({ length: SAMPLES }, () => rng.nextInt(2 ** 31));
+  const seeds = Array.from({ length: width.samples }, () => rng.nextInt(2 ** 31));
   let best: { first: Action; value: number } | null = null;
   for (const plan of plans) {
     let value = plan.score;
@@ -262,8 +382,8 @@ function planTurn(state: GameState, seat: PlayerId, rng: Rng, w: Weights): Actio
       let later = 0;
       for (const seed of seeds) {
         const guess = createSeededRng(seed);
-        const after = ownTurnFrom(replyFrom(plan.state, seat, guess), seat, guess, w);
-        later += Math.max(-CAP, Math.min(CAP, positionScore(after, seat, w))) / seeds.length;
+        const after = ownTurnFrom(replyFrom(plan.state, seat, guess, opponentJudge), seat, guess, evaluate);
+        later += Math.max(-CAP, Math.min(CAP, evaluate(after, seat))) / seeds.length;
       }
       value = (1 - LOOKAHEAD) * plan.score + LOOKAHEAD * later;
     }
@@ -273,12 +393,12 @@ function planTurn(state: GameState, seat: PlayerId, rng: Rng, w: Weights): Actio
 }
 
 /** Its own next turn, each move the best-looking one step ahead. */
-function ownTurnFrom(state: GameState, seat: PlayerId, rng: Rng, w: Weights): GameState {
+function ownTurnFrom(state: GameState, seat: PlayerId, rng: Rng, evaluate: Evaluator): GameState {
   let current = state;
   for (let step = 0; step < 16 && !current.victory && currentActor(current) === seat; step++) {
     const options = aiOptions(current, seat);
     if (options.length === 0) break;
-    const pick = options.find((action) => action.type === "declareVictory") ?? bestNext(current, seat, options, rng, w);
+    const pick = options.find((action) => action.type === "declareVictory") ?? bestNext(current, seat, options, rng, evaluate);
     try {
       current = apply(current, pick, rng).state;
     } catch {
@@ -292,13 +412,13 @@ function ownTurnFrom(state: GameState, seat: PlayerId, rng: Rng, w: Weights): Ga
  * The position after the opponent's turn, played as Normal would (the best move one step ahead
  * each time) from a guess at their hand.
  */
-function replyFrom(state: GameState, seat: PlayerId, rng: Rng): GameState {
+function replyFrom(state: GameState, seat: PlayerId, rng: Rng, judge: Evaluator = positionScore): GameState {
   let current = guessOpponentHand(state, seat, rng);
   for (let step = 0; step < 24 && !current.victory && currentActor(current) !== seat; step++) {
     const actor = currentActor(current);
     const options = aiOptions(current, actor);
     if (options.length === 0) break;
-    const pick = options.find((action) => action.type === "declareVictory") ?? bestNext(current, actor, options, rng);
+    const pick = options.find((action) => action.type === "declareVictory") ?? bestNext(current, actor, options, rng, judge);
     try {
       current = apply(current, pick, rng).state;
     } catch {
@@ -309,13 +429,13 @@ function replyFrom(state: GameState, seat: PlayerId, rng: Rng): GameState {
 }
 
 /** The best-looking move one step ahead, on a position that's already safe to try moves on. */
-function bestNext(state: GameState, seat: PlayerId, options: readonly Action[], rng: Rng, w: Weights = CLASSIC): Action {
+function bestNext(state: GameState, seat: PlayerId, options: readonly Action[], rng: Rng, evaluate: Evaluator = positionScore): Action {
   let pick = options[0]!;
   let top = -Infinity;
   for (const action of options) {
     let score: number;
     try {
-      score = positionScore(apply(state, action, rng).state, seat, w) + rng.nextInt(1000) / 1e6;
+      score = evaluate(apply(state, action, rng).state, seat) + rng.nextInt(1000) / 1e6;
     } catch {
       continue;
     }

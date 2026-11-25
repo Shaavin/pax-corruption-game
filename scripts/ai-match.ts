@@ -4,24 +4,68 @@
  * a few hundred tell levels apart).
  *
  * Usage:
- *   node --experimental-strip-types --no-warnings scripts/ai-match.ts <level> <level> [games] [--expansion] [--from N]
+ *   node --experimental-strip-types --no-warnings scripts/ai-match.ts <player> <player> [games] [--expansion] [--from N]
  *
- * Levels: easy, normal, hard. The first is reported on. Seats alternate game by game, and the
- * deals are fixed by `--from` (default 1), so two runs with the same games compare like with like.
- * Several runs with different `--from` can go in parallel.
+ * Players: easy, normal, hard; quick (Hard's search, this turn only); net:<weights.bin> (the
+ * learned evaluator in Hard's search); netquick:<weights.bin> (the same, this turn only);
+ * ninth:<weights.bin>[@lean][+exp=<weights.bin>] (The Ninth as in the game: that evaluator, nudged
+ * by its agenda; +exp: its Legacy & Diplomacy specialist). The
+ * first is reported on. Seats alternate game by game, and the deals are fixed by `--from`
+ * (default 1), so two runs with the same games compare like with like. Several runs with
+ * different `--from` can go in parallel. `--log` prints each game's result.
  */
-import { aiAgenda, chooseAiAction, isAiLevel, type AiLevel } from "../lib/game/ai.ts";
+import { readFileSync } from "node:fs";
+import { focusWeights, type AgendaId } from "../lib/game/ai-agenda.ts";
+import { loadNet, netEvaluator } from "../lib/game/ai-net.ts";
+import { CLASSIC } from "../lib/game/ai-score.ts";
+import { aiAgenda, chooseAiAction, isAiLevel, planMove, positionScore, setNinthEvaluator } from "../lib/game/ai.ts";
+import type { Rng } from "../lib/game/rng.ts";
+import type { Action, GameState } from "../lib/game/types.ts";
 import { currentActor } from "../lib/game/engine.ts";
 import { newReplay, stepReplay } from "../lib/game/record.ts";
 import { createSeededRng } from "../lib/game/rng.ts";
 import type { PlayerId } from "../lib/game/types.ts";
 
 const args = process.argv.slice(2);
-const [a, b] = args.filter((arg) => isAiLevel(arg)) as AiLevel[];
+const isPlayer = (arg: string) => isAiLevel(arg) || arg === "quick" || /^(net|netquick|ninth|quick):/.test(arg);
+const [a, b] = args.filter(isPlayer);
 if (!a || !b) {
-  console.error("Usage: scripts/ai-match.ts <easy|normal|hard> <easy|normal|hard> [games] [--expansion] [--from N]");
+  console.error("Usage: scripts/ai-match.ts <player> <player> [games] [--expansion] [--from N]  (easy, normal, hard, quick, net:<weights.bin>)");
   process.exit(1);
 }
+
+type Mover = (state: GameState, seat: PlayerId, rng: Rng) => Action | null;
+function mover(spec: string): Mover {
+  if (isAiLevel(spec)) return (state, seat, rng) => chooseAiAction(state, seat, spec, rng);
+  if (spec.startsWith("quick:")) {
+    // quick:<agenda>: Hard's search for this turn, fixed on one agenda at full strength.
+    const weights = focusWeights(CLASSIC, spec.slice(6) as AgendaId, 1);
+    return (state, seat, rng) => planMove(state, seat, rng, (position, player) => positionScore(position, player, weights), false);
+  }
+  if (spec.startsWith("ninth:")) {
+    // ninth:<weights.bin>[@lean][+reply]: The Ninth as it plays in the game (agenda and all);
+    // +reply predicts the opponent's reply with the evaluator too.
+    // +wide=<candidates>x<samples> looks past its turn on more plans and guesses.
+    // +exp=<weights.bin> plays Legacy & Diplomacy games with that evaluator instead.
+    const reply = spec.includes("+reply");
+    const wide = /\+wide=(\d+)x(\d+)/.exec(spec);
+    const specialist = /\+exp=([^+]+)/.exec(spec);
+    const [path, lean] = spec.slice(6).replace(/\+.*$/, "").split("@");
+    setNinthEvaluator(loadNet(readFileSync(path!)), {
+      expansion: specialist ? loadNet(readFileSync(specialist[1]!)) : null,
+      ...(lean === undefined ? {} : { lean: Number(lean) }),
+      reply,
+      ...(wide ? { width: { candidates: Number(wide[1]), samples: Number(wide[2]) } } : {}),
+    });
+    return (state, seat, rng) => chooseAiAction(state, seat, "ninth", rng);
+  }
+  if (spec === "quick") return (state, seat, rng) => planMove(state, seat, rng, positionScore, false);
+  const evaluate = netEvaluator(loadNet(readFileSync(spec.slice(spec.indexOf(":") + 1))));
+  return (state, seat, rng) => planMove(state, seat, rng, evaluate, !spec.startsWith("netquick:"));
+}
+const moveA = mover(a);
+const moveB = mover(b);
+const label = (spec: string) => (spec.includes(":") ? `${spec.slice(0, spec.indexOf(":"))}(${spec.replace(/\+.*$/, "").split(/[\/:]/).pop()})` : spec);
 const games = Number(args.find((arg) => /^\d+$/.test(arg) && args[args.indexOf(arg) - 1] !== "--from") ?? 20);
 const expansion = args.includes("--expansion");
 const from = Number(args[args.indexOf("--from") + 1] ?? 1) || 1;
@@ -44,7 +88,7 @@ for (let game = from; game < from + games; game++) {
   for (let step = 0; step < 3000 && !replay.state.victory; step++) {
     const actor = currentActor(replay.state);
     const mine = actor === seat;
-    if (mine && actor !== last && replay.state.phase !== "setup") {
+    if (mine && isAiLevel(a) && actor !== last && replay.state.phase !== "setup") {
       const agenda = aiAgenda(replay.state, actor, a);
       agendas[agenda] = (agendas[agenda] ?? 0) + 1;
       if (previous && agenda !== previous) switches++;
@@ -52,7 +96,7 @@ for (let game = from; game < from + games; game++) {
     }
     last = actor;
     const started = performance.now();
-    const action = chooseAiAction(replay.state, actor, mine ? a : b, rng);
+    const action = (mine ? moveA : moveB)(replay.state, actor, rng);
     const took = performance.now() - started;
     const clock = mine ? think.a : think.b;
     clock.ms += took;
@@ -65,7 +109,9 @@ for (let game = from; game < from + games; game++) {
   const victory = replay.state.victory;
   if (!victory) continue;
   finished++;
-  const key = `${victory.player === seat ? a : b} ${victory.kind}`;
+  const key = `${label(victory.player === seat ? a : b)} ${victory.kind}`;
+  // --log: one line per game, to find the games worth replaying.
+  if (args.includes("--log")) console.log(`game ${game}: ${key} (${label(a)} in seat ${seat})`);
   ends[key] = (ends[key] ?? 0) + 1;
   if (victory.player === seat) won++;
 }
@@ -77,11 +123,11 @@ const share = (counts: Record<string, number>) => {
     .map(([name, count]) => `${name} ${Math.round((100 * count) / total)}%`)
     .join(", ");
 };
-console.log(`${a} vs ${b}${expansion ? " (expansion)" : ""}, games ${from}–${from + games - 1}: ${a} won ${won}/${finished} (${Math.round((100 * won) / Math.max(1, finished))}%)`);
+console.log(`${label(a)} vs ${label(b)}${expansion ? " (expansion)" : ""}, games ${from}–${from + games - 1}: ${label(a)} won ${won}/${finished} (${Math.round((100 * won) / Math.max(1, finished))}%)`);
 console.log(`  how games ended: ${Object.entries(ends).sort().map(([k, v]) => `${k} ${v}`).join(", ")}`);
-console.log(`  ${a}'s moves per game: ${MOVES.map((name) => `${name} ${((moves[name] ?? 0) / games).toFixed(1)}`).join(", ")}`);
-console.log(`  ${a}'s agendas (share of turns): ${share(agendas)}; ${(switches / games).toFixed(1)} switches per game`);
+console.log(`  ${label(a)}'s moves per game: ${MOVES.map((name) => `${name} ${((moves[name] ?? 0) / games).toFixed(1)}`).join(", ")}`);
+if (isAiLevel(a)) console.log(`  ${a}'s agendas (share of turns): ${share(agendas)}; ${(switches / games).toFixed(1)} switches per game`);
 for (const [side, level] of [["a", a], ["b", b]] as const) {
   const clock = think[side];
-  console.log(`  ${level} (${side === "a" ? "first" : "second"}): ${(clock.ms / Math.max(1, clock.n)).toFixed(1)} ms per move, longest ${clock.max.toFixed(0)} ms`);
+  console.log(`  ${label(level)} (${side === "a" ? "first" : "second"}): ${(clock.ms / Math.max(1, clock.n)).toFixed(1)} ms per move, longest ${clock.max.toFixed(0)} ms`);
 }

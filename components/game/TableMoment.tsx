@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { ElectionResult, ElectionStart, type ElectionResultData, type ElectionStartData, type Seat } from "./ElectionMoment";
 import { PartiesReveal, type PartiesRevealData } from "./PartiesMoment";
-import { momentsOn } from "./moment-kit";
+import { momentsOn, type MomentVoice } from "./moment-kit";
 import { GENERAL_ELECTION_COUNT, VictoryKind, type GameEvent, type GameState, type PlayerId } from "@/lib/game";
 import type { DistrictId } from "@/lib/cards/schema";
 
@@ -112,7 +112,18 @@ export function useTableMoments(events: readonly GameEvent[], state: GameState) 
 }
 
 /** The moment on screen. A click (or Escape, Enter, or Space) skips it. */
-export function TableMoment({ moment, viewer, onDone }: { moment: TableMomentData; viewer: PlayerId; onDone: () => void }) {
+export function TableMoment({
+  moment,
+  viewer,
+  voice,
+  onDone,
+}: {
+  moment: TableMomentData;
+  viewer: PlayerId;
+  /** A computer opponent who speaks at turning points (The Ninth). */
+  voice?: MomentVoice;
+  onDone: () => void;
+}) {
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape" || event.key === "Enter" || event.key === " ") {
@@ -126,10 +137,10 @@ export function TableMoment({ moment, viewer, onDone }: { moment: TableMomentDat
 
   switch (moment.kind) {
     case "parties":
-      return <PartiesReveal key={moment.id} moment={moment} viewer={viewer} onDone={onDone} />;
+      return <PartiesReveal key={moment.id} moment={moment} viewer={viewer} voice={voice} onDone={onDone} />;
     case "electionStart":
       return <ElectionStart key={moment.id} moment={moment} onDone={onDone} />;
     case "electionResult":
-      return <ElectionResult key={moment.id} moment={moment} viewer={viewer} onDone={onDone} />;
+      return <ElectionResult key={moment.id} moment={moment} viewer={viewer} voice={voice} onDone={onDone} />;
   }
 }

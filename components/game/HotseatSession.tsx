@@ -14,7 +14,8 @@ import { PassDeviceGate } from "./PassDeviceGate";
 import { playerLabel, PlayerNamesContext } from "./players";
 import { NO_NAMES, type PlayerNames } from "@/lib/game/names";
 import { handLimit } from "@/lib/game/abilities";
-import { aiPersona, chooseAiAction, type AiOpponent } from "@/lib/game/ai";
+import { aiPersona, chooseAiAction, ninthEvaluatorLoaded, type AiOpponent } from "@/lib/game/ai";
+import { loadNinth } from "./ninth";
 import { createSeededRng, randomUint32 } from "@/lib/game/rng";
 import { ReportDialog } from "./ReportDialog";
 import { saveGame } from "./saved-game";
@@ -253,6 +254,11 @@ export function HotseatSession(props: HotseatSessionProps) {
   // computer move, no replay step, no setup or decree choice, no victory) until its moment has played.
   const { moment, done: momentDone, showMissed } = useTableMoments(shownHistory, shownState);
   const momentBusy = moment !== null;
+  // A computer opponent with something to say at turning points (The Ninth).
+  const momentVoice = useMemo(() => {
+    const persona = ai ? aiPersona(ai.level) : null;
+    return ai && persona?.voice ? { seat: ai.seat, name: persona.name, portrait: persona.portrait, color: persona.color, lines: persona.voice } : undefined;
+  }, [ai]);
   const inSetup = state.phase === Phase.Setup;
   const allow = remote?.allow;
   const legal = useMemo(() => {
@@ -357,7 +363,19 @@ export function HotseatSession(props: HotseatSessionProps) {
   }, [playback, momentBusy]);
 
   // The computer's turn: pick a move, wait a beat (so its plays can be followed), make it.
-  const aiTurn = Boolean(ai && !state.victory && actor === ai.seat && !replaying && !momentBusy);
+  // The Ninth waits for its trained evaluator (fetched once; without it, it plays as Hard).
+  const [ninthReady, setNinthReady] = useState(() => ai?.level !== "ninth" || ninthEvaluatorLoaded());
+  useEffect(() => {
+    if (ninthReady) return;
+    let live = true;
+    void loadNinth().then(() => {
+      if (live) setNinthReady(true);
+    });
+    return () => {
+      live = false;
+    };
+  }, [ninthReady]);
+  const aiTurn = Boolean(ai && !state.victory && actor === ai.seat && !replaying && !momentBusy && ninthReady);
   const dispatchRef = useRef(dispatch);
   useEffect(() => {
     dispatchRef.current = dispatch;
@@ -1100,7 +1118,7 @@ export function HotseatSession(props: HotseatSessionProps) {
           </div>
         </div>
       ) : null}
-      {moment ? <TableMoment key={moment.id} moment={moment} viewer={viewer} onDone={momentDone} /> : null}
+      {moment ? <TableMoment key={moment.id} moment={moment} viewer={viewer} voice={momentVoice} onDone={momentDone} /> : null}
       {showGate && !momentBusy ? (
         <PassDeviceGate
           to={actor}

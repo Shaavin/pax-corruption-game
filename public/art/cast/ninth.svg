@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <!-- The Ninth: no face, only the numeral of the party that was never on any ballot. -->
+  <defs>
+    <radialGradient id="dark" cx="50%" cy="44%" r="72%">
+      <stop offset="0" stop-color="#250b0b" />
+      <stop offset="0.5" stop-color="#0e0607" />
+      <stop offset="1" stop-color="#020102" />
+    </radialGradient>
+    <radialGradient id="ember" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#ff4a2e" stop-opacity="0.32" />
+      <stop offset="0.6" stop-color="#ff4a2e" stop-opacity="0.08" />
+      <stop offset="1" stop-color="#ff4a2e" stop-opacity="0" />
+    </radialGradient>
+    <filter id="haze" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="4" />
+    </filter>
+    <g id="numeral" stroke-linecap="butt">
+      <!-- I, with serifs -->
+      <path d="M86 86 V170" stroke-width="13" />
+      <path d="M74 84 H98 M74 172 H98" stroke-width="6" />
+      <!-- X: a heavy stroke and a light one, as a carved capital -->
+      <path d="M114 86 L178 170" stroke-width="13" />
+      <path d="M178 86 L114 170" stroke-width="5" />
+      <path d="M104 84 H126 M166 84 H188 M104 172 H126 M166 172 H188" stroke-width="6" />
+    </g>
+  </defs>
+  <rect width="256" height="256" fill="url(#dark)" />
+  <circle cx="131" cy="128" r="92" fill="url(#ember)" />
+  <circle cx="128" cy="128" r="104" fill="none" stroke="#ff4a2e" stroke-opacity="0.12" stroke-width="1.5" />
+  <use href="#numeral" stroke="#ff6a48" opacity="0.45" filter="url(#haze)" />
+  <use href="#numeral" stroke="#b0321f" opacity="0.8" />
+</svg>
