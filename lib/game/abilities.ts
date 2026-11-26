@@ -61,8 +61,12 @@ export function alliancesInPlay(state: GameState): AllianceInPlay[] {
  * Financial Bankers can't be silenced.
  */
 export function isSilenced(state: GameState, alliance: AllianceInPlay): boolean {
+  return silencedAmong(alliancesInPlay(state), alliance);
+}
+
+function silencedAmong(inPlay: readonly AllianceInPlay[], alliance: AllianceInPlay): boolean {
   if (alliance.effectIds.includes(EffectId.CountsAsTwoAlliances)) return false;
-  return alliancesInPlay(state).some(
+  return inPlay.some(
     (other) =>
       other.owner === otherPlayer(alliance.owner) &&
       other.effectIds.includes(EffectId.DistrictGovernor) &&
@@ -72,7 +76,9 @@ export function isSilenced(state: GameState, alliance: AllianceInPlay): boolean 
 
 /** Alliances whose abilities are live (not silenced). */
 export function activeAlliances(state: GameState): AllianceInPlay[] {
-  return alliancesInPlay(state).filter((alliance) => !isSilenced(state, alliance));
+  // The table is gathered once, not again for each alliance's silence check.
+  const inPlay = alliancesInPlay(state);
+  return inPlay.filter((alliance) => !silencedAmong(inPlay, alliance));
 }
 
 /**
@@ -85,12 +91,18 @@ export function hasActiveAlliance(
   effectId: string,
   printed?: DistrictId,
 ): boolean {
-  return activeAlliances(state).some(
-    (alliance) =>
-      alliance.owner === player &&
-      alliance.effectIds.includes(effectId) &&
-      (printed === undefined || alliance.printed === printed),
-  );
+  // Only this player's alliances can answer, and only one with the effect needs the silence
+  // check (against every alliance on the table, as activeAlliances does). Most asks find none.
+  for (const district of state.districtOrder) {
+    for (const card of state.players[player].tableau[district]) {
+      const def = getCard(card.cardId);
+      if (def.kind !== CardKind.Alliance) continue;
+      if (printed !== undefined && def.district !== printed) continue;
+      if (!def.effects.some((effect) => effect.id === effectId)) continue;
+      if (!isSilenced(state, allianceEntry(player, card, district)!)) return true;
+    }
+  }
+  return false;
 }
 
 export function ownsMonument(state: GameState, player: PlayerId, monumentId: string): boolean {

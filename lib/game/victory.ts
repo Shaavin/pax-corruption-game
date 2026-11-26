@@ -23,7 +23,9 @@ export function militaryLead(state: GameState): number {
 type SymbolCounts = Record<SymbolId, number>;
 
 function zeroCounts(): SymbolCounts {
-  return Object.fromEntries(SYMBOLS.map((symbol) => [symbol, 0])) as SymbolCounts;
+  const counts = {} as SymbolCounts;
+  for (const symbol of SYMBOLS) counts[symbol] = 0;
+  return counts;
 }
 
 

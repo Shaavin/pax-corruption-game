@@ -34,8 +34,29 @@ export function instantiate(cardId: string, faceUp = false): CardInstance {
   return { instanceId: cardId, cardId, faceUp };
 }
 
+/**
+ * A deep copy of a game state. A state is plain data (objects, arrays, strings, numbers,
+ * booleans, null: it travels as JSON), so a direct copy gives what structuredClone would, several
+ * times faster. Every move the computer tries copies the whole state, so this is a large share
+ * of a search's time.
+ */
 export function cloneState<T>(value: T): T {
-  return structuredClone(value);
+  return clonePlain(value) as T;
+}
+
+function clonePlain(value: unknown): unknown {
+  if (typeof value !== "object" || value === null) return value;
+  if (Array.isArray(value)) {
+    const copy: unknown[] = [];
+    for (let index = 0; index < value.length; index++) copy.push(clonePlain(value[index]));
+    return copy;
+  }
+  const copy: Record<string, unknown> = {};
+  for (const key in value) {
+    const inner = (value as Record<string, unknown>)[key];
+    copy[key] = typeof inner !== "object" || inner === null ? inner : clonePlain(inner);
+  }
+  return copy;
 }
 
 export function sameIdSet(a: readonly string[], b: readonly string[]): boolean {

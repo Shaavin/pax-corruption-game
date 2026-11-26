@@ -1,7 +1,7 @@
 import { MonumentId, SYMBOLS, type DistrictId, type SymbolId } from "../cards/schema.ts";
 import { ownsMonument } from "./abilities.ts";
 import { activeDecrees, satisfiedDecrees } from "./decrees.ts";
-import { GENERAL_ELECTION_COUNT, ROMAN_BASILICA_ELECTION, tallyElection } from "./election.ts";
+import { GENERAL_ELECTION_COUNT, ROMAN_BASILICA_ELECTION, tallyElection, type ElectionTally } from "./election.ts";
 import { VictoryKind, type GameState, type PlayerId, type VictoryKindId } from "./types.ts";
 import {
   CULTURAL_LEAD,
@@ -74,10 +74,20 @@ function popularity(state: GameState, player: PlayerId): VictoryStanding {
  * the opponent; it needs 4+ total copies and strictly more than every other symbol.
  * Reports the closest such symbol (most total copies).
  */
-function ideological(state: GameState, player: PlayerId): VictoryStanding {
-  const mine = privateSymbols(state, player);
-  const theirs = privateSymbols(state, otherPlayer(player));
+function ideological(state: GameState): Record<PlayerId, VictoryStanding> {
+  // Both players' standings come from the same counts: work them out once.
+  const own = [privateSymbols(state, 0), privateSymbols(state, 1)] as const;
   const totals = totalSymbols(state);
+  return { 0: ideologicalFor(0, own, totals), 1: ideologicalFor(1, own, totals) };
+}
+
+function ideologicalFor(
+  player: PlayerId,
+  own: readonly [Record<SymbolId, number>, Record<SymbolId, number>],
+  totals: Record<SymbolId, number>,
+): VictoryStanding {
+  const mine = own[player];
+  const theirs = own[otherPlayer(player)];
   let best: VictoryStanding | null = null;
   for (const symbol of SYMBOLS) {
     if (mine[symbol] <= theirs[symbol]) continue;
@@ -89,8 +99,11 @@ function ideological(state: GameState, player: PlayerId): VictoryStanding {
   return best ?? standing(0, IDEOLOGICAL_COUNT);
 }
 
-/** Every victory's standing for both players, plus the Civil (election) outlook. */
-export function victoryRace(state: GameState): VictoryRace {
+/**
+ * Every victory's standing for both players, plus the Civil (election) outlook. `tally`: this
+ * position's `tallyElection`, if the caller already has it (the computer's scoring does).
+ */
+export function victoryRace(state: GameState, tally?: ElectionTally): VictoryRace {
   const both = (compute: (player: PlayerId) => VictoryStanding): Record<PlayerId, VictoryStanding> => ({
     0: compute(0),
     1: compute(1),
@@ -116,7 +129,7 @@ export function victoryRace(state: GameState): VictoryRace {
     {
       kind: VictoryKind.Ideological,
       active: victoryActive(state, VictoryKind.Ideological),
-      standing: both((player) => ideological(state, player)),
+      standing: ideological(state),
     },
   ];
   if (state.expansion) {
@@ -139,7 +152,7 @@ export function victoryRace(state: GameState): VictoryRace {
     rows,
     civil: {
       electionsLeft: Math.max(0, GENERAL_ELECTION_COUNT - state.electionsOut.length),
-      projected: state.phase === "setup" || state.firstPlayer === null ? null : tallyElection(state).winner,
+      projected: state.phase === "setup" || state.firstPlayer === null ? null : (tally ?? tallyElection(state)).winner,
       basilica:
         basilicaOwner === undefined
           ? null

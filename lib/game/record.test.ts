@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from "node:util";
 import { currentActor, legalActions } from "./engine.ts";
 import {
   canUndo,
@@ -8,18 +9,21 @@ import {
   stepReplay,
   toRecord,
   undoReplay,
+  type GameSetupOptions,
   type Replay,
 } from "./record.ts";
 import { cleanName, nameProblem, playerName } from "./names.ts";
 import { isProfane } from "./profanity.ts";
 import { createSeededRng } from "./rng.ts";
 import { assert, expectIllegal, fail, report } from "./test-helpers.ts";
+import { cloneState } from "./zones.ts";
 
 /** Drive a game with arbitrary legal actions, picked by a separate seeded chooser. */
-function autoplay(seed: number, steps: number): Replay {
+function autoplay(seed: number, steps: number, options: GameSetupOptions = {}, visit?: (replay: Replay) => void): Replay {
   const chooser = createSeededRng(seed * 7 + 1);
-  let replay = newReplay(seed);
+  let replay = newReplay(seed, options);
   for (let i = 0; i < steps && !replay.state.victory; i++) {
+    visit?.(replay);
     const options = legalActions(replay.state, currentActor(replay.state));
     if (options.length === 0) break;
     // Prefer anything but ending a step early, so games actually progress.
@@ -41,6 +45,40 @@ for (const seed of [3, 11, 42]) {
   );
   // The RNG is positioned identically too: the next random draw matches.
   assert(rebuilt.rng.nextInt(1_000_000) === played.rng.nextInt(1_000_000), `Seed ${seed}: replay RNG in sync`);
+}
+
+// cloneState (every move copies the state with it) gives what structuredClone would and shares
+// nothing with the original. Its fast copy relies on a state being plain data: objects, arrays,
+// strings, numbers, booleans, null, and no object held in two places.
+{
+  const problems = new Set<string>();
+  const walk = (value: unknown, path: string, seen: Set<object>) => {
+    if (value === null) return;
+    if (typeof value !== "object") {
+      if (!["string", "number", "boolean", "undefined"].includes(typeof value)) problems.add(`${typeof value} at ${path}`);
+      return;
+    }
+    if (!Array.isArray(value) && Object.getPrototypeOf(value) !== Object.prototype) problems.add(`not plain at ${path}`);
+    if (seen.has(value)) problems.add(`held twice at ${path}`);
+    seen.add(value);
+    for (const [key, inner] of Object.entries(value)) walk(inner, `${path}.${key}`, seen);
+  };
+  let checked = 0;
+  const check = ({ state }: Replay) => {
+    const original = new Set<object>();
+    walk(state, "state", original);
+    const copy = cloneState(state);
+    if (!isDeepStrictEqual(copy, structuredClone(state))) problems.add(`copy differs (${state.phase})`);
+    const copied = new Set<object>();
+    walk(copy, "copy", copied);
+    for (const object of copied) if (original.has(object)) problems.add("copy shares an object with the original");
+    checked++;
+  };
+  for (const seed of [3, 42]) autoplay(seed, 250, {}, check);
+  autoplay(17, 250, { mode: "epic" }, check);
+  autoplay(8, 300, { expansion: true, foreignInfluence: true }, check);
+  assert(checked > 400, `cloneState: checked ${checked} positions`);
+  assert(problems.size === 0, `cloneState: ${[...problems].slice(0, 5).join("; ")}`);
 }
 
 // Records survive a JSON round trip; junk is rejected.
@@ -135,4 +173,4 @@ for (const seed of [3, 11, 42]) {
   assert(parseRecord({ ...named, names: ["Ann", "a$$hole"] })?.names?.[1] === null, "Imported profane names are dropped");
 }
 
-report("Record ok: deterministic replay, JSON round trip, ReplayError index, undo rules, player names.");
+report("Record ok: deterministic replay, state copies, JSON round trip, ReplayError index, undo rules, player names.");

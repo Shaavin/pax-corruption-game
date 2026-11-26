@@ -26,7 +26,7 @@ import { CLASSIC, positionScore, type Weights } from "./ai-score.ts";
 import { apply, currentActor, legalActions } from "./engine.ts";
 import { createSeededRng, type Rng } from "./rng.ts";
 import type { Action, GameState, PlayerId } from "./types.ts";
-import { otherPlayer } from "./zones.ts";
+import { cloneState, otherPlayer } from "./zones.ts";
 
 export { positionScore, type Weights } from "./ai-score.ts";
 export { Agenda, type AgendaId } from "./ai-agenda.ts";
@@ -482,7 +482,7 @@ function rankActions(state: GameState, seat: PlayerId, options: readonly Action[
 
 /** A copy for trying moves on, with the piles nobody can see reshuffled. */
 function withHiddenPilesShuffled(state: GameState, rng: Rng): GameState {
-  const copy = structuredClone(state);
+  const copy = cloneState(state);
   shuffle(copy.deck, rng);
   shuffle(copy.monumentDeck, rng);
   if (copy.expansion) shuffle(copy.expansion.eventDeck, rng);

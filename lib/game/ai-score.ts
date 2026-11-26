@@ -6,7 +6,6 @@ import { getCard } from "../cards/catalog.ts";
 import { CardKind, DecreeId, type DistrictId } from "../cards/schema.ts";
 import { meetsDecree } from "./decrees.ts";
 import { isFinalElection, lordsSymbols, tallyElection } from "./election.ts";
-import { playerDistrictInfluence } from "./influence.ts";
 import { canRecruitIn } from "./main.ts";
 import { victoryRace } from "./progress.ts";
 import type { GameState, PlayerId, VictoryKindId } from "./types.ts";
@@ -90,7 +89,9 @@ export function positionScore(state: GameState, seat: PlayerId, w: Weights = CLA
   if (state.phase === "setup") return 0;
 
   let score = 0;
-  const race = victoryRace(state);
+  // One tally serves the race's election outlook, the electorates, and each district's margin.
+  const tally = tallyElection(state);
+  const race = victoryRace(state, tally);
   for (const row of race.rows) {
     if (!row.active) continue;
     const progress = (standing: { value: number; target: number }) => Math.max(-1, Math.min(1, standing.value / standing.target));
@@ -104,7 +105,6 @@ export function positionScore(state: GameState, seat: PlayerId, w: Weights = CLA
   }
 
   // The election: electorates now, more so while one is under way and when it's the last.
-  const tally = tallyElection(state);
   // As an election's Market runs down, its result is closer to settled.
   const closing = state.election.active ? 1 + Math.max(0, 8 - state.market.length) / 8 : 1;
   const stakes = (state.election.active ? 2 : 1) * closing * (isFinalElection(state) ? 3 : 1);
@@ -115,8 +115,8 @@ export function positionScore(state: GameState, seat: PlayerId, w: Weights = CLA
   // Districts: holding one is what counts, so a close district is worth fighting over and a
   // safely won one isn't worth piling into (tanh flattens big margins).
   for (const district of state.districtOrder) {
-    const margin =
-      playerDistrictInfluence(state, seat, district).total - playerDistrictInfluence(state, opponent, district).total;
+    const influence = tally.districts[district].influence;
+    const margin = influence[seat] - influence[opponent];
     score += stakes * w.district * Math.tanh(margin / w.districtScale);
   }
   score += w.monuments * (state.players[seat].monuments.length - state.players[opponent].monuments.length);

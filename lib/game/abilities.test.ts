@@ -1,12 +1,16 @@
+import { isDeepStrictEqual } from "node:util";
 import { findDeckCards } from "../cards/catalog.ts";
-import { District, MonumentId, PolicyId, type DistrictId } from "../cards/schema.ts";
-import { allianceLimit, handLimit, isSilenced, alliancesInPlay, policyFrozen } from "./abilities.ts";
+import { EffectId } from "../cards/effects.ts";
+import { District, DISTRICTS, MonumentId, PolicyId, type DistrictId } from "../cards/schema.ts";
+import { activeAlliances, allianceLimit, handLimit, hasActiveAlliance, isSilenced, alliancesInPlay, policyFrozen } from "./abilities.ts";
 import { districtOverride, tallyElection } from "./election.ts";
-import { apply, legalActions } from "./engine.ts";
+import { apply, currentActor, legalActions } from "./engine.ts";
 import { playBlockReason } from "./plays.ts";
 import { playerDistrictInfluence } from "./influence.ts";
 import { policyTargets } from "./senate.ts";
+import { victoryRace } from "./progress.ts";
 import { newReplay, stepReplay } from "./record.ts";
+import { createSeededRng } from "./rng.ts";
 import type { Action, CardInstance, GameState, PlayerId } from "./types.ts";
 import { assert, expectIllegal, playToTurnOne, report, stripElections } from "./test-helpers.ts";
 
@@ -338,6 +342,64 @@ function fresh(seed: number) {
   assert(districtOverride(state, District.Dragonara, them) === null, "Civil Service: opponent needs more civil cards to win");
   place(state, them, "Gardeners", District.Dragonara);
   assert(districtOverride(state, District.Dragonara, them) === them, "…and wins once they have more");
+}
+
+// hasActiveAlliance looks only at the asking player's alliances and checks silencing only for one
+// with the effect (it runs in every influence count). It must answer as the rule reads: a live
+// (not silenced) alliance of theirs with the effect, naming `printed` if given. Checked on the
+// silencing setups above and on positions from played games, base and Legacy & Diplomacy. Also:
+// the victory race reads the same with the caller's election tally as without.
+{
+  const rule = (state: GameState, player: PlayerId, effectId: string, printed?: DistrictId) =>
+    activeAlliances(state).some(
+      (alliance) => alliance.owner === player && alliance.effectIds.includes(effectId) && (printed === undefined || alliance.printed === printed),
+    );
+  const positions: GameState[] = [];
+  {
+    const { state, me, them } = fresh(405);
+    place(state, me, "Order of Knights", District.Dragonara);
+    place(state, them, "District Governor", District.Dragonara);
+    positions.push(state);
+  }
+  {
+    const { state, me, them } = fresh(406);
+    place(state, me, "District Governor", District.Dragonara);
+    place(state, them, "District Governor", District.Dragonara);
+    positions.push(state);
+  }
+  for (const [seed, options] of [[21, {}], [22, { mode: "epic" as const }], [23, { expansion: true }], [24, { expansion: true, foreignInfluence: true }]] as const) {
+    const chooser = createSeededRng(seed * 13 + 5);
+    let replay = newReplay(seed, options);
+    for (let step = 0; step < 400 && !replay.state.victory; step++) {
+      if (step % 2 === 0) positions.push(replay.state);
+      const choices = legalActions(replay.state, currentActor(replay.state));
+      if (choices.length === 0) break;
+      // Mostly busy moves (plays, recruits, alliances), so the table fills.
+      const busy = choices.filter((action) => action.type !== "endAction" && action.type !== "endPolitics");
+      const pool = busy.length > 0 && chooser.nextInt(5) > 0 ? busy : choices;
+      replay = stepReplay(replay, pool[chooser.nextInt(pool.length)]!);
+    }
+  }
+  let asked = 0;
+  let live = 0;
+  let mismatches = 0;
+  for (const state of positions) {
+    for (const player of [0, 1] as const) {
+      for (const effectId of Object.values(EffectId)) {
+        for (const printed of [undefined, ...DISTRICTS]) {
+          const expected = rule(state, player, effectId, printed);
+          asked++;
+          if (expected) live++;
+          if (hasActiveAlliance(state, player, effectId, printed) !== expected) mismatches++;
+        }
+      }
+    }
+    if (state.phase !== "setup" && state.firstPlayer !== null && !isDeepStrictEqual(victoryRace(state, tallyElection(state)), victoryRace(state))) {
+      mismatches++;
+    }
+  }
+  assert(positions.length > 200 && live > 50, `hasActiveAlliance: too few positions (${positions.length}) or live alliances (${live})`);
+  assert(mismatches === 0, `hasActiveAlliance or victoryRace disagreed ${mismatches} times in ${asked} asks`);
 }
 
 report("Abilities ok: Secularism, Populist Forum, Economic Reform, Market Regulation, Martial Law (and discarding down to a lowered alliance limit), United Front, Order of Knights, District Governor, Project Habitat, Model Society, Dragon Gate, Diet of Saints, Divine Inquisitors, Civil Service.");
