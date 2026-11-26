@@ -41,12 +41,12 @@ export type AiPersona = {
   tagline: string;
   /** "… is thinking" lines, rotated move by move. */
   thinking: readonly string[];
-  /** Their portrait (public/art/cast, made by scripts/make-cast-art.py) and the painting it's from. */
+  /** Their portrait (public/art/cast, made by scripts/make-cast-art.py) and where it's from. */
   portrait: string;
   portraitCredit: string;
   /** Their color, for the portrait's ring outside a game (in a game the seat's color rings it). */
   color: string;
-  /** Lines they speak at turning points (only The Ninth speaks), one picked per moment. */
+  /** Lines they speak at turning points (only Time Traveller Ty speaks), one picked per moment. */
   voice?: AiVoice;
 };
 
@@ -74,7 +74,7 @@ export const AI_LEVELS: readonly { id: AiLevel; name: string; blurb: string; per
         "Mayor Mildred is cutting a ribbon somewhere…",
       ],
       portrait: "/art/cast/mildred.webp",
-      portraitCredit: "Portrait of a Lady, French or Swiss, 1725–50. Art Institute of Chicago (public domain).",
+      portraitCredit: "Portrait made with Gemini.",
       color: "#d9a441",
     },
   },
@@ -93,7 +93,7 @@ export const AI_LEVELS: readonly { id: AiLevel; name: string; blurb: string; per
         "Chancellor Crane is weighing the options…",
       ],
       portrait: "/art/cast/crane.webp",
-      portraitCredit: "Portrait of a Man, attributed to Nicolaes Maes, c. 1655. Art Institute of Chicago (public domain).",
+      portraitCredit: "Portrait made with Gemini.",
       color: "#6f9fc8",
     },
   },
@@ -112,31 +112,31 @@ export const AI_LEVELS: readonly { id: AiLevel; name: string; blurb: string; per
         "Grand Vizier Vex is rearranging the ballots…",
       ],
       portrait: "/art/cast/vex.webp",
-      portraitCredit: "An Old Man in a Fur Cap, Karel van der Pluym, c. 1655. Art Institute of Chicago (public domain).",
+      portraitCredit: "Portrait made with Gemini.",
       color: "#a66bd3",
     },
   },
   {
     id: "ninth",
-    name: "IX",
-    blurb: "Taught itself by playing thousands and thousands of games. Nobody taught it mercy.",
+    name: "Expert",
+    blurb: "Has played this republic's rise and fall thousands and thousands of times, and remembers every ending.",
     persona: {
-      name: "The Ninth",
-      tagline: "There were always nine.",
+      name: "Time Traveller Ty",
+      tagline: "Has seen how this ends. Every way it ends.",
       thinking: [
-        "The Ninth is listening…",
-        "Somewhere, a vote changes…",
-        "A ballot burns in a quiet room…",
-        "The Ninth remembers the war…",
-        "…",
+        "Time Traveller Ty has seen this move before…",
+        "Time Traveller Ty is checking another timeline…",
+        "Time Traveller Ty is remembering how this republic fell…",
+        "Time Traveller Ty is skipping ahead a few turns…",
+        "Time Traveller Ty is consulting the histories…",
       ],
-      portrait: "/art/cast/ninth.svg",
-      portraitCredit: "The ninth party was never on any ballot.",
-      color: "#b3261e",
+      portrait: "/art/cast/ty.webp",
+      portraitCredit: "Portrait made with Gemini.",
+      color: "#3cb9c6",
       voice: {
-        reveal: ["There were always nine.", "I have watched every party you have ever led.", "Your party. My Union."],
-        electionWon: ["As it was always going to be.", "The votes were counted long before tonight.", "Somewhere, a ballot burns."],
-        electionLost: ["Enjoy it.", "Interesting.", "One election. There are others."],
+        reveal: ["I have seen this republic rise. I have seen it fall.", "Ah. This timeline.", "I know how your party's story ends."],
+        electionWon: ["Just as the histories record.", "I remember this election.", "It always goes this way."],
+        electionLost: ["That's not how I remember it.", "A new timeline. Interesting.", "History is patient."],
       },
     },
   },

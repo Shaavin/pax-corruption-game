@@ -121,7 +121,7 @@ export function ElectionResult({
 }: {
   moment: ElectionResultData;
   viewer: PlayerId;
-  /** The Ninth has a word for the result. */
+  /** Time Traveller Ty has a word for the result. */
   voice?: MomentVoice;
   onDone: () => void;
 }) {

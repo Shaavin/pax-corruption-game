@@ -36,7 +36,7 @@ export function PartiesReveal({
 }: {
   moment: PartiesRevealData;
   viewer: PlayerId;
-  /** The Ninth speaks instead of the rulebook's line. */
+  /** Time Traveller Ty speaks instead of the rulebook's line. */
   voice?: MomentVoice;
   onDone: () => void;
 }) {

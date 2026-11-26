@@ -1,21 +1,18 @@
 """
 Prepare the computer opponents' portraits (public/art/cast/<id>.webp).
 
-Each is an old-master painting in the public domain, from the Art Institute of Chicago, which
-releases its images of public-domain works under CC0 (no permission or credit needed; the
-credit is kept in lib/game/ai.ts anyway). Download the three images at 843 px wide into one
-folder, named <id>.jpg:
+Each is a picture Ian made with Gemini (2026-11-26), saved under the names below in one folder
+(the names are the ones they were downloaded with, not who they show):
 
-  mildred  Portrait of a Lady, French or Swiss, 1725-50 (AIC 1935.299)
-           https://www.artic.edu/iiif/2/6b2e856f-01c4-1f23-4ded-79c2398c2c6b/full/843,/0/default.jpg
-  crane    Portrait of a Man, attributed to Nicolaes Maes, c. 1655 (AIC 1925.716)
-           https://www.artic.edu/iiif/2/b18d4b7b-4545-5a75-e956-ed93d1372f35/full/843,/0/default.jpg
-  vex      An Old Man in a Fur Cap, Karel van der Pluym, c. 1655 (AIC 1988.265)
-           https://www.artic.edu/iiif/2/b7a594db-5c71-253b-aedc-4226d8661f11/full/843,/0/default.jpg
+  mildred  medium-computer-opponent.jpg   Mayor Mildred (Easy), in her armchair
+  crane    easy-computer-opponent.jpg     Chancellor Crane (Normal), at the desk
+  vex      the-ninth-portrait.jpg         Grand Vizier Vex (Hard), with the scroll
+  ty       hard-computer-opponent.jpg     Time Traveller Ty (the hardest level)
 
-This crops each to the head and shoulders, square (shown in a circle), and saves it as WebP.
+This crops each to the head and shoulders, square (shown in a circle down to 24 px, so the face
+has to fill it), and saves it as WebP.
 
-  python scripts/make-cast-art.py <folder with mildred.jpg, crane.jpg, vex.jpg> [id ...]
+  python scripts/make-cast-art.py <folder> [id ...]
 """
 import os
 import sys
@@ -26,18 +23,26 @@ ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 OUT = os.path.join(ROOT, "public", "art", "cast")
 SIZE = 256
 
+SOURCES = {
+    "mildred": "medium-computer-opponent.jpg",
+    "crane": "easy-computer-opponent.jpg",
+    "vex": "the-ninth-portrait.jpg",
+    "ty": "hard-computer-opponent.jpg",
+}
+
 # Centre of the crop (fractions of width and height), its side (fraction of width), and a
-# midtone lift (gamma below 1 lightens): Vex's face sits in shadow, so it reads at 28 px.
+# midtone lift (gamma below 1 lightens).
 CROPS = {
-    "mildred": (0.60, 0.29, 0.50, 1.0),
-    "crane": (0.48, 0.29, 0.46, 1.0),
-    "vex": (0.52, 0.35, 0.56, 0.85),
+    "mildred": (0.600, 0.235, 0.235, 1.0),
+    "crane": (0.410, 0.275, 0.215, 1.0),
+    "vex": (0.515, 0.290, 0.250, 1.0),
+    "ty": (0.620, 0.170, 0.160, 1.0),
 }
 
 
 def prepare(folder: str, cast_id: str) -> None:
     cx, cy, side, gamma = CROPS[cast_id]
-    image = Image.open(os.path.join(folder, f"{cast_id}.jpg")).convert("RGB")
+    image = Image.open(os.path.join(folder, SOURCES[cast_id])).convert("RGB")
     width, height = image.size
     span = side * width
     left, top = cx * width - span / 2, cy * height - span / 2

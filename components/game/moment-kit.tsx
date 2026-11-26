@@ -58,7 +58,7 @@ export function CountdownBar({
   );
 }
 
-/** A computer opponent who speaks at turning points (The Ninth): who, and in which seat. */
+/** A computer opponent who speaks at turning points (Time Traveller Ty): who, and in which seat. */
 export type MomentVoice = { seat: PlayerId; name: string; portrait: string; color: string; lines: AiVoice };
 
 /** One of their lines, picked by the moment so it stays the same while the moment plays. */

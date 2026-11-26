@@ -254,7 +254,7 @@ export function HotseatSession(props: HotseatSessionProps) {
   // computer move, no replay step, no setup or decree choice, no victory) until its moment has played.
   const { moment, done: momentDone, showMissed } = useTableMoments(shownHistory, shownState);
   const momentBusy = moment !== null;
-  // A computer opponent with something to say at turning points (The Ninth).
+  // A computer opponent with something to say at turning points (Time Traveller Ty).
   const momentVoice = useMemo(() => {
     const persona = ai ? aiPersona(ai.level) : null;
     return ai && persona?.voice ? { seat: ai.seat, name: persona.name, portrait: persona.portrait, color: persona.color, lines: persona.voice } : undefined;

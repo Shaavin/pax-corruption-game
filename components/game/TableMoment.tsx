@@ -120,7 +120,7 @@ export function TableMoment({
 }: {
   moment: TableMomentData;
   viewer: PlayerId;
-  /** A computer opponent who speaks at turning points (The Ninth). */
+  /** A computer opponent who speaks at turning points (Time Traveller Ty). */
   voice?: MomentVoice;
   onDone: () => void;
 }) {
