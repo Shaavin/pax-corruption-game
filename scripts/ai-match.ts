@@ -9,8 +9,9 @@
  * Players: easy, normal, hard; quick (Hard's search, this turn only); net:<weights.bin> (the
  * learned evaluator in Hard's search); netquick:<weights.bin> (the same, this turn only); either
  * takes @<agenda>[=strength] to lean toward an agenda (netquick:<weights.bin>@ideology=600);
- * ninth:<weights.bin>[@lean][+exp=<weights.bin>] (The Ninth as in the game: that evaluator, nudged
- * by its agenda; +exp: its Legacy & Diplomacy specialist). The
+ * ninth:<weights.bin>[@lean][+exp=<weights.bin>][+noreply] (The Ninth as in the game: that
+ * evaluator, nudged by its agenda; +exp: its Legacy & Diplomacy specialist; +noreply: the
+ * opponent's reply predicted with Hard's score, as before 2026-11-26). The
  * first is reported on. Seats alternate game by game, and the deals are fixed by `--from`
  * (default 1), so two runs with the same games compare like with like. Several runs with
  * different `--from` can go in parallel. `--log` prints each game's result.
@@ -44,11 +45,11 @@ function mover(spec: string): Mover {
     return (state, seat, rng) => planMove(state, seat, rng, (position, player) => positionScore(position, player, weights), false);
   }
   if (spec.startsWith("ninth:")) {
-    // ninth:<weights.bin>[@lean][+reply]: The Ninth as it plays in the game (agenda and all);
-    // +reply predicts the opponent's reply with the evaluator too.
+    // ninth:<weights.bin>[@lean][+noreply]: The Ninth as it plays in the game (agenda and all);
+    // +noreply predicts the opponent's reply with Hard's score instead of the evaluator.
     // +wide=<candidates>x<samples> looks past its turn on more plans and guesses.
     // +exp=<weights.bin> plays Legacy & Diplomacy games with that evaluator instead.
-    const reply = spec.includes("+reply");
+    const reply = !spec.includes("+noreply");
     const wide = /\+wide=(\d+)x(\d+)/.exec(spec);
     const specialist = /\+exp=([^+]+)/.exec(spec);
     const [path, lean] = spec.slice(6).replace(/\+.*$/, "").split("@");

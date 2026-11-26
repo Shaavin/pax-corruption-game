@@ -169,8 +169,13 @@ const NINTH_LEAN = 0;
  * enough to pass up a clearly better one.
  */
 let ninthLean = NINTH_LEAN;
-/** Whether The Ninth also predicts the opponent's reply with its evaluator (else with Hard's score). */
-let ninthReply = false;
+/**
+ * Whether The Ninth predicts the opponent's reply with its evaluator (else with Hard's score) by
+ * default: it sees more of what the opponent can do with its turn, an Ideological proposal above
+ * all, at the cost of a few wins against Hard and a little more thinking time.
+ */
+const NINTH_REPLY = true;
+let ninthReply = NINTH_REPLY;
 /** How wide The Ninth searches (by default as Hard does). */
 const NINTH_WIDTH: SearchWidth = { beam: 6, depth: 8, candidates: 4, samples: 3 };
 let ninthWidth: SearchWidth = NINTH_WIDTH;
@@ -188,7 +193,7 @@ export function setNinthEvaluator(
   if (options.expansion && !options.expansion.header.expansion) throw new Error("The expansion evaluator didn't learn Legacy & Diplomacy games");
   ninthExpansionEvaluate = options.expansion ? netEvaluator(options.expansion) : null;
   ninthLean = options.lean ?? NINTH_LEAN;
-  ninthReply = options.reply ?? false;
+  ninthReply = options.reply ?? NINTH_REPLY;
   ninthWidth = { ...NINTH_WIDTH, ...options.width };
 }
 

@@ -86,7 +86,8 @@ training/.venv/Scripts/python -m pip install numpy
    node --experimental-strip-types --no-warnings scripts/ai-match.ts ninth:training/runs/gen1.bin hard 40 --from 1
    ```
 
-   `ninth:<weights.bin>` plays as The Ninth does in the game. Also measure against the Ideology
+   `ninth:<weights.bin>` plays as The Ninth does in the game (`+noreply` predicts the opponent's
+   reply with Hard's score instead of the evaluator, as before 2026-11-26). Also measure against the Ideology
    specialist (`netquick:<weights.bin>@ideology=600`: does it see an Ideological Victory coming?
    Hard seldom wins that way, so it barely tests that) and with `--expansion`. A few hundred games
    tell apart only differences of 5 points or more: compare on the same deals (`--from`).
