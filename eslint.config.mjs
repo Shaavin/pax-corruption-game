@@ -15,6 +15,8 @@ const eslintConfig = defineConfig([
     // Cloudflare server: Wrangler build output and its own dependencies.
     "server/.wrangler/**",
     "server/node_modules/**",
+    // The Ninth's Python training environment (PyTorch ships its own JavaScript).
+    "training/.venv/**",
   ]),
 ]);
 
