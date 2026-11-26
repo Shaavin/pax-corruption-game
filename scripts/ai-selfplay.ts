@@ -13,6 +13,10 @@
  *                    net:<weights.bin> (the learned evaluator in Hard's search), or
  *                    netquick:<weights.bin> (the same, this turn only: fast, for generating games),
  *                    or quick:<agenda> (quick, fixed on one agenda: ideology, military, …);
+ *                    net and netquick take @<agenda>[=lean] to lean the evaluator toward one
+ *                    agenda (lean in the evaluator's units, 100 per logit; default 100), so a
+ *                    strong player takes a road the evaluator rarely tries (and is defended
+ *                    against): netquick:<weights.bin>@ideology
  *                    seats alternate game by game (default quick,quick)
  *   --explore P      chance of a random legal move, so games differ (default 0.04)
  *   --expansion      Legacy & Diplomacy games (with --foreign: and Foreign Influence)
@@ -28,7 +32,7 @@ import { join } from "node:path";
 import { Agenda, focusWeights, type AgendaId } from "../lib/game/ai-agenda.ts";
 import { loadNet, netEvaluator } from "../lib/game/ai-net.ts";
 import { CLASSIC } from "../lib/game/ai-score.ts";
-import { chooseAiAction, isAiLevel, planMove, positionScore, type Evaluator } from "../lib/game/ai.ts";
+import { chooseAiAction, isAiLevel, leanFromSpec, planMove, positionScore } from "../lib/game/ai.ts";
 import { currentActor, legalActions } from "../lib/game/engine.ts";
 import { newReplay, stepReplay } from "../lib/game/record.ts";
 import { createSeededRng, type Rng } from "../lib/game/rng.ts";
@@ -77,7 +81,8 @@ function mover(spec: string): Mover {
   }
   if (spec.startsWith("net:") || spec.startsWith("netquick:")) {
     const quick = spec.startsWith("netquick:");
-    const evaluate: Evaluator = netEvaluator(loadNet(readFileSync(spec.slice(spec.indexOf(":") + 1))));
+    const [path, focus] = spec.slice(spec.indexOf(":") + 1).split("@");
+    const evaluate = leanFromSpec(netEvaluator(loadNet(readFileSync(path!))), focus);
     return (state, seat, rng) => planMove(state, seat, rng, evaluate, !quick);
   }
   throw new Error(`Unknown player ${spec}`);

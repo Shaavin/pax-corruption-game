@@ -20,7 +20,7 @@
  */
 import { getCard } from "../cards/catalog.ts";
 import { CardKind } from "../cards/schema.ts";
-import { agendaProgress, chooseAgenda, focusWeights, type AgendaId } from "./ai-agenda.ts";
+import { Agenda, agendaProgress, chooseAgenda, focusWeights, type AgendaId } from "./ai-agenda.ts";
 import { netEvaluator, type Net } from "./ai-net.ts";
 import { CLASSIC, positionScore, type Weights } from "./ai-score.ts";
 import { apply, currentActor, legalActions } from "./engine.ts";
@@ -228,8 +228,7 @@ export function chooseAiAction(state: GameState, seat: PlayerId, level: AiLevel,
     const judge = ninthJudge;
     const agenda = aiAgenda(state, seat, level);
     const lean = ninthLean;
-    const evaluate: Evaluator =
-      lean > 0 ? (position, player) => judge(position, player) + (position.victory ? 0 : lean * agendaProgress(position, player, agenda)) : judge;
+    const evaluate = lean > 0 ? leanEvaluator(judge, agenda, lean) : judge;
     return planTurn(state, seat, rng, evaluate, true, ninthReply ? judge : positionScore, ninthWidth) ?? options[0]!;
   }
   const w = weights ?? weightsFor(state, seat, level);
@@ -250,6 +249,19 @@ export function chooseAiAction(state: GameState, seat: PlayerId, level: AiLevel,
 
 /** How a search judges a position for `seat` (higher is better; a won game ±1e6). */
 export type Evaluator = (state: GameState, seat: PlayerId) => number;
+
+/** `judge`, nudged toward an agenda by `strength` (in its units) times the agenda's progress. */
+export function leanEvaluator(judge: Evaluator, agenda: AgendaId, strength: number): Evaluator {
+  return (position, player) => judge(position, player) + (position.victory ? 0 : strength * agendaProgress(position, player, agenda));
+}
+
+/** A net player's spec after its weights file: `@<agenda>[=strength]` (default 100) leans it toward that agenda. */
+export function leanFromSpec(judge: Evaluator, focus: string | undefined): Evaluator {
+  if (!focus) return judge;
+  const [agenda, strength = "100"] = focus.split("=") as [AgendaId, string?];
+  if (!Object.values(Agenda).includes(agenda)) throw new Error(`Unknown agenda ${agenda}`);
+  return leanEvaluator(judge, agenda, Number(strength));
+}
 
 /**
  * Hard's search with another judge of positions (the learned evaluator, or tools generating

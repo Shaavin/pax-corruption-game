@@ -7,7 +7,8 @@
  *   node --experimental-strip-types --no-warnings scripts/ai-match.ts <player> <player> [games] [--expansion] [--from N]
  *
  * Players: easy, normal, hard; quick (Hard's search, this turn only); net:<weights.bin> (the
- * learned evaluator in Hard's search); netquick:<weights.bin> (the same, this turn only);
+ * learned evaluator in Hard's search); netquick:<weights.bin> (the same, this turn only); either
+ * takes @<agenda>[=strength] to lean toward an agenda (netquick:<weights.bin>@ideology=600);
  * ninth:<weights.bin>[@lean][+exp=<weights.bin>] (The Ninth as in the game: that evaluator, nudged
  * by its agenda; +exp: its Legacy & Diplomacy specialist). The
  * first is reported on. Seats alternate game by game, and the deals are fixed by `--from`
@@ -18,7 +19,7 @@ import { readFileSync } from "node:fs";
 import { focusWeights, type AgendaId } from "../lib/game/ai-agenda.ts";
 import { loadNet, netEvaluator } from "../lib/game/ai-net.ts";
 import { CLASSIC } from "../lib/game/ai-score.ts";
-import { aiAgenda, chooseAiAction, isAiLevel, planMove, positionScore, setNinthEvaluator } from "../lib/game/ai.ts";
+import { aiAgenda, chooseAiAction, isAiLevel, leanFromSpec, planMove, positionScore, setNinthEvaluator } from "../lib/game/ai.ts";
 import type { Rng } from "../lib/game/rng.ts";
 import type { Action, GameState } from "../lib/game/types.ts";
 import { currentActor } from "../lib/game/engine.ts";
@@ -60,7 +61,9 @@ function mover(spec: string): Mover {
     return (state, seat, rng) => chooseAiAction(state, seat, "ninth", rng);
   }
   if (spec === "quick") return (state, seat, rng) => planMove(state, seat, rng, positionScore, false);
-  const evaluate = netEvaluator(loadNet(readFileSync(spec.slice(spec.indexOf(":") + 1))));
+  // net:<weights.bin>@<agenda>[=strength]: leaning toward an agenda, as in scripts/ai-selfplay.ts.
+  const [path, focus] = spec.slice(spec.indexOf(":") + 1).split("@");
+  const evaluate = leanFromSpec(netEvaluator(loadNet(readFileSync(path!))), focus);
   return (state, seat, rng) => planMove(state, seat, rng, evaluate, !spec.startsWith("netquick:"));
 }
 const moveA = mover(a);

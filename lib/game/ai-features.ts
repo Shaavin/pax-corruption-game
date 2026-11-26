@@ -28,22 +28,38 @@
  * A victory's condition counts as met only while that victory is active: in Legacy & Diplomacy
  * most start inactive, and meeting an inactive one wins nothing until a legacy event activates
  * it, so "met but inactive" is a feature of its own.
+ *
+ * Ideological outlook: Ideological Victory is the slow road (4 copies of a symbol, more than any
+ * other), and what matters is which copies are still to be had. Per symbol: its policies one
+ * proposal away (the district is neutral) or two (the other side is in effect: a policy goes
+ * through neutral), whether its decree is still inactive, its monuments not yet built (face up,
+ * or still in the monument deck), the private-copy lead, and the copies still to go. Per seat:
+ * whether the copies its best symbol still needs are still to be had, and whether it is one
+ * move away.
+ *
+ * Proposal readiness: how close a seat's cards come to passing a proposal now (the share of the
+ * Senate's votes its best reveal convinces, whether that passes, and which districts it opens).
+ * Passing the last policy was what a player one copy from Ideological Victory seldom could do.
+ * The opponent's is counted from what can be seen of their cards: those they took face up, and
+ * their network.
  */
-import { getCard, MAIN_DECK, MONUMENTS, PARTIES } from "../cards/catalog.ts";
+import { getCard, MAIN_DECK, MONUMENTS, PARTIES, POLICIES } from "../cards/catalog.ts";
 import { EVENTS, ExpansionVictory, isEventId, WORLD_POWERS } from "../cards/expansion.ts";
-import { CardKind, DecreeId, DISTRICTS, SYMBOLS, type DistrictId } from "../cards/schema.ts";
-import { meetsDecree, passesDeJuresIn } from "./decrees.ts";
+import { CardKind, DecreeId, DISTRICTS, SYMBOLS, type DistrictId, type SymbolId } from "../cards/schema.ts";
+import { activeDecrees, decreeSymbol, meetsDecree, passesDeJuresIn } from "./decrees.ts";
 import { isFinalElection, lordsSymbols, tallyElection } from "./election.ts";
 import { currentActor } from "./engine.ts";
 import { playerDistrictInfluence } from "./influence.ts";
 import { victoryRace } from "./progress.ts";
 import { Phase, type CardInstance, type GameState, type PlayerId } from "./types.ts";
 import { DRAW_PLANS } from "./setup.ts";
-import { privateSymbols, totalSymbols } from "./victory.ts";
-import { militaryLeadBonus, relationLeads, supportCount, victoryActive } from "./world.ts";
+import { handLikeCards } from "./main.ts";
+import { bestReveal, convincedVotes, proposalDistricts, senateVotesNeeded } from "./senate.ts";
+import { IDEOLOGICAL_COUNT, privateSymbols, totalSymbols } from "./victory.ts";
+import { iconsDisabled, militaryLeadBonus, relationLeads, supportCount, victoryActive } from "./world.ts";
 import { otherPlayer } from "./zones.ts";
 
-export const FEATURE_VERSION = "pax-features-5";
+export const FEATURE_VERSION = "pax-features-6";
 
 /** Victories Legacy & Diplomacy can leave inactive. */
 const SWITCHABLE = ["military", "popularity", "ideological", "cultural", "diplomatic"];
@@ -116,6 +132,14 @@ const DENSE_NAMES = (() => {
   for (const kind of ["cultural", "diplomatic"]) names.push(`${kind}:mine`, `${kind}:theirs`, `${kind}:metMine`, `${kind}:metTheirs`);
   names.push("electionsLeft", "cardsToNextElection", "cardsToFinalElection");
   for (const kind of SWITCHABLE) names.push(`${kind}:metInactiveMine`, `${kind}:metInactiveTheirs`);
+  for (const symbol of SYMBOLS) {
+    for (const fact of ["policyNeutral", "policyAcross", "decreeOpen", "monumentsUp", "monumentsDeck", "privateLead", "toGo"]) names.push(`ideology:${symbol}:${fact}`);
+  }
+  names.push("ideology:roadOpenMine", "ideology:oneMoveMine", "ideology:roadOpenTheirs", "ideology:oneMoveTheirs");
+  for (const whose of ["Mine", "TheirsSeen"]) {
+    names.push(`propose:votes${whose}`, `propose:passes${whose}`);
+    for (const district of DISTRICTS) names.push(`propose:${district}:opens${whose}`);
+  }
   return names;
 })();
 
@@ -376,7 +400,72 @@ function fillDense(state: GameState, seat: PlayerId, dense: Float32Array, counts
     push(row && !row.active && row.standing[seat].met ? 1 : 0);
     push(row && !row.active && row.standing[them].met ? 1 : 0);
   }
+  const outlook = ideologyOutlook(state, totals);
+  for (const symbol of SYMBOLS) {
+    const road = outlook.get(symbol)!;
+    push(road.policyNeutral / 2);
+    push(road.policyAcross / 2);
+    push(road.decreeOpen ? 1 : 0);
+    push(road.monumentsUp / 2);
+    push(road.monumentsDeck / 2);
+    push(clip((mine[symbol] - theirs[symbol]) / 2));
+    push(road.toGo / 4);
+  }
+  for (const [own, other] of [[mine, theirs], [theirs, mine]] as const) {
+    let open = false;
+    let oneMove = false;
+    for (const symbol of SYMBOLS) {
+      if (own[symbol] <= other[symbol]) continue;
+      const road = outlook.get(symbol)!;
+      // Copies a proposal or an election can still add (a monument takes five cards of a district).
+      const shared = road.policyNeutral + road.policyAcross + (road.decreeOpen ? 1 : 0);
+      if (road.toGo <= shared + road.monumentsUp + road.monumentsDeck) open = true;
+      if (road.toGo === 1 && (road.policyNeutral > 0 || road.decreeOpen || road.monumentsUp > 0)) oneMove = true;
+    }
+    push(open ? 1 : 0);
+    push(oneMove ? 1 : 0);
+  }
+  for (const cards of [handLikeCards(state, seat, { market: false }), [...opponent.hand.filter((card) => card.faceUp), ...opponent.network]]) {
+    const reveal = state.phase === "setup" ? [] : bestReveal(state, cards).map((card) => card.cardId);
+    const share = reveal.length ? Math.min(1, convincedVotes(state, reveal) / senateVotesNeeded(state)) : 0;
+    const opens = reveal.length ? proposalDistricts(state, reveal) : new Set<DistrictId>();
+    push(share);
+    push(share >= 1 ? 1 : 0);
+    for (const district of DISTRICTS) push(opens.has(district) ? 1 : 0);
+  }
   if (at !== DENSE_COUNT) throw new Error(`Encoded ${at} dense features, expected ${DENSE_COUNT}`);
+}
+
+/** Per symbol, the Ideological copies still to be had (see the file comment). */
+type SymbolRoad = { policyNeutral: number; policyAcross: number; decreeOpen: boolean; monumentsUp: number; monumentsDeck: number; toGo: number };
+
+const DECREE_OF = new Map<SymbolId, string>(Object.values(DecreeId).map((decree) => [decreeSymbol(decree), decree]));
+const MONUMENT_SYMBOLS = new Map<string, readonly SymbolId[]>(MONUMENTS.map((monument) => [monument.id, monument.symbols]));
+
+function ideologyOutlook(state: GameState, totals: Record<SymbolId, number>): Map<SymbolId, SymbolRoad> {
+  const active = new Set<string>(activeDecrees(state));
+  const roads = new Map<SymbolId, SymbolRoad>();
+  for (const symbol of SYMBOLS) {
+    let policyNeutral = 0;
+    let policyAcross = 0;
+    for (const policy of POLICIES) {
+      if (policy.symbol !== symbol || iconsDisabled(state, policy.district)) continue;
+      const now = state.policy[policy.district];
+      if (now === null) policyNeutral++;
+      else if (now !== policy.id) policyAcross++;
+    }
+    const carries = (cardId: string) => MONUMENT_SYMBOLS.get(cardId)?.includes(symbol) ?? false;
+    const others = Math.max(...SYMBOLS.filter((other) => other !== symbol).map((other) => totals[other]));
+    roads.set(symbol, {
+      policyNeutral,
+      policyAcross,
+      decreeOpen: !active.has(DECREE_OF.get(symbol)!),
+      monumentsUp: state.availableMonuments.filter((monument) => carries(monument.cardId)).length,
+      monumentsDeck: state.monumentDeck.filter((monument) => carries(monument.cardId)).length,
+      toGo: Math.max(0, Math.max(IDEOLOGICAL_COUNT, others + 1) - totals[symbol]),
+    });
+  }
+  return roads;
 }
 
 /**

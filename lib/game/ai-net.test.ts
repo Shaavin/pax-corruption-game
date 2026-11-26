@@ -1,12 +1,15 @@
 /**
  * The learned evaluator: the position encoding is fair (the opponent's face-down cards never show
- * through) and knows which victories are active, the shipped weights (main and Legacy & Diplomacy)
+ * through), knows which victories are active and which Ideological copies are still to be had, the shipped weights (main and Legacy & Diplomacy)
  * load and compute what PyTorch computed, and weights for another feature layout are refused.
  */
 import { readFileSync } from "node:fs";
+import { PARTIES, POLICIES } from "../cards/catalog.ts";
+import { DISTRICTS } from "../cards/schema.ts";
 import { DENSE_COUNT, DENSE_NAMES, encodeState, FEATURE_VERSION, SPARSE_COUNT } from "./ai-features.ts";
 import { EVALUATOR_PATH, EXPANSION_EVALUATOR_PATH, loadNet, netLogit, winChance } from "./ai-net.ts";
 import { chooseAiAction, ninthEvaluatorLoaded, setNinthEvaluator } from "./ai.ts";
+import { decreeSymbol } from "./decrees.ts";
 import { currentActor } from "./engine.ts";
 import { newReplay, stepReplay } from "./record.ts";
 import { createSeededRng } from "./rng.ts";
@@ -73,6 +76,58 @@ const same = (a: ReturnType<typeof encodeState>, b: ReturnType<typeof encodeStat
   };
   assert(ahead(false).join() === "0,1", "Six partisans ahead with Military Victory inactive: met but inactive, not met");
   assert(ahead(true).join() === "1,0", "Six partisans ahead with Military Victory active: met");
+}
+
+// The Ideological outlook: which copies of a symbol are still to be had. Seat 0's party is atom,
+// one atom policy and the atom decree are in effect: three copies, one to go.
+{
+  const rng = createSeededRng(12);
+  let replay = newReplay(12);
+  while (replay.state.phase === "setup") replay = stepReplay(replay, chooseAiAction(replay.state, currentActor(replay.state), "normal", rng)!);
+  const [first, second] = POLICIES.filter((policy) => policy.symbol === "atom");
+  const across = POLICIES.find((policy) => policy.district === second!.district && policy.id !== second!.id)!;
+  const outlook = (secondPolicy: string | null) => {
+    const state = structuredClone(replay.state);
+    state.players[0].partyId = PARTIES.find((party) => party.symbol === "atom")!.id;
+    state.players[1].partyId = PARTIES.find((party) => party.symbol !== "atom")!.id;
+    state.players[0].monuments = [];
+    state.players[1].monuments = [];
+    state.availableMonuments = [];
+    for (const district of DISTRICTS) state.policy[district] = null;
+    state.policy[first!.district] = first!.id;
+    state.policy[second!.district] = secondPolicy as never;
+    for (const decree of state.decrees) decree.active = decreeSymbol(decree.id) === "atom";
+    const dense = encodeState(state, 0).dense;
+    const read = (name: string) => dense[DENSE_NAMES.indexOf(name)]!;
+    return {
+      mine: [read("ideology:atom:policyNeutral"), read("ideology:atom:policyAcross"), read("ideology:atom:decreeOpen"), read("ideology:atom:toGo")].join(),
+      road: [read("ideology:roadOpenMine"), read("ideology:oneMoveMine"), read("ideology:roadOpenTheirs"), read("ideology:oneMoveTheirs")].join(),
+    };
+  };
+  const neutral = outlook(null);
+  assert(neutral.mine === "0.5,0,0,0.25", `The other atom policy is one proposal away, the decree is taken, one copy to go (got ${neutral.mine})`);
+  // Seat 1's party symbol still has its roads open too, but it is far from four copies.
+  assert(neutral.road === "1,1,1,0", `Seat 0 is one move from Ideological Victory; seat 1 isn't (got ${neutral.road})`);
+  const flipped = outlook(across.id);
+  assert(flipped.mine === "0,0.5,0,0.25", `With the other side in effect, the atom policy is two proposals away (got ${flipped.mine})`);
+  assert(flipped.road === "1,0,1,0", `Still open, but not one move away (got ${flipped.road})`);
+
+  // Proposal readiness: a Senate of low Dragonara cards, and a higher Dragonara card to reveal.
+  // The opponent's counts only once it can be seen (taken face up).
+  const state = structuredClone(replay.state);
+  const card = (cardId: string, faceUp = false) => ({ instanceId: `test-${cardId}`, cardId, faceUp });
+  state.senate = ["dragonara-b-9", "dragonara-b-18", "dragonara-b-8", "dragonara-b-16", "dragonara-b-17"].map((id) => card(id));
+  state.players[0].hand = [card("dragonara-b-1")];
+  state.players[0].network = [];
+  state.players[1].network = [];
+  const ready = (theirs: ReturnType<typeof card>) => {
+    state.players[1].hand = [theirs];
+    const dense = encodeState(state, 0).dense;
+    const read = (name: string) => dense[DENSE_NAMES.indexOf(name)]!;
+    return [read("propose:votesMine"), read("propose:passesMine"), read("propose:dragonara:opensMine"), read("propose:horsard:opensMine"), read("propose:passesTheirsSeen")].join();
+  };
+  assert(ready(card("dragonara-b-2")) === "1,1,1,0,0", "A 9 convinces the whole low Dragonara Senate; the opponent's face-down 8 isn't seen");
+  assert(ready(card("dragonara-b-2", true)) === "1,1,1,0,1", "The opponent's face-up 8 is seen to pass too");
 }
 
 // The shipped weights (the main evaluator and the Legacy & Diplomacy specialist) load, match
@@ -146,4 +201,4 @@ for (const expansion of [false, true]) {
 }
 setNinthEvaluator(null);
 
-report(`Evaluator ok: the encoding hides the opponent's face-down cards and knows inactive victories, both shipped evaluators match PyTorch, other layouts are refused, and The Ninth finishes base and expansion games with them.`);
+report(`Evaluator ok: the encoding hides the opponent's face-down cards, knows inactive victories and the Ideological outlook, both shipped evaluators match PyTorch, other layouts are refused, and The Ninth finishes base and expansion games with them.`);

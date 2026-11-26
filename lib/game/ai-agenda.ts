@@ -6,16 +6,17 @@
  * Each game it leans toward an agenda of its own (its temperament: from the deal and its
  * party), and it switches when the board makes another more promising or its own hopeless.
  */
-import { getCard, getParty } from "../cards/catalog.ts";
-import { DecreeId, MonumentId, SYMBOLS, type DistrictId } from "../cards/schema.ts";
+import { getCard, getParty, MONUMENTS, POLICIES } from "../cards/catalog.ts";
+import { DecreeId, MonumentId, SYMBOLS, type DistrictId, type SymbolId } from "../cards/schema.ts";
 import type { Weights } from "./ai-score.ts";
-import { activeDecrees, meetsDecree, satisfiedDecrees } from "./decrees.ts";
+import { activeDecrees, decreeSymbol, meetsDecree, satisfiedDecrees } from "./decrees.ts";
 import { GENERAL_ELECTION_COUNT, tallyElection } from "./election.ts";
-import { canRecruitIn } from "./main.ts";
+import { canRecruitIn, handLikeCards } from "./main.ts";
 import { victoryRace } from "./progress.ts";
 import { VictoryKind, type GameState, type PlayerId, type VictoryKindId } from "./types.ts";
 import { IDEOLOGICAL_COUNT, privateSymbols, totalSymbols } from "./victory.ts";
-import { relationLeads, supportCount, victoryActive } from "./world.ts";
+import { bestReveal, convincedVotes, proposalDistricts, senateVotesNeeded } from "./senate.ts";
+import { iconsDisabled, relationLeads, supportCount, victoryActive } from "./world.ts";
 import { otherPlayer } from "./zones.ts";
 
 export const Agenda = {
@@ -197,18 +198,8 @@ export function agendaProgress(state: GameState, seat: PlayerId, agenda: AgendaI
     }
     case Agenda.Decrees:
       return clip(0.5 * satisfiedDecrees(state, seat).length + 0.15 * DECREES.filter((decree) => meetsDecree(state, seat, decree)).length - 0.4);
-    case Agenda.Ideology: {
-      const mine = privateSymbols(state, seat);
-      const theirs = privateSymbols(state, opponent);
-      const totals = totalSymbols(state);
-      let best = -1;
-      for (const symbol of SYMBOLS) {
-        if (mine[symbol] <= theirs[symbol]) continue;
-        const others = Math.max(...SYMBOLS.filter((other) => other !== symbol).map((other) => totals[other]));
-        best = Math.max(best, clip((totals[symbol] - Math.max(IDEOLOGICAL_COUNT, others + 1) + 2) / 2));
-      }
-      return best;
-    }
+    case Agenda.Ideology:
+      return ideologyRoad(state, seat);
     case Agenda.Monuments:
       return clip(0.5 * (me.monuments.length - them.monuments.length) + monumentSet(state, seat) / 10);
     case Agenda.Diplomacy:
@@ -217,6 +208,49 @@ export function agendaProgress(state: GameState, seat: PlayerId, agenda: AgendaI
 }
 
 const DECREES = Object.values(DecreeId);
+
+const DECREE_OF = new Map<SymbolId, string>(DECREES.map((decree) => [decreeSymbol(decree), decree]));
+const MONUMENT_SYMBOLS = new Map<string, readonly SymbolId[]>(MONUMENTS.map((monument) => [monument.id, monument.symbols]));
+
+/**
+ * How far along the road to Ideological Victory `seat` is (−1 → 1), counting the copies it can
+ * still get, not only the ones in play: each symbol's total, plus part of a copy for each of its
+ * policies one proposal away (less for two: a policy goes through neutral), its decree while
+ * elections remain, and a monument of it up for building; less the symbol that leads it. Setup
+ * counts too: how ready the seat's cards are to pass a proposal in each of those districts (the
+ * share of the Senate's votes they convince, more if they open that district). A symbol counts in
+ * full with more private copies than the opponent, half when level. Without the readiness part a
+ * leaning player reached one copy short but was seldom able to propose the last one.
+ */
+export function ideologyRoad(state: GameState, seat: PlayerId): number {
+  if (state.phase === "setup") return 0;
+  const mine = privateSymbols(state, seat);
+  const theirs = privateSymbols(state, otherPlayer(seat));
+  const totals = totalSymbols(state);
+  const active = new Set<string>(activeDecrees(state));
+  const electionsLeft = GENERAL_ELECTION_COUNT - state.electionsOut.length;
+  const reveal = bestReveal(state, handLikeCards(state, seat, { market: false })).map((card) => card.cardId);
+  const share = Math.min(1, convincedVotes(state, reveal) / senateVotesNeeded(state));
+  const opens = proposalDistricts(state, reveal);
+  const ready = (district: DistrictId) => share * (opens.has(district) ? 1 : 0.4);
+  let best = -1;
+  for (const symbol of SYMBOLS) {
+    const lead = mine[symbol] - theirs[symbol];
+    const weight = lead > 0 ? 1 : lead === 0 ? 0.5 : 0.15;
+    let reach = totals[symbol];
+    for (const policy of POLICIES) {
+      if (policy.symbol !== symbol || iconsDisabled(state, policy.district)) continue;
+      const now = state.policy[policy.district];
+      if (now === null) reach += 0.6 + 0.35 * ready(policy.district);
+      else if (now !== policy.id) reach += 0.3 + 0.15 * ready(policy.district);
+    }
+    if (!active.has(DECREE_OF.get(symbol)!) && electionsLeft > 0) reach += 0.6;
+    if (state.availableMonuments.some((monument) => MONUMENT_SYMBOLS.get(monument.cardId)?.includes(symbol))) reach += 0.2;
+    const others = Math.max(...SYMBOLS.filter((other) => other !== symbol).map((other) => totals[other]));
+    best = Math.max(best, weight * Math.max(-1, Math.min(1, (reach - Math.max(IDEOLOGICAL_COUNT, others + 1) + 2) / 3)));
+  }
+  return best;
+}
 
 /** Three cards of a district it already has support in: a recruit in hand. */
 function recruitReady(state: GameState, seat: PlayerId): boolean {
