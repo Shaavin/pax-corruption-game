@@ -9,9 +9,9 @@
  * Players: easy, normal, hard; quick (Hard's search, this turn only); net:<weights.bin> (the
  * learned evaluator in Hard's search); netquick:<weights.bin> (the same, this turn only); either
  * takes @<agenda>[=strength] to lean toward an agenda (netquick:<weights.bin>@ideology=600);
- * ninth:<weights.bin>[@lean][+exp=<weights.bin>][+noreply] (The Ninth as in the game: that
+ * ty:<weights.bin>[@lean][+exp=<weights.bin>][+noreply] (Ty as in the game: that
  * evaluator, nudged by its agenda; +exp: its Legacy & Diplomacy specialist; +noreply: the
- * opponent's reply predicted with Hard's score, as before 2026-11-26). Two ninth: players can
+ * opponent's reply predicted with Hard's score, as before 2026-11-26). Two ty: players can
  * meet (two evaluators, or two ways of searching). The first is reported on. Seats alternate
  * game by game, and the deals are fixed by `--from` (default 1), so two runs with the same games
  * compare like with like. Several runs with different `--from` can go in parallel. `--log`
@@ -21,7 +21,7 @@ import { readFileSync } from "node:fs";
 import { focusWeights, type AgendaId } from "../lib/game/ai-agenda.ts";
 import { loadNet, netEvaluator } from "../lib/game/ai-net.ts";
 import { CLASSIC } from "../lib/game/ai-score.ts";
-import { aiAgenda, chooseAiAction, isAiLevel, leanFromSpec, ninthPlayer, planMove, positionScore } from "../lib/game/ai.ts";
+import { aiAgenda, chooseAiAction, isAiLevel, leanFromSpec, planMove, positionScore, tyPlayer } from "../lib/game/ai.ts";
 import type { Rng } from "../lib/game/rng.ts";
 import type { Action, GameState } from "../lib/game/types.ts";
 import { currentActor } from "../lib/game/engine.ts";
@@ -30,7 +30,7 @@ import { createSeededRng } from "../lib/game/rng.ts";
 import type { PlayerId } from "../lib/game/types.ts";
 
 const args = process.argv.slice(2);
-const isPlayer = (arg: string) => isAiLevel(arg) || arg === "quick" || /^(net|netquick|ninth|quick):/.test(arg);
+const isPlayer = (arg: string) => isAiLevel(arg) || arg === "quick" || /^(net|netquick|ty|ninth|quick):/.test(arg);
 const [a, b] = args.filter(isPlayer);
 if (!a || !b) {
   console.error("Usage: scripts/ai-match.ts <player> <player> [games] [--expansion] [--from N]  (easy, normal, hard, quick, net:<weights.bin>)");
@@ -45,17 +45,18 @@ function mover(spec: string): Mover {
     const weights = focusWeights(CLASSIC, spec.slice(6) as AgendaId, 1);
     return (state, seat, rng) => planMove(state, seat, rng, (position, player) => positionScore(position, player, weights), false);
   }
-  if (spec.startsWith("ninth:")) {
-    // ninth:<weights.bin>[@lean][+noreply]: The Ninth as it plays in the game (agenda and all);
+  // ty:<…> (ninth:<…> from before the rename still works).
+  if (/^(ty|ninth):/.test(spec)) {
+    // ty:<weights.bin>[@lean][+noreply]: Ty as it plays in the game (agenda and all);
     // +noreply predicts the opponent's reply with Hard's score instead of the evaluator.
     // +wide=<candidates>x<samples> looks past its turn on more plans and guesses.
     // +exp=<weights.bin> plays Legacy & Diplomacy games with that evaluator instead.
     const reply = !spec.includes("+noreply");
     const wide = /\+wide=(\d+)x(\d+)/.exec(spec);
     const specialist = /\+exp=([^+]+)/.exec(spec);
-    const [path, lean] = spec.slice(6).replace(/\+.*$/, "").split("@");
-    // Each one is a Ninth of its own, so two can play each other.
-    return ninthPlayer(loadNet(readFileSync(path!)), {
+    const [path, lean] = spec.slice(spec.indexOf(":") + 1).replace(/\+.*$/, "").split("@");
+    // Each one is a Ty of its own, so two can play each other.
+    return tyPlayer(loadNet(readFileSync(path!)), {
       expansion: specialist ? loadNet(readFileSync(specialist[1]!)) : null,
       ...(lean === undefined ? {} : { lean: Number(lean) }),
       reply,

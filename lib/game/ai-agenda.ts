@@ -174,7 +174,7 @@ function prospect(state: GameState, seat: PlayerId, agenda: AgendaId): number {
 }
 
 /**
- * How far `seat` has come along an agenda's road (about −1 → 1), for The Ninth: its learned
+ * How far `seat` has come along an agenda's road (about −1 → 1), for Ty: its learned
  * evaluator judges the whole board, and this nudges it toward the agenda when plans are close.
  * Cheap on purpose (it runs on every position its search looks at).
  */

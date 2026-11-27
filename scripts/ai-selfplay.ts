@@ -17,7 +17,7 @@
  *                    agenda (lean in the evaluator's units, 100 per logit; default 100), so a
  *                    strong player takes a road the evaluator rarely tries (and is defended
  *                    against): netquick:<weights.bin>@ideology; or
- *                    ninth:<weights.bin>[+noreply] (The Ninth as it plays in the game)
+ *                    ty:<weights.bin>[+noreply] (Ty as it plays in the game)
  *                    seats alternate game by game (default quick,quick)
  *   --explore P      chance of a random legal move, so games differ (default 0.04)
  *   --expansion      Legacy & Diplomacy games (with --foreign: and Foreign Influence)
@@ -33,7 +33,7 @@ import { join } from "node:path";
 import { Agenda, focusWeights, type AgendaId } from "../lib/game/ai-agenda.ts";
 import { loadNet, netEvaluator } from "../lib/game/ai-net.ts";
 import { CLASSIC } from "../lib/game/ai-score.ts";
-import { chooseAiAction, isAiLevel, leanFromSpec, ninthPlayer, planMove, positionScore } from "../lib/game/ai.ts";
+import { chooseAiAction, isAiLevel, leanFromSpec, planMove, positionScore, tyPlayer } from "../lib/game/ai.ts";
 import { currentActor, legalActions } from "../lib/game/engine.ts";
 import { newReplay, stepReplay } from "../lib/game/record.ts";
 import { createSeededRng, type Rng } from "../lib/game/rng.ts";
@@ -86,11 +86,11 @@ function mover(spec: string): Mover {
     const evaluate = leanFromSpec(netEvaluator(loadNet(readFileSync(path!))), focus);
     return (state, seat, rng) => planMove(state, seat, rng, evaluate, !quick);
   }
-  if (spec.startsWith("ninth:")) {
-    // ninth:<weights.bin>[+noreply]: The Ninth as it plays in the game (its whole search, the
+  if (/^(ty|ninth):/.test(spec)) {
+    // ty:<weights.bin>[+noreply]: Ty as it plays in the game (its whole search, the
     // opponent's reply judged by its evaluator). Several times slower than netquick, but its
     // games are played as well as it can. For Legacy & Diplomacy, give the expansion network.
-    return ninthPlayer(loadNet(readFileSync(spec.slice(6).replace(/\+.*$/, ""))), { reply: !spec.includes("+noreply") });
+    return tyPlayer(loadNet(readFileSync(spec.slice(spec.indexOf(":") + 1).replace(/\+.*$/, ""))), { reply: !spec.includes("+noreply") });
   }
   throw new Error(`Unknown player ${spec}`);
 }

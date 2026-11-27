@@ -3,7 +3,7 @@
 import { useState, useSyncExternalStore } from "react";
 import { HotseatSession } from "./HotseatSession";
 import { ResumeGame } from "./ResumeGame";
-import { aiPersona, isAiLevel } from "@/lib/game/ai";
+import { aiLevelFrom, aiPersona } from "@/lib/game/ai";
 import { cleanName } from "@/lib/game/names";
 import { randomUint32 } from "@/lib/game/rng";
 import { isGameMode } from "@/lib/game/setup";
@@ -16,7 +16,7 @@ const noSubscribe = () => () => {};
  * game, so the installed app can start any game offline from one cached copy.
  *
  * `?seed=` (digits) replays a seed; `?mode=`, `?expansion=1`, `?fi=1` pick the setup;
- * `?n1=` / `?n2=` name the players; `?ai=easy|normal|hard` puts the computer in seat 2;
+ * `?n1=` / `?n2=` name the players; `?ai=easy|normal|hard|ty` puts the computer in seat 2;
  * `?resume` reopens the game saved in this browser.
  */
 export function PlayFromUrl() {
@@ -35,7 +35,9 @@ export function PlayFromUrl() {
   const expansion = params.get("expansion") === "1";
   const rawAi = params.get("ai");
   // The computer takes Player 2's seat; you're Player 1.
-  const ai = isAiLevel(rawAi) ? ({ seat: 1, level: rawAi } as const) : undefined;
+  // `?ai=ninth` (links from before Ty's 2026-11-27 rename) still plays Ty.
+  const level = aiLevelFrom(rawAi);
+  const ai = level ? ({ seat: 1, level } as const) : undefined;
 
   return (
     <HotseatSession

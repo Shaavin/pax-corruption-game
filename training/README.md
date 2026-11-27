@@ -39,7 +39,7 @@ training/.venv/Scripts/python -m pip install numpy
    enough to generate the next round's games). Either takes `@<agenda>[=lean]` to lean the
    evaluator toward one agenda (`netquick:<weights.bin>@ideology`; lean in the evaluator's units,
    100 per logit, default 100): a strong player taking a road the evaluator rarely tries, and a
-   strong opponent defending against it. `ninth:<weights.bin>` plays as The Ninth does in the
+   strong opponent defending against it. `ty:<weights.bin>` plays as Ty does in the
    game (its whole search, replies judged by its evaluator): several times slower than
    `netquick:`, but its games are played as well as it can (for Legacy & Diplomacy, give the
    expansion network). `--explore` is the chance of a random move, so games differ.
@@ -53,7 +53,7 @@ training/.venv/Scripts/python -m pip install numpy
    `lib/game/ai-agenda.ts`, counts the copies still to be had and how ready its cards are to pass
    the last policy; a lighter lean, or one without readiness, seldom got the last copy). Train on base and expansion
    games together: one evaluator plays both, and its header records whether it learned the
-   expansion (The Ninth plays expansion games as Hard until it has).
+   expansion (Ty plays expansion games as Hard until it has).
 
 2. **Encode.** Replay the games into training positions with the current feature layout (a new
    layout only needs this step again, not new games):
@@ -90,11 +90,11 @@ training/.venv/Scripts/python -m pip install numpy
 4. **Measure.** Against Hard, a few hundred games (run several `--from` ranges in parallel):
 
    ```sh
-   node --experimental-strip-types --no-warnings scripts/ai-match.ts ninth:training/runs/gen1.bin hard 40 --from 1
+   node --experimental-strip-types --no-warnings scripts/ai-match.ts ty:training/runs/gen1.bin hard 40 --from 1
    ```
 
-   `ninth:<weights.bin>` plays as The Ninth does in the game (`+noreply` predicts the opponent's
-   reply with Hard's score instead of the evaluator, as before 2026-11-26). Two `ninth:` players
+   `ty:<weights.bin>` plays as Ty does in the game (`+noreply` predicts the opponent's
+   reply with Hard's score instead of the evaluator, as before 2026-11-26). Two `ty:` players
    can meet: head to head against the shipped pair is the measure that matters most (Hard is a
    weaker, narrower opponent than a strong player). Also measure against the Ideology
    specialist (`netquick:<weights.bin>@ideology=600`: does it see an Ideological Victory coming?
@@ -110,7 +110,7 @@ training/.venv/Scripts/python -m pip install numpy
 
 6. **Ship** a round that beats the shipped one: copy it to `public/ai/` with its `.cases.json`.
    There are two: `evaluator.bin` plays the base game and `evaluator-expansion.bin` plays Legacy &
-   Diplomacy (`ai-match.ts ninth:<base.bin>+exp=<expansion.bin>` plays as the game does). One
+   Diplomacy (`ai-match.ts ty:<base.bin>+exp=<expansion.bin>` plays as the game does). One
    network for both played one of them worse: weighting the expansion up won more there and
    less in the base game. So train them apart on the same data: the base one with
    `--expansion-weight 0` (leaves expansion games out), the expansion one with

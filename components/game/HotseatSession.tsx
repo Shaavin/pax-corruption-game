@@ -14,8 +14,8 @@ import { PassDeviceGate } from "./PassDeviceGate";
 import { playerLabel, PlayerNamesContext } from "./players";
 import { NO_NAMES, type PlayerNames } from "@/lib/game/names";
 import { handLimit } from "@/lib/game/abilities";
-import { aiPersona, chooseAiAction, ninthEvaluatorLoaded, type AiOpponent } from "@/lib/game/ai";
-import { loadNinth } from "./ninth";
+import { aiPersona, chooseAiAction, tyEvaluatorLoaded, type AiOpponent } from "@/lib/game/ai";
+import { loadTy } from "./ty";
 import { createSeededRng, randomUint32 } from "@/lib/game/rng";
 import { ReportDialog } from "./ReportDialog";
 import { saveGame } from "./saved-game";
@@ -364,19 +364,19 @@ export function HotseatSession(props: HotseatSessionProps) {
   }, [playback, momentBusy]);
 
   // The computer's turn: pick a move, wait a beat (so its plays can be followed), make it.
-  // The Ninth waits for its trained evaluator (fetched once; without it, it plays as Hard).
-  const [ninthReady, setNinthReady] = useState(() => ai?.level !== "ninth" || ninthEvaluatorLoaded());
+  // Ty waits for its trained evaluator (fetched once; without it, it plays as Hard).
+  const [tyReady, setTyReady] = useState(() => ai?.level !== "ty" || tyEvaluatorLoaded());
   useEffect(() => {
-    if (ninthReady) return;
+    if (tyReady) return;
     let live = true;
-    void loadNinth().then(() => {
-      if (live) setNinthReady(true);
+    void loadTy().then(() => {
+      if (live) setTyReady(true);
     });
     return () => {
       live = false;
     };
-  }, [ninthReady]);
-  const aiTurn = Boolean(ai && !state.victory && actor === ai.seat && !replaying && !momentBusy && ninthReady);
+  }, [tyReady]);
+  const aiTurn = Boolean(ai && !state.victory && actor === ai.seat && !replaying && !momentBusy && tyReady);
   const dispatchRef = useRef(dispatch);
   useEffect(() => {
     dispatchRef.current = dispatch;

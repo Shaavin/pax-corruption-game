@@ -1,4 +1,4 @@
-import { isAiLevel, type AiOpponent } from "./ai.ts";
+import { aiLevelFrom, type AiOpponent } from "./ai.ts";
 import { hasNames, parseNames, type PlayerNames } from "./names.ts";
 import { apply, currentActor } from "./engine.ts";
 import { IllegalActionError } from "./errors.ts";
@@ -232,8 +232,10 @@ export function parseRecord(value: unknown): GameRecord | null {
 
 function parseAi(value: unknown): AiOpponent | null {
   if (!value || typeof value !== "object") return null;
-  const { seat, level } = value as Partial<AiOpponent>;
-  return (seat === 0 || seat === 1) && isAiLevel(level) ? { seat, level } : null;
+  const { seat } = value as Partial<AiOpponent>;
+  // "ninth" (Ty before the 2026-11-27 rename) still reads as Ty.
+  const level = aiLevelFrom((value as { level?: unknown }).level);
+  return (seat === 0 || seat === 1) && level ? { seat, level } : null;
 }
 
 export function parseBugReport(value: unknown): BugReport | null {

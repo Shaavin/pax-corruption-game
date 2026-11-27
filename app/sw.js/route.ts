@@ -38,7 +38,7 @@ export function GET(): Response {
   const cards = imageFiles("cards");
   // The victory scenes and the computer opponents' portraits, saved as they are (not through
   // the card-size optimizer).
-  // The Ninth's trained evaluator too: a new one is a new file content, so a fresh cache.
+  // Ty's trained evaluator too: a new one is a new file content, so a fresh cache.
   const art = [...imageFiles(join("art", "victory")), ...imageFiles(join("art", "cast"), /\.(webp|svg)$/i), ...imageFiles("ai", /\.bin$/i)];
   const build = process.env.PAX_BUILD || "dev";
   // A new card or scene list (one added or renamed), or a scene redrawn, starts a fresh card cache; otherwise it's kept.

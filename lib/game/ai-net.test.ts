@@ -8,7 +8,7 @@ import { PARTIES, POLICIES } from "../cards/catalog.ts";
 import { DISTRICTS } from "../cards/schema.ts";
 import { DENSE_COUNT, DENSE_NAMES, encodeState, FEATURE_VERSION, SPARSE_COUNT } from "./ai-features.ts";
 import { EVALUATOR_PATH, EXPANSION_EVALUATOR_PATH, loadNet, netLogit, winChance } from "./ai-net.ts";
-import { chooseAiAction, ninthEvaluatorLoaded, setNinthEvaluator } from "./ai.ts";
+import { chooseAiAction, tyEvaluatorLoaded, setTyEvaluator } from "./ai.ts";
 import { decreeSymbol } from "./decrees.ts";
 import { currentActor } from "./engine.ts";
 import { newReplay, stepReplay } from "./record.ts";
@@ -175,31 +175,31 @@ for (const [path, weights] of [
   assert(refused, "Weights trained on another feature layout are refused");
 }
 
-// The Ninth plays whole games with the shipped evaluators, legally: the base game with the main
+// Ty plays whole games with the shipped evaluators, legally: the base game with the main
 // one, Legacy & Diplomacy with its specialist (which must have learned the expansion).
 assert(expansionNet.header.expansion === true, "The Legacy & Diplomacy evaluator learned expansion games");
 {
   let refused = false;
   try {
-    setNinthEvaluator(net, { expansion: { ...expansionNet, header: { ...expansionNet.header, expansion: false } } });
+    setTyEvaluator(net, { expansion: { ...expansionNet, header: { ...expansionNet.header, expansion: false } } });
   } catch {
     refused = true;
   }
   assert(refused, "A base-game evaluator is refused as the Legacy & Diplomacy specialist");
 }
-setNinthEvaluator(net, { expansion: expansionNet });
-assert(ninthEvaluatorLoaded(), "The Ninth's evaluator is set");
+setTyEvaluator(net, { expansion: expansionNet });
+assert(tyEvaluatorLoaded(), "Ty's evaluator is set");
 for (const expansion of [false, true]) {
   const rng = createSeededRng(41);
   let replay = newReplay(41, { expansion });
   for (let i = 0; i < 2000 && !replay.state.victory; i++) {
     const actor = currentActor(replay.state);
-    const action = chooseAiAction(replay.state, actor, actor === 0 ? "ninth" : "normal", rng);
-    assert(action, `The Ninth's game (${expansion ? "expansion" : "base"}) step ${i}: no move`);
+    const action = chooseAiAction(replay.state, actor, actor === 0 ? "ty" : "normal", rng);
+    assert(action, `Ty's game (${expansion ? "expansion" : "base"}) step ${i}: no move`);
     replay = stepReplay(replay, action!); // throws if illegal
   }
-  assert(replay.state.victory, `The Ninth finishes a ${expansion ? "Legacy & Diplomacy" : "base"} game`);
+  assert(replay.state.victory, `Ty finishes a ${expansion ? "Legacy & Diplomacy" : "base"} game`);
 }
-setNinthEvaluator(null);
+setTyEvaluator(null);
 
-report(`Evaluator ok: the encoding hides the opponent's face-down cards, knows inactive victories and the Ideological outlook, both shipped evaluators match PyTorch, other layouts are refused, and The Ninth finishes base and expansion games with them.`);
+report(`Evaluator ok: the encoding hides the opponent's face-down cards, knows inactive victories and the Ideological outlook, both shipped evaluators match PyTorch, other layouts are refused, and Ty finishes base and expansion games with them.`);

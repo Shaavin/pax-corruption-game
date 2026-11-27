@@ -1,4 +1,5 @@
 import { isDeepStrictEqual } from "node:util";
+import { aiLevelFrom, isAiLevel } from "./ai.ts";
 import { currentActor, legalActions } from "./engine.ts";
 import {
   canUndo,
@@ -173,4 +174,12 @@ for (const seed of [3, 11, 42]) {
   assert(parseRecord({ ...named, names: ["Ann", "a$$hole"] })?.names?.[1] === null, "Imported profane names are dropped");
 }
 
-report("Record ok: deterministic replay, state copies, JSON round trip, ReplayError index, undo rules, player names.");
+// Ty was "ninth" until 2026-11-27: saved games, bug reports, and links from before still read as Ty.
+{
+  const old = parseRecord({ version: 1, seed: 7, actions: [], ai: { seat: 1, level: "ninth" } });
+  assert(old?.ai?.level === "ty", "A record against \"ninth\" resumes against Ty");
+  assert(aiLevelFrom("ninth") === "ty" && aiLevelFrom("ty") === "ty" && aiLevelFrom("hard") === "hard", "Levels read leniently");
+  assert(aiLevelFrom("tenth") === null && !isAiLevel("ninth"), "…but only the old name is an alias");
+}
+
+report("Record ok: deterministic replay, state copies, JSON round trip, ReplayError index, undo rules, player names, Ty's old level name.");
