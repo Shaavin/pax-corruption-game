@@ -40,7 +40,7 @@ export type EventEffect =
   | { type: "flipDecree"; decree: DecreeIdValue }
   /** South: "Influence in <district> is now reduced to player's support." */
   | { type: "influenceIsSupport"; district: DistrictId }
-  /** South: "<district> cards in Senate are always convinced." */
+  /** South: "<district> cards now convince all <district> Senators." (2026-11-26; was "in Senate are always convinced") */
   | { type: "senateConvinced"; district: DistrictId }
   /** West: "Disable all icons in <district> for ideological victory." */
   | { type: "disableIcons"; district: DistrictId }
@@ -101,7 +101,8 @@ const LEGACY_TEXT = (power: string) => `Discard played ${power} cards. â€” OR â€
 const D = District;
 
 /** Faces revised 2026-11-18 ("Enable network in <district>"): new file names keep caches fresh. */
-const REVISED_EVENT_ART = new Set(["magic-realms", "private-islands", "rocky-bunkers", "unaccounted-pop"]);
+/** Faces revised 2026-11-18 (East: networks) and 2026-11-26 (South: convincing Senators, Joe's balance batch). */
+const REVISED_EVENT_ART = new Set(["magic-realms", "private-islands", "rocky-bunkers", "unaccounted-pop", "thunder-bail-out", "pari-passu", "podium-baptism", "silenced-hill"]);
 /** Victory faces revised 2026-11-18 (wording). */
 const REVISED_VICTORY_ART = new Set<string>(["cultural"]);
 
@@ -153,7 +154,7 @@ const flip = (decree: DecreeIdValue, label: string) =>
 const influence = (district: DistrictId, label: string) =>
   [{ type: "influenceIsSupport", district } as const, `Influence in ${label} is now reduced to player's support.`] as const;
 const convinced = (district: DistrictId, label: string) =>
-  [{ type: "senateConvinced", district } as const, `${label} cards in Senate are always convinced.`] as const;
+  [{ type: "senateConvinced", district } as const, `${label} cards now convince all ${label} Senators.`] as const;
 const icons = (district: DistrictId, label: string) =>
   [{ type: "disableIcons", district } as const, `Disable all icons in ${label} for ideological victory.`] as const;
 const zero = (district: DistrictId, label: string) =>

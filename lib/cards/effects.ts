@@ -1,7 +1,7 @@
 /** Registered ability ids. Handlers live in `lib/game/abilities` later. */
 export const EffectId = {
   DistrictWipe: "district-wipe",
-  CivilPlusOneBlockConspiracy: "civil-plus-one-block-conspiracy",
+  CivilPlusTwoBlockConspiracy: "civil-plus-two-block-conspiracy",
   DrawToHandLimitEndActionSkipIncome: "draw-to-hand-limit-end-action-skip-income",
   DistrictGovernor: "district-governor",
   SwapCivilAfterPlay: "swap-civil-after-play",
@@ -9,7 +9,7 @@ export const EffectId = {
   InfluenceSenateThenDraw: "influence-senate-then-draw",
   ReplaceAllianceUnmatched: "replace-alliance-unmatched",
   CountsAsTwoAlliances: "counts-as-two-alliances",
-  ConstructMonumentFourMatching: "construct-monument-four-matching",
+  ConstructMonumentShavvinneWild: "construct-monument-shavvinne-wild",
   RecruitPartisansFree: "recruit-partisans-free",
   AlwaysHigherInfluenceDiscardCivilAfterElection:
     "always-higher-influence-discard-civil-after-election",

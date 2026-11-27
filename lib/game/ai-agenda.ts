@@ -12,6 +12,7 @@ import type { Weights } from "./ai-score.ts";
 import { activeDecrees, decreeSymbol, meetsDecree, satisfiedDecrees } from "./decrees.ts";
 import { GENERAL_ELECTION_COUNT, tallyElection } from "./election.ts";
 import { canRecruitIn, handLikeCards } from "./main.ts";
+import { fundedCards } from "./monuments.ts";
 import { victoryRace } from "./progress.ts";
 import { VictoryKind, type GameState, type PlayerId, type VictoryKindId } from "./types.ts";
 import { IDEOLOGICAL_COUNT, privateSymbols, totalSymbols } from "./victory.ts";
@@ -258,13 +259,16 @@ function recruitReady(state: GameState, seat: PlayerId): boolean {
   return [...counts].some(([district, count]) => count >= 3 && canRecruitIn(state, seat, district));
 }
 
-/** The most cards it holds of a district with a monument up for building. */
+/**
+ * The most cards it has toward a monument up for building: its cards of that district, plus the
+ * cards funding it (each lowers its cost by 1, for either player), up to the 5 it costs.
+ */
 function monumentSet(state: GameState, seat: PlayerId): number {
   const counts = districtCounts(state, seat);
   let most = 0;
   for (const monument of state.availableMonuments) {
     const def = getCard(monument.cardId);
-    if ("district" in def) most = Math.max(most, counts.get(def.district) ?? 0);
+    if ("district" in def) most = Math.max(most, Math.min(5, (counts.get(def.district) ?? 0) + fundedCards(state, monument.instanceId).length));
   }
   return most;
 }

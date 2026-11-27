@@ -102,6 +102,8 @@ export type TableModel = {
   decrees: DecreeView[];
   market: CardInstance[];
   availableMonuments: CardInstance[];
+  /** Cards tucked under each available monument (Fund a monument), by its instance id. */
+  monumentFunding: Record<string, CardInstance[]>;
   deckCount: number;
   electionsOut: number;
   /** General Elections revealed during the election under way (0 when none is). */
@@ -183,6 +185,7 @@ export function tableModel(state: GameState, viewer: PlayerId): TableModel {
     }),
     market: state.market,
     availableMonuments: state.availableMonuments,
+    monumentFunding: state.funding ?? {},
     deckCount: state.deck.length,
     electionsOut: state.electionsOut.length,
     electionsOngoing: state.election.active ? state.election.generalElections : 0,

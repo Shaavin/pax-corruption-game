@@ -12,9 +12,22 @@ import {
 
 /**
  * Faces changed after first ingest get a new file name (`-v2`), so offline caches never
- * serve a stale face (see app/sw.js). 2026-11-18: Divine Inquisitors' new text.
+ * serve a stale face (see app/sw.js). 2026-11-18: Divine Inquisitors' new text. 2026-11-26
+ * (Joe's balance batch): the four Order of Knights, Kybernetik Inc., Urban Aristocrats,
+ * Architecture Inc., Rebel Inc., and Capitol Inc.
  */
-const REVISED_DECK_ART = new Set(["shavvinne-a-6"]);
+const REVISED_DECK_ART = new Set([
+  "shavvinne-a-6",
+  "dragonara-a-1",
+  "dragonara-a-2",
+  "dragonara-a-5",
+  "horsard-a-1",
+  "horsard-a-2",
+  "shavvinne-a-1",
+  "shavvinne-a-2",
+  "shavvinne-a-4",
+  "smarbbit-a-2",
+]);
 
 function deckArt(id: string): string {
   return `/cards/deck/${id}${REVISED_DECK_ART.has(id) ? "-v2" : ""}.png`;

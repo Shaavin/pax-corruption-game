@@ -31,8 +31,9 @@ import { getCard } from "@/lib/cards/catalog";
 import { CardKind, SYMBOL_NAME, type DistrictId, type PolicyIdValue } from "@/lib/cards/schema";
 import {
   alliancesInPlay,
-  ARCHITECTURE_COST,
-  CONSTRUCT_COST,
+  ARCHITECTURE_WILD,
+  constructIssue,
+  monumentCost,
   eastTakeTargets,
   playableFreeActions,
   freeActionSources,
@@ -454,19 +455,19 @@ export function HotseatSession(props: HotseatSessionProps) {
   );
 
   // --- Spending (recruit / construct, also via Rebel Inc. / Architecture Inc.) ---------
-  const spendCost =
-    spendKind === "recruit"
-      ? RECRUIT_COST
-      : spendKind === "construct"
-        ? via
-          ? ARCHITECTURE_COST
-          : CONSTRUCT_COST
-        : 0;
+  // A monument costs 5 cards of its district, less 1 per card funding it; Architecture Inc.
+  // counts Shavvinne cards as any district's.
+  const constructWild = spendKind === "construct" && via ? ARCHITECTURE_WILD : undefined;
+  const constructPlan = useMemo(
+    () => (spendKind === "construct" ? constructOptions(state, viewer, pool, selectedHandIds, constructWild) : null),
+    [spendKind, state, viewer, pool, selectedHandIds, constructWild],
+  );
+  const spendCost = spendKind === "recruit" ? RECRUIT_COST : constructPlan ? constructPlan.most : 0;
   const selectedDistrict = districtOfSelection(pool, selectedHandIds);
   const spendReady =
-    (spendKind === "recruit" || spendKind === "construct") &&
-    selectedHandIds.length === spendCost &&
-    selectedDistrict !== null;
+    spendKind === "recruit"
+      ? selectedHandIds.length === spendCost && selectedDistrict !== null
+      : spendKind === "construct" && (constructPlan?.claimable.size ?? 0) > 0;
 
   // --- Propose Policy (also via Capitol Inc.) ----------------------------------------
   const revealedCardIds = selectedHandIds
@@ -474,7 +475,6 @@ export function HotseatSession(props: HotseatSessionProps) {
     .filter((id): id is string => Boolean(id));
   const proposing = spendKind === "propose";
   const revealIssue = proposing && revealedCardIds.length > 0 ? revealProblem(state, revealedCardIds) : null;
-  // Nothing revealed can pass too, when South events alone convince a majority.
   const revealPassing = proposing && !revealIssue && revealPasses(state, revealedCardIds);
   const convinced = proposing ? new Set(convincedSenators(state, revealedCardIds)) : undefined;
   const revealVotes = proposing ? convincedVotes(state, revealedCardIds) : null;
@@ -483,9 +483,8 @@ export function HotseatSession(props: HotseatSessionProps) {
   const foreignSource = spendKind === "foreign" ? freeSources.find((source) => source.source === via) : undefined;
 
   const selectableHandIds = useMemo(() => {
-    if (spendKind === "recruit" || spendKind === "construct") {
-      return spendSelectable(pool, selectedHandIds, spendCost);
-    }
+    if (spendKind === "recruit") return spendSelectable(pool, selectedHandIds, spendCost);
+    if (spendKind === "construct") return constructPlan?.selectable ?? new Set<string>();
     if (spendKind === "propose") {
       return proposeTarget ? new Set(selectedHandIds) : new Set(revealPool.map((card) => card.instanceId));
     }
@@ -501,7 +500,7 @@ export function HotseatSession(props: HotseatSessionProps) {
     }
     if (inPolitics || inAction || state.phase === Phase.Income) return playableHandIds;
     return new Set<string>();
-  }, [spendKind, pool, revealPool, selectedHandIds, spendCost, proposeTarget, foreignSource, inPolitics, inAction, state.phase, playableHandIds]);
+  }, [spendKind, pool, revealPool, selectedHandIds, spendCost, constructPlan, proposeTarget, foreignSource, inPolitics, inAction, state.phase, playableHandIds]);
 
   const selectedCard = selectedHandIds.length === 1 ? pool.find((card) => card.instanceId === selectedHandIds[0]) : undefined;
   const playDistrict =
@@ -511,14 +510,7 @@ export function HotseatSession(props: HotseatSessionProps) {
   const targetLabel =
     selectedCard && getCard(selectedCard.cardId).kind === CardKind.Conspiracy ? "Wipe this district" : "Play here";
 
-  const claimableMonumentIds = useMemo(() => {
-    const ids = new Set<string>();
-    if (spendKind !== "construct" || !spendReady || !selectedDistrict) return ids;
-    for (const monument of state.availableMonuments) {
-      if (printedDistrict(monument.cardId) === selectedDistrict) ids.add(monument.instanceId);
-    }
-    return ids;
-  }, [spendKind, spendReady, selectedDistrict, state.availableMonuments]);
+  const claimableMonumentIds = constructPlan?.claimable ?? NO_IDS;
 
   // Market cards you can act on: take at income, or (State Enterprise) use as if in hand.
   const eastSource = spendKind === "eastTake" ? freeSources.find((source) => source.source === via) : undefined;
@@ -596,6 +588,18 @@ export function HotseatSession(props: HotseatSessionProps) {
     }
     if (spendKind === "century") {
       setSelectedHandIds([instanceId]);
+      return;
+    }
+    if (spendKind === "construct") {
+      setSelectedHandIds((current) =>
+        current.includes(instanceId)
+          ? current.filter((id) => id !== instanceId)
+          : constructPlan?.selectable.has(instanceId)
+            ? [...current, instanceId]
+            : constructOptions(state, viewer, pool, [], constructWild).selectable.has(instanceId)
+              ? [instanceId]
+              : current,
+      );
       return;
     }
     if (spendKind) {
@@ -750,7 +754,8 @@ export function HotseatSession(props: HotseatSessionProps) {
       });
     }
     if (spendKind === "propose" && !proposeTarget) {
-      const passing = revealPassing && policyTargets(state, revealedCardIds).length > 0;
+      // Capitol Inc.'s free proposal (the only one made `via` a source) may target any district.
+      const passing = revealPassing && policyTargets(state, revealedCardIds, { anyDistrict: via !== null }).length > 0;
       extraActions.push({
         label: passing ? "Choose a policy" : "See policies",
         tone: passing ? undefined : "neutral",
@@ -783,6 +788,19 @@ export function HotseatSession(props: HotseatSessionProps) {
         title: "The rightmost Senator is discarded to your support pile",
         onClick: () => dispatch({ type: "influenceSenate", player: viewer, instanceId: selectedCard.instanceId }),
       });
+    }
+    // Fund a monument: tuck the selected card under a monument of its district.
+    if (!spendKind && selectedCard) {
+      for (const action of legal) {
+        if (action.type !== "fundMonument" || action.instanceId !== selectedCard.instanceId) continue;
+        const monument = getCard(state.availableMonuments.find((entry) => entry.instanceId === action.monumentInstanceId)!.cardId);
+        const cost = monumentCost(state, action.monumentInstanceId);
+        extraActions.push({
+          label: `Fund ${monument.name}`,
+          title: `Tuck this card under ${monument.name}: it then costs ${cost - 1} for either player to build`,
+          onClick: () => dispatch(action),
+        });
+      }
     }
     for (const action of backToHand) {
       extraActions.push({
@@ -831,8 +849,14 @@ export function HotseatSession(props: HotseatSessionProps) {
   function handReason(cardId: string, instanceId: string): string | null {
     const district = printedDistrictOrNull(cardId);
     const name = district ? DISTRICT_NAME[district] : "";
-    if (spendKind === "recruit" || spendKind === "construct") {
-      const doing = spendKind === "recruit" ? "Recruiting" : "Building a monument";
+    if (spendKind === "construct") {
+      if (!district) return "Building a monument uses cards of its district.";
+      return selectedHandIds.length > 0
+        ? "These cards don't pay for one monument together. Tap a picked card to put it back."
+        : `No available monument you can pay for with ${name} cards.`;
+    }
+    if (spendKind === "recruit") {
+      const doing = "Recruiting";
       if (selectedHandIds.length >= spendCost) return `You've picked ${spendCost} cards. Confirm, or tap one to put it back.`;
       if (selectedDistrict && district !== selectedDistrict) {
         return `Pick cards from one district: you started with ${DISTRICT_NAME[selectedDistrict]}.`;
@@ -1030,7 +1054,7 @@ export function HotseatSession(props: HotseatSessionProps) {
           districtOrder={state.districtOrder}
           policies={state.policy}
           frozen={Object.fromEntries(state.districtOrder.map((district) => [district, policyFrozen(state, district)])) as Record<DistrictId, boolean>}
-          open={revealPassing ? proposalDistricts(state, revealedCardIds) : undefined}
+          open={revealPassing ? proposalDistricts(state, revealedCardIds, { anyDistrict: via !== null }) : undefined}
           onChoose={
             revealPassing
               ? (target) => {
@@ -1195,6 +1219,45 @@ function victoryLabel(victory: Victory): string {
   }
 }
 
+const NO_IDS: ReadonlySet<string> = new Set();
+
+/**
+ * Building a monument with the picked cards: the hand cards that could join them, the monuments
+ * they pay for exactly (claimable), and the most any monument they could still pay for costs.
+ * Each costs 5 cards of its district, less 1 per card funding it; `wild` cards (Architecture
+ * Inc.'s Shavvinne) count for any district.
+ */
+function constructOptions(
+  state: GameState,
+  viewer: PlayerId,
+  pool: readonly { instanceId: string; cardId: string }[],
+  selected: readonly string[],
+  wild?: DistrictId,
+): { selectable: Set<string>; claimable: Set<string>; most: number } {
+  const districtOf = (id: string) => {
+    const card = pool.find((entry) => entry.instanceId === id);
+    return card ? printedDistrictOrNull(card.cardId) : null;
+  };
+  const selectable = new Set<string>(selected);
+  const claimable = new Set<string>();
+  let most = 0;
+  for (const monument of state.availableMonuments) {
+    const district = printedDistrict(monument.cardId);
+    const cost = monumentCost(state, monument.instanceId);
+    const fits = (id: string) => {
+      const printed = districtOf(id);
+      return printed === district || (wild !== undefined && printed === wild);
+    };
+    if (selected.length > cost || !selected.every(fits)) continue;
+    const eligible = pool.filter((card) => fits(card.instanceId));
+    if (eligible.length < cost) continue;
+    most = Math.max(most, cost);
+    if (selected.length < cost) for (const card of eligible) selectable.add(card.instanceId);
+    if (constructIssue(state, viewer, selected, monument.instanceId, wild) === null) claimable.add(monument.instanceId);
+  }
+  return { selectable, claimable, most };
+}
+
 function districtOfSelection(
   hand: { instanceId: string; cardId: string }[],
   ids: readonly string[],
@@ -1288,9 +1351,9 @@ function turnPrompt(
       : "Propose · reveal more cards to convince more than half of the votes";
   }
   if (state.phase === Phase.Politics) {
-    if (opts.seatArmed) return "Politics · seat the selected card in the Senate, or pick another";
+    if (opts.seatArmed) return "Politics · seat the selected card in the Senate, fund a monument with it, or pick another";
     const declare = opts.declarable > 0 ? ", declare a victory" : "";
-    return `${election}Politics · select a card to seat in the Senate, propose a policy${declare}, or skip`;
+    return `${election}Politics · select a card to seat in the Senate or fund a monument, propose a policy${declare}, or skip`;
   }
   if (opts.spendKind === "foreign") return "Foreign Inc. · pick a card of its district to seat in the Senate (then draw)";
   if (opts.spendKind === "century") {
@@ -1309,7 +1372,7 @@ function turnPrompt(
   if (opts.spendKind === "construct") {
     return opts.spendReady
       ? `Construct${opts.via ? " (Architecture Inc.)" : ""} · choose a matching monument`
-      : `Construct · select ${opts.spendCost} cards of the same district (${opts.selectedCount}/${opts.spendCost})`;
+      : `Construct · select a monument's cost in cards of its district${opts.via ? " (Shavvinne cards are wild)" : ""} (${opts.selectedCount}/${opts.spendCost})`;
   }
   if (opts.canEndAction) return `${election}Action · no legal main action`;
   if (opts.playDistrict) return `${election}Action · play into the highlighted district`;
@@ -1352,6 +1415,9 @@ function gateHint(state: GameState, events: GameEvent[], names: PlayerNames): st
     if (event.type === "conspiracyPlayed") bits.push(`Played conspiracy ${getCard(event.cardId).name}.`);
     if (event.type === "partisansRecruited") bits.push("Recruited a partisan.");
     if (event.type === "monumentConstructed") bits.push(`Constructed ${getCard(event.cardId).name}.`);
+    if (event.type === "monumentFunded") {
+      bits.push(`Funded ${getCard(event.monumentCardId).name} with ${getCard(event.cardId).name} (it costs ${event.cost} now).`);
+    }
     if (event.type === "senateInfluenced") {
       bits.push(`Seated ${getCard(event.seatedCardId).name} in the Senate.`);
     }

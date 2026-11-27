@@ -20,6 +20,9 @@ export function handCardBlockReason(state: GameState, player: PlayerId, instance
   if (state.phase !== Phase.Action) return null;
   const card = handLikeCards(state, player, { market: true }).find((entry) => entry.instanceId === instanceId);
   if (!card) return null;
+  // A choice in progress (Intel Network, a discard, …) comes before any play.
+  const choice = state.pending[0];
+  if (choice) return choice.player === player ? "Finish the choice in front of you first." : "Waiting for your opponent's choice.";
   const def = getCard(card.cardId);
   if (def.kind !== CardKind.Civil && def.kind !== CardKind.Alliance && def.kind !== CardKind.Conspiracy) {
     return "This card isn't played to the table.";

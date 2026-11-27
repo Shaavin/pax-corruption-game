@@ -149,19 +149,26 @@ const civilOf = (district: DistrictId, value?: number) => (id: string) => {
   );
   state.policy[District.Dragonara] = null;
 
-  // South: that district's civil and alliance Senators are convinced; conspiracies never (2026-11-15).
+  // South (Joe, 2026-11-26): "Dragonara cards now convince all Dragonara Senators": any revealed
+  // Dragonara card convinces every Dragonara Senator, conspiracies included; nothing without one.
   state.expansion!.commonArea = [];
   const byName = (name: string) => card(state, (id) => getCard(id).name === name);
   state.senate = [byName("Tinkers"), byName("Broken Chains"), ...state.senate.slice(2)];
-  assert(!convincedSenators(state, []).includes(0), "Nothing convinced without a reveal");
-  inEffect(state, "Thunder Bail-out"); // South: Dragonara Senators always convinced
-  const convinced = convincedSenators(state, []);
-  assert(convinced.includes(0), "South: a Dragonara civil Senator is always convinced");
-  assert(!convinced.includes(1), "South: a Dragonara conspiracy Senator still isn't");
-  // Proposal districts follow the convinced Senators (Joe, 2026-11-15): South opens Dragonara
-  // even when no Dragonara card is revealed.
+  // A Dragonara civil below Tinkers' 5.
+  const low = card(state, (id) => {
+    const def = getCard(id);
+    return def.kind === CardKind.Civil && def.district === District.Dragonara && def.influence < 5;
+  });
+  assert(getCard(low.cardId).name !== "Tinkers" && "district" in getCard(low.cardId), "A low Dragonara civil to reveal");
+  assert(!convincedSenators(state, [low.cardId]).includes(0), "Without South, a lower civil doesn't convince");
+  inEffect(state, "Thunder Bail-out");
+  assert(!convincedSenators(state, []).some((index) => index < 2), "South: still nothing convinced without a reveal");
+  const convinced = convincedSenators(state, [low.cardId]);
+  assert(convinced.includes(0), "South: a low Dragonara card convinces a higher Dragonara civil Senator");
+  assert(convinced.includes(1), "South: …and the Dragonara conspiracy Senator too");
   const unrelated = card(state, civilOf(District.Horsard));
-  assert(proposalDistricts(state, [unrelated.cardId]).has(District.Dragonara), "South-convinced Senator opens its district");
+  assert(!proposalDistricts(state, [unrelated.cardId]).has(District.Dragonara), "South opens Dragonara only through a Dragonara reveal");
+  assert(proposalDistricts(state, [low.cardId]).has(District.Dragonara), "…which it does");
 
   // North: decree flips while in effect, activation flips the printed side.
   state.expansion!.commonArea = [];
@@ -314,26 +321,34 @@ const civilOf = (district: DistrictId, value?: number) => (id: string) => {
   }
 }
 
-// South alone convinces a majority (Ian, 2026-11-15): propose with nothing revealed or discarded.
+// South with nothing revealed (2026-11-26): no longer passes. One Dragonara card, however low,
+// convinces the whole Dragonara Senate; a second one would convince the same Senators.
 {
   const { state } = start(20);
   const me = state.activePlayer;
   const byName = (name: string) => card(state, (id) => getCard(id).name === name);
-  state.senate = ["Tinkers", "Dune Clans", "Gardeners", "Runes Tavern", "Fire Breathers"].map(byName);
+  state.senate = ["Tinkers", "Dune Clans", "Gardeners", "Runes Tavern", "Broken Chains"].map(byName);
+  assert(state.senate.every((c) => { const def = getCard(c.cardId); return "district" in def && def.district === District.Dragonara; }), "An all-Dragonara Senate");
   state.policy[District.Dragonara] = null;
   state.phase = Phase.Politics;
-  const handBefore = state.players[me].hand.length;
+  const lowDragonara = (id: string) => {
+    const def = getCard(id);
+    return def.kind === CardKind.Civil && def.district === District.Dragonara && def.influence <= 4;
+  };
+  const low = { ...card(state, lowDragonara), faceUp: false };
+  const other = { ...card(state, lowDragonara), faceUp: false };
+  state.players[me].hand = [low, other];
+  inEffect(state, "Thunder Bail-out");
   const noReveal = { type: "proposePolicy" as const, player: me, revealIds: [], discardId: null, district: District.Dragonara, policyId: PolicyId.DragonaraA };
-  expectIllegal(() => apply(state, noReveal, rng), "Without South, a proposal needs revealed cards");
-  inEffect(state, "Thunder Bail-out"); // South: Dragonara Senators always convinced
-  assert(legalActions(state, me).some((a) => a.type === "proposePolicy" && a.revealIds.length === 0 && a.discardId === null), "South majority: a no-reveal proposal is offered");
-  const out = apply(state, noReveal, rng).state;
-  assert(out.policy[District.Dragonara] === PolicyId.DragonaraA, "…and changes the policy");
-  assert(out.players[me].hand.length === handBefore, "…with no card discarded");
+  expectIllegal(() => apply(state, noReveal, rng), "South: a proposal still needs a revealed card");
+  assert(!legalActions(state, me).some((a) => a.type === "proposePolicy" && a.revealIds.length === 0), "…and none without one is offered");
   expectIllegal(
-    () => apply(state, { ...noReveal, discardId: state.players[me].hand[0]!.instanceId }, rng),
-    "Nothing revealed, so nothing to discard",
+    () => apply(state, { ...noReveal, revealIds: [low.instanceId, other.instanceId], discardId: low.instanceId }, rng),
+    "Two Dragonara reveals convince the same Senators",
   );
+  const out = apply(state, { ...noReveal, revealIds: [low.instanceId], discardId: low.instanceId }, rng).state;
+  assert(out.policy[District.Dragonara] === PolicyId.DragonaraA, "One low Dragonara card passes the policy");
+  assert(!out.players[me].hand.some((c) => c.instanceId === low.instanceId), "…and is discarded");
 }
 
 // Events are played at once, so buying one needs no room in hand (Ian, 2026-11-16). At the

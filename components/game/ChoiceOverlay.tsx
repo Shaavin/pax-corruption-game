@@ -6,7 +6,7 @@ import { CardView } from "./CardView";
 import { DISTRICT_LABEL } from "./Lane";
 import { getCard } from "@/lib/cards/catalog";
 import { CardKind, DISTRICTS, District, type DistrictId } from "@/lib/cards/schema";
-import { handLikeCards, landingDistrict, swapCandidates, type Action, type GameState, type PendingChoice, type PlayerId } from "@/lib/game";
+import { handLikeCards, landingDistrict, swapCandidates, swapProblem, type Action, type GameState, type PendingChoice, type PlayerId } from "@/lib/game";
 
 type ChoiceOverlayProps = {
   state: GameState;
@@ -138,20 +138,24 @@ function SwapChoice({ state, viewer, onAction }: { state: GameState; viewer: Pla
   const { mine, theirs } = swapCandidates(state, viewer);
   const [a, setA] = useState<string | null>(null);
   const [b, setB] = useState<string | null>(null);
+  const yours = mine.find((card) => card.instanceId === a);
+  const other = theirs.find((card) => card.instanceId === b);
+  const problem = yours && other ? swapProblem(state, viewer, yours, other) : null;
   return (
     <Frame
       kicker="Urban Aristocrats"
-      title="Swap a Dragonara civil?"
-      body="Pick one of your Dragonara civil cards and one of theirs. They change owners."
+      title="Swap a played Dragonara card?"
+      body="Pick one of your cards in Dragonara and one of theirs, civil or alliance. They change owners. Nobody may end up with more alliances there than they're allowed."
     >
       <div className="flex flex-col gap-3">
         <PickRow title="Yours" cards={mine.map((c) => [c.instanceId, c.cardId])} selected={a} onPick={setA} />
         <PickRow title="Theirs" cards={theirs.map((c) => [c.instanceId, c.cardId])} selected={b} onPick={setB} />
       </div>
+      {problem ? <p className="mt-3 text-center text-xs text-amber-200">{problem}.</p> : null}
       <div className="mt-4 flex justify-center gap-2">
         <GhostButton onClick={() => onAction({ type: "chooseSwap", player: viewer, swap: null })}>Don&apos;t swap</GhostButton>
         <PrimaryButton
-          disabled={!a || !b}
+          disabled={!a || !b || problem !== null}
           onClick={() => a && b && onAction({ type: "chooseSwap", player: viewer, swap: { mine: a, theirs: b } })}
         >
           Swap

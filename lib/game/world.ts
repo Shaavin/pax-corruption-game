@@ -81,8 +81,11 @@ export function influenceIsSupport(state: GameState, district: DistrictId): bool
   return effectsOf(state, "influenceIsSupport").some((entry) => entry.effect.district === district);
 }
 
-/** South "<district> cards in Senate are always convinced" (civil and alliance Senators; never conspiracies). */
-export function senateAlwaysConvinced(state: GameState, district: DistrictId): boolean {
+/**
+ * South "<district> cards now convince all <district> Senators" (2026-11-26): a revealed card of
+ * that district convinces every Senator of it, conspiracies included, for either player.
+ */
+export function southConvinces(state: GameState, district: DistrictId): boolean {
   return effectsOf(state, "senateConvinced").some((entry) => entry.effect.district === district);
 }
 

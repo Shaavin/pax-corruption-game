@@ -354,9 +354,9 @@ export const DECREES: DecreeCard[] = [
     name: "Profectus",
     inactiveName: "Turmoil Land",
     symbol: Symbol.Chart,
-    text: "Have 4+ more total support than opponent does.",
-    art: "/cards/decrees/profectus-v2.png",
-    inactiveArt: "/cards/decrees/turmoil-land-v2.png",
+    text: "Have 5+ more total support than opponent does.",
+    art: "/cards/decrees/profectus-v3.png",
+    inactiveArt: "/cards/decrees/turmoil-land-v3.png",
   },
   {
     id: DecreeId.Academia,

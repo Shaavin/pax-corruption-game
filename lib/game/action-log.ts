@@ -166,11 +166,23 @@ function buildEntries(events: readonly GameEvent[], viewer: PlayerId): ActionLog
         push({
           kind: ActionLogKind.Construct,
           player: event.player,
-          summary: `${who(event.player, viewer)} constructed ${cardName(event.cardId)}.`,
+          summary: `${who(event.player, viewer)} constructed ${cardName(event.cardId)}${
+            event.funded ? ` (${event.funded} card${event.funded === 1 ? "" : "s"} had funded it)` : ""
+          }.`,
           primary: face(event.cardId),
           related: [],
           relatedLabel: "Spent",
           absorb: "cost",
+        });
+        break;
+      case "monumentFunded":
+        push({
+          kind: ActionLogKind.Construct,
+          player: event.player,
+          summary: `${who(event.player, viewer)} funded ${cardName(event.monumentCardId)} with ${cardName(event.cardId)}: it costs ${event.cost} now.`,
+          primary: face(event.monumentCardId),
+          related: [face(event.cardId)],
+          relatedLabel: "Tucked",
         });
         break;
       case "senateInfluenced":

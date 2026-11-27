@@ -11,7 +11,7 @@ import { drawToHand } from "./draw.ts";
 import { IllegalActionError } from "./errors.ts";
 import { resumeAfterChoice } from "./income.ts";
 import { handLikeCards, printedDistrict, takeHandLike } from "./main.ts";
-import { swapCandidates } from "./plays.ts";
+import { swapCandidates, swapPairs, swapProblem } from "./plays.ts";
 import type { Action, GameEvent, GameState, PendingChoice, PlayerId } from "./types.ts";
 import { otherPlayer } from "./zones.ts";
 
@@ -30,19 +30,15 @@ export function choiceActions(state: GameState, viewer: PlayerId): Action[] {
         player: viewer,
         instanceId: card.instanceId,
       }));
-    case "swapCivils": {
-      const { mine, theirs } = swapCandidates(state, viewer);
+    case "swapCivils":
       return [
         { type: "chooseSwap" as const, player: viewer, swap: null },
-        ...mine.flatMap((a) =>
-          theirs.map((b) => ({
-            type: "chooseSwap" as const,
-            player: viewer,
-            swap: { mine: a.instanceId, theirs: b.instanceId },
-          })),
-        ),
+        ...swapPairs(state, viewer).map(([a, b]) => ({
+          type: "chooseSwap" as const,
+          player: viewer,
+          swap: { mine: a.instanceId, theirs: b.instanceId },
+        })),
       ];
-    }
     case "intelNetwork":
       return choice.instanceIds.map((instanceId) => ({ type: "chooseIntel" as const, player: viewer, instanceId }));
     case "peoplesPress":
@@ -84,7 +80,7 @@ export function chooseDiscard(state: GameState, player: PlayerId, instanceId: st
   resumeAfterChoice(state, events);
 }
 
-/** Urban Aristocrats: swap one of your Dragonara civils with one of theirs (they change owners). */
+/** Urban Aristocrats: swap one of your played Dragonara cards with one of theirs (they change owners). */
 export function chooseSwap(
   state: GameState,
   player: PlayerId,
@@ -96,7 +92,9 @@ export function chooseSwap(
     const { mine, theirs } = swapCandidates(state, player);
     const a = mine.find((card) => card.instanceId === swap.mine);
     const b = theirs.find((card) => card.instanceId === swap.theirs);
-    if (!a || !b) throw new IllegalActionError("Pick one of your Dragonara civils and one of theirs");
+    if (!a || !b) throw new IllegalActionError("Pick one of your played Dragonara cards and one of theirs");
+    const problem = swapProblem(state, player, a, b);
+    if (problem) throw new IllegalActionError(problem);
     const opponent = otherPlayer(player);
     const lane = District.Dragonara;
     state.players[player].tableau[lane] = state.players[player].tableau[lane].filter((card) => card !== a);

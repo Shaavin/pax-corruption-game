@@ -3,11 +3,12 @@
  * asked for, the opponent's scripted moves are legal when due, the free stretches can be
  * finished, and the numbers the coach quotes match the rules.
  */
-import { DISTRICTS, District, type DistrictId } from "../cards/schema.ts";
+import { DISTRICTS, District, MonumentId, type DistrictId } from "../cards/schema.ts";
 import { chooseAiAction } from "../game/ai.ts";
 import { allCards, invariantIssues } from "../game/diagnostics.ts";
 import { isFinalElection, lordsSymbols, tallyElection } from "../game/election.ts";
 import { legalActions } from "../game/engine.ts";
+import { monumentCost } from "../game/monuments.ts";
 import { playerDistrictInfluence } from "../game/influence.ts";
 import { createSeededRng } from "../game/rng.ts";
 import { convincedVotes, senateTotalVotes, senateVotesNeeded } from "../game/senate.ts";
@@ -51,12 +52,12 @@ const CLAIMS: Record<string, Record<number, (state: GameState) => string | null>
         : "you're at 5 (no draw) and Mildred played her Knights",
     8: (s) => (lordsSymbols(s, 0) === 0 && lordsSymbols(s, 1) === 1 ? null : "Lords: Mildred 1, you 0"),
     10: (s) =>
-      influence(s, 0, District.Dragonara) === 13 &&
+      influence(s, 0, District.Dragonara) === 15 &&
       influence(s, 1, District.Dragonara) === 12 &&
       lordsSymbols(s, 0) === 1 &&
       lordsSymbols(s, 1) === 1
         ? null
-        : "Dragonara 13 to 12, Lords 1–1",
+        : "Dragonara 15 to 12, Lords 1–1",
     11: (s) => (s.players[0].hand.length === 4 ? null : "you hold 4 before income"),
     12: (s) => (tallyElection(s).electorates.join() === "2,0" ? null : "electorates 2 to 0"),
   },
@@ -105,7 +106,7 @@ const CLAIMS: Record<string, Record<number, (state: GameState) => string | null>
       s.players[0].electionWins === 1 && s.players[0].partisans === 1 && s.players[1].partisans === 0
         ? null
         : "you won; partisans 1–0",
-    6: (s) => (support(s, 0) === 5 && support(s, 1) === 1 ? null : "support 5 to 1"),
+    6: (s) => (support(s, 0) === 6 && support(s, 1) === 1 ? null : "support 6 to 1"),
     7: (s) => {
       const kinds = declarableVictories(s, 0).map((victory) => victory.kind);
       return kinds.includes("political") && kinds.includes("ideological") ? null : "Political and Ideological in reach";
@@ -120,7 +121,11 @@ const CLAIMS: Record<string, Record<number, (state: GameState) => string | null>
       s.players[0].monuments.some((card) => card.cardId === "model-society")
         ? null
         : "Model Society built; Smarbbit support 6 to 0",
-    9: (s) => {
+    8: (s) =>
+      monumentCost(s, MonumentId.DragonGate) === 4 && s.funding[MonumentId.DragonGate]?.[0]?.cardId === "dragonara-b-9"
+        ? null
+        : "Vex funded Dragon Gate with Fire Breathers: it costs 4",
+    10: (s) => {
       const kinds = declarableVictories(s, 0).map((victory) => victory.kind);
       return s.players[0].partisans === 3 &&
         supportCount(s, 0, District.Smarbbit) === 9 &&

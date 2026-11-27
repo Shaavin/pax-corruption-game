@@ -9,11 +9,11 @@ import { IllegalActionError, asIllegal } from "./errors.ts";
 import { applyFreeAction, freeActions, hasFreeAction } from "./free-actions.ts";
 import { applyNetworkMove, networkActions, syncNetworks } from "./network.ts";
 import { drawToHand } from "./draw.ts";
+import { fundMonument, fundOptions, monumentCost } from "./monuments.ts";
 import { afterMainAction, completeIncome, proceed, setFreeActionCheck, takeMarketCard, underHandLimit } from "./income.ts";
 import { applyBuyEvent, buyEventActions } from "./events.ts";
 import { isEventCard } from "./world.ts";
 import {
-  CONSTRUCT_COST,
   RECRUIT_COST,
   canPlayAlliance,
   canRecruitIn,
@@ -90,7 +90,7 @@ export function apply(state: GameState, action: Action, rng: Rng): ApplyResult {
       break;
     case "construct":
       requireMainAction(next);
-      construct(next, action.player, action.instanceIds, action.monumentInstanceId, CONSTRUCT_COST, rng, events);
+      construct(next, action.player, action.instanceIds, action.monumentInstanceId, rng, events);
       afterMainAction(next, events);
       break;
     case "endAction":
@@ -128,6 +128,11 @@ export function apply(state: GameState, action: Action, rng: Rng): ApplyResult {
     case "proposePolicy":
       requirePhase(next, Phase.Politics);
       proposePolicy(next, action.player, action.revealIds, action.discardId, action.district, action.policyId, events);
+      proceed(next, "income", events);
+      break;
+    case "fundMonument":
+      requirePhase(next, Phase.Politics);
+      fundMonument(next, action.player, action.instanceId, action.monumentInstanceId, events);
       proceed(next, "income", events);
       break;
     case "declareVictory": {
@@ -289,9 +294,8 @@ export function mainActionReachable(state: GameState, player: PlayerId): boolean
 }
 
 /**
- * Would a main action still be reachable after `action`? Kybernetik Inc. ends the
- * action step in place of the main action, so it always qualifies. The probe hides
- * the deck, monument deck, and event deck: legality never depends on unseen cards.
+ * Would a main action still be reachable after `action`? The probe hides the deck, monument
+ * deck, and event deck: legality never depends on unseen cards.
  */
 function freeActionKeepsMain(state: GameState, action: FreeActionAction): boolean {
   const probe = cloneState(state);
@@ -339,17 +343,11 @@ export function mainActions(state: GameState, viewer: PlayerId): Action[] {
         actions.push({ type: "recruit", player: viewer, instanceIds: combo });
       }
     }
-    const monuments = state.availableMonuments.filter((entry) => printedDistrict(entry.cardId) === district);
-    if (monuments.length > 0) {
-      for (const combo of combinations(ids, CONSTRUCT_COST)) {
-        for (const monument of monuments) {
-          actions.push({
-            type: "construct",
-            player: viewer,
-            instanceIds: combo,
-            monumentInstanceId: monument.instanceId,
-          });
-        }
+    // Each monument costs 5 cards of its district, less 1 per card tucked under it.
+    for (const monument of state.availableMonuments) {
+      if (printedDistrict(monument.cardId) !== district) continue;
+      for (const combo of combinations(ids, monumentCost(state, monument.instanceId))) {
+        actions.push({ type: "construct", player: viewer, instanceIds: combo, monumentInstanceId: monument.instanceId });
       }
     }
   }
@@ -357,8 +355,8 @@ export function mainActions(state: GameState, viewer: PlayerId): Action[] {
 }
 
 /**
- * Politics step: exactly one of Influence Senate, Propose Policy, or Declare
- * Victory, or pass. Proposals are listed with every hand card revealed (the
+ * Politics step: exactly one of Influence Senate, Propose Policy, Fund a monument, or
+ * Declare Victory, or pass. Proposals are listed with every hand card revealed (the
  * engine accepts any passing subset); the UI builds its own reveal set.
  */
 function politicsActions(state: GameState, viewer: PlayerId): Action[] {
@@ -385,12 +383,7 @@ function politicsActions(state: GameState, viewer: PlayerId): Action[] {
       }
     }
   }
-  // South alone convinces a majority: propose with nothing revealed or discarded.
-  if (revealPasses(state, [])) {
-    for (const target of policyTargets(state, [])) {
-      actions.push({ type: "proposePolicy", player: viewer, revealIds: [], discardId: null, ...target });
-    }
-  }
+  actions.push(...fundOptions(state, viewer));
   for (const victory of declarableVictories(state, viewer)) {
     actions.push({ type: "declareVictory", player: viewer, victory });
   }
@@ -506,6 +499,9 @@ function actionsEqual(a: Action, b: Action): boolean {
       sameIdSet(a.instanceIds, b.instanceIds) &&
       a.monumentInstanceId === b.monumentInstanceId
     );
+  }
+  if (a.type === "fundMonument" && b.type === "fundMonument") {
+    return a.instanceId === b.instanceId && a.monumentInstanceId === b.monumentInstanceId;
   }
   if (a.type === "influenceSenate" && b.type === "influenceSenate") {
     return a.instanceId === b.instanceId;

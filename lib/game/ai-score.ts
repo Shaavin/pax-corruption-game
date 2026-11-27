@@ -7,6 +7,7 @@ import { CardKind, DecreeId, type DistrictId } from "../cards/schema.ts";
 import { meetsDecree } from "./decrees.ts";
 import { isFinalElection, lordsSymbols, tallyElection } from "./election.ts";
 import { canRecruitIn } from "./main.ts";
+import { fundedCards, monumentCost } from "./monuments.ts";
 import { victoryRace } from "./progress.ts";
 import type { GameState, PlayerId, VictoryKindId } from "./types.ts";
 import { otherPlayer } from "./zones.ts";
@@ -142,10 +143,12 @@ function agendaPlans(state: GameState, seat: PlayerId, w: Weights): number {
     const def = getCard(card.cardId);
     if ("district" in def) counts.set(def.district, (counts.get(def.district) ?? 0) + 1);
   }
+  // Cards tucked under a monument (Fund a monument) count toward it, for either player.
   let monument = 0;
   for (const available of state.availableMonuments) {
     const def = getCard(available.cardId);
-    if ("district" in def) monument = Math.max(monument, Math.min(5, counts.get(def.district) ?? 0));
+    const funded = fundedCards(state, available.instanceId).length;
+    if ("district" in def) monument = Math.max(monument, Math.min(5, (counts.get(def.district) ?? 0) + funded));
   }
   let recruit = 0;
   for (const [district, count] of counts) if (canRecruitIn(state, seat, district)) recruit = Math.max(recruit, Math.min(3, count));
@@ -176,11 +179,12 @@ function handPlans(state: GameState, seat: PlayerId, w: Weights): number {
   for (const [district, count] of counts) {
     score += w.handSet * Math.min(count, 5) ** 1.4;
     if (count >= 3 && canRecruitIn(state, seat, district)) score += w.handRecruit; // counts zeroed support as none
+    // A monument of this district it can pay for (5 cards, less 1 per card funding it).
     const buildable = state.availableMonuments.some((monument) => {
       const def = getCard(monument.cardId);
-      return "district" in def && def.district === district;
+      return "district" in def && def.district === district && count >= monumentCost(state, monument.instanceId);
     });
-    if (count >= 5 && buildable) score += w.handMonument;
+    if (buildable) score += w.handMonument;
   }
   return score;
 }

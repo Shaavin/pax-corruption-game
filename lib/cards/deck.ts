@@ -12,11 +12,11 @@ export const MAIN_DECK: MainDeckCard[] = [
     "dragonara-a-1",
     "Order of Knights",
     d,
-    "Each of your Dragonara civil cards now gives you +1 influence. Conspiracy cannot be played in Dragonara.",
+    "Each of your Dragonara civil cards now gives you +2 influence. Conspiracy cannot be played in Dragonara.",
     [
       {
         type: EffectType.Static,
-        id: EffectId.CivilPlusOneBlockConspiracy,
+        id: EffectId.CivilPlusTwoBlockConspiracy,
         params: { district: d },
       },
     ],
@@ -25,7 +25,7 @@ export const MAIN_DECK: MainDeckCard[] = [
     "dragonara-a-2",
     "Kybernetik Inc.",
     d,
-    "As a free action, you may draw to hand limit. If you do, end your action step and skip income step this turn.",
+    "Right after main action, you may draw to hand limit. If you do, end your action step and skip income step this turn.",
     [{ type: EffectType.FreeAction, id: EffectId.DrawToHandLimitEndActionSkipIncome }],
   ),
   alliance(
@@ -58,7 +58,7 @@ export const MAIN_DECK: MainDeckCard[] = [
     "dragonara-a-5",
     "Urban Aristocrats",
     d,
-    "After playing a civil card in Dragonara, you may swap one of your civil cards with an opponent's in Dragonara.",
+    "After playing a civil card in Dragonara, you may swap one of your played cards with an opponent's in Dragonara.",
     [
       {
         type: EffectType.Triggered,
@@ -106,11 +106,11 @@ export const MAIN_DECK: MainDeckCard[] = [
     "horsard-a-1",
     "Order of Knights",
     h,
-    "Each of your Horsard civil cards now gives you +1 influence. Conspiracy cannot be played in Horsard.",
+    "Each of your Horsard civil cards now gives you +2 influence. Conspiracy cannot be played in Horsard.",
     [
       {
         type: EffectType.Static,
-        id: EffectId.CivilPlusOneBlockConspiracy,
+        id: EffectId.CivilPlusTwoBlockConspiracy,
         params: { district: h },
       },
     ],
@@ -119,11 +119,11 @@ export const MAIN_DECK: MainDeckCard[] = [
     "horsard-a-2",
     "Order of Knights",
     h,
-    "Each of your Horsard civil cards now gives you +1 influence. Conspiracy cannot be played in Horsard.",
+    "Each of your Horsard civil cards now gives you +2 influence. Conspiracy cannot be played in Horsard.",
     [
       {
         type: EffectType.Static,
-        id: EffectId.CivilPlusOneBlockConspiracy,
+        id: EffectId.CivilPlusTwoBlockConspiracy,
         params: { district: h },
       },
     ],
@@ -194,11 +194,11 @@ export const MAIN_DECK: MainDeckCard[] = [
     "shavvinne-a-1",
     "Order of Knights",
     s,
-    "Each of your Shavvinne civil cards now gives you +1 influence. Conspiracy cannot be played in Shavvinne.",
+    "Each of your Shavvinne civil cards now gives you +2 influence. Conspiracy cannot be played in Shavvinne.",
     [
       {
         type: EffectType.Static,
-        id: EffectId.CivilPlusOneBlockConspiracy,
+        id: EffectId.CivilPlusTwoBlockConspiracy,
         params: { district: s },
       },
     ],
@@ -207,8 +207,8 @@ export const MAIN_DECK: MainDeckCard[] = [
     "shavvinne-a-2",
     "Architecture Inc.",
     s,
-    "As a free action, you may construct a monument with only 4 cards of the same matching color.",
-    [{ type: EffectType.FreeAction, id: EffectId.ConstructMonumentFourMatching }],
+    "As a free action, you may construct a monument. If you use this ability, Shavvinne cards are considered wild.",
+    [{ type: EffectType.FreeAction, id: EffectId.ConstructMonumentShavvinneWild }],
   ),
   alliance(
     "shavvinne-a-3",
@@ -227,7 +227,7 @@ export const MAIN_DECK: MainDeckCard[] = [
     "shavvinne-a-4",
     "Rebel Inc.",
     s,
-    "As a free action, you may recruit partisans.",
+    "As a free action, you may recruit partisans. If you use this ability, get +2 partisans if you have fewer partisans.",
     [{ type: EffectType.FreeAction, id: EffectId.RecruitPartisansFree }],
   ),
   alliance(
@@ -294,7 +294,7 @@ export const MAIN_DECK: MainDeckCard[] = [
     "smarbbit-a-2",
     "Capitol Inc.",
     m,
-    "As a free action, you may propose new policy.",
+    "As a free action, you may propose new policy. If you use this ability, you may choose any district policy as target.",
     [{ type: EffectType.FreeAction, id: EffectId.ProposePolicyFree }],
   ),
   alliance(

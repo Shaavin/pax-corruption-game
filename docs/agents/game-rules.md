@@ -28,7 +28,7 @@ Markers and player aids have no rules effect. In the app they are UI (badges, ov
 
 ## Goal
 
-Five victories. Civil is checked at the end of the final election. **All others are declared during your own Politics step**, and declaring is one of the three mutually exclusive politics options (see below).
+Five victories. Civil is checked at the end of the final election. **All others are declared during your own Politics step**, and declaring is one of the four mutually exclusive politics options (see below).
 
 | Victory | Condition (player aid wording) | Detail |
 | --- | --- | --- |
@@ -112,7 +112,7 @@ Players alternate. Each turn: **Action → Politics → Income**.
 
 Exactly **one** main action (mandatory) and any number of free actions, in any order. Each alliance or monument grants its free action **once per turn**. You may not take a free action that leaves you unable to do a main action (FAQ).
 
-**Main-action ruling (Ian, 2026-11-14).** If you can reach a main action this turn, directly or by way of free actions (e.g. an East event taking a card from the Market), you must take one. Before your main action, a free action that would leave no main action reachable is not allowed (Kybernetik Inc. counts: it ends the action step in place of the main action). If no main action can be reached at all, you are **stuck**: draw a card (even past the hand limit) instead of the main action, take **no** free actions that turn, then play Politics and Income as usual. Setting cards aside (Planet Next bank, Consultative Office, East reveal) is not a free action and is unaffected.
+**Main-action ruling (Ian, 2026-11-14).** If you can reach a main action this turn, directly or by way of free actions (e.g. an East event taking a card from the Market), you must take one. Before your main action, a free action that would leave no main action reachable is not allowed. (Kybernetik Inc. comes only after the main action, since 2026-11-26.) If no main action can be reached at all, you are **stuck**: draw a card (even past the hand limit) instead of the main action, take **no** free actions that turn, then play Politics and Income as usual. Setting cards aside (Planet Next bank, Consultative Office, East reveal) is not a free action and is unaffected.
 
 Main actions:
 
@@ -120,7 +120,7 @@ Main actions:
 2. **Play a conspiracy.** Discard **all** civil and alliance cards in that district, both players', to their owners' support piles. Then discard the conspiracy.
 3. **Play an alliance** to your tableau in its printed district. One per player per district unless a card changes it.
 4. **Recruit partisans.** Discard 3 cards of the same district from hand. Gain 1 partisan. **Only legal if you already have at least one card in your support pile for that district.**
-5. **Construct a monument.** Discard 5 cards of the same district from hand to claim an **available** monument of that district. Place it by your party. Shuffle the monument deck and draw one at random so 4 are available again (if any remain). You may not do this just to discard; a matching monument must be available.
+5. **Construct a monument.** Discard 5 cards of the same district from hand to claim an **available** monument of that district (1 fewer for each card [funding](#fund-a-monument) it, never fewer than 1; the funding cards are discarded with yours). Place it by your party. Shuffle the monument deck and draw one at random so 4 are available again (if any remain). You may not do this just to discard; a matching monument must be available.
 
 ### Politics step
 
@@ -128,21 +128,27 @@ Main actions:
 2. Then you may do **one** of:
    - **Influence Senate**
    - **Propose Policy**
+   - **Fund a monument** (Joe, 2026-11-26)
    - **Declare an active victory**
 
 #### Influence Senate
 
 Discard the **rightmost** Senate card (to **your** support pile), shift the others right, and play **any** card from your hand into the **leftmost** spot. The Senate always has exactly 5 cards. The pushed-out Senator counts like any other card in your support pile (influence, Popularity, the Recruit precondition).
 
+#### Fund a monument
+
+Added by Joe on 2026-11-26 to make monuments contested. Tuck **one** card of a monument's district from your hand under any **available** monument. Funding is not exclusive: each tucked card lowers that monument's cost by 1 **for both players**. A monument never becomes free: a card may not be tucked if the cost would drop to 0 (so at most 4 under a monument that costs 5). Whoever constructs it discards the cards they spend **and** all the cards tucked under it to **their own** support piles. A monument doesn't need funding to be built. Details (which cards, face up, Martial Law) were ruled on 2026-11-26: see [open-questions.md](open-questions.md#2026-11-26-joe-via-ian-balance-batch-and-fund-a-monument).
+
 #### Propose Policy
 
 Each Senator has votes: civil **1**, conspiracy **1**, alliance **2**. To pass a policy you must convince **more than half** of the Senate's total votes.
 
-Reveal cards from your hand. One revealed card may convince several Senators. Every revealed card must convince at least one Senator, and no Senator may be convinced by two revealed cards: to convince two civil Senators of one district, reveal a single higher card, not a higher and a lower one (Ian, 2026-11-15). If South events alone already convince a majority, you may propose without revealing or discarding anything.
+Reveal cards from your hand. One revealed card may convince several Senators. Every revealed card must convince at least one Senator, and no Senator may be convinced by two revealed cards: to convince two civil Senators of one district, reveal a single higher card, not a higher and a lower one (Ian, 2026-11-15). You must reveal at least one card.
 
 - A **civil** Senator is convinced by a revealed civil card of the **same district** with a **higher value**.
 - An **alliance** Senator is convinced by another revealed alliance of the **same district**.
 - A **conspiracy** Senator can never be convinced, but its vote still counts toward the total.
+- **South events** (expansion, 2026-11-26): a revealed card of the event's district, of any value or kind, convinces **every** Senator of that district, conspiracies included.
 
 Districts must match: a Horsard civil 6 convinces lower Horsard civil Senators only, never Shavvinne, Smarbbit, or Dragonara ones.
 
@@ -216,7 +222,7 @@ Four double-sided cards. Each starts on its grey **inactive** side ("Win an elec
 | Inactive side | Active side | Symbol | Condition (when active) |
 | --- | --- | --- | --- |
 | Unruly Clans | Imperium | crown | Have more partisans than the opponent. |
-| Turmoil Land | Profectus | chart | Have 4+ more **total** support than the opponent. (Joe, 2026-11-16; was 7+.) |
+| Turmoil Land | Profectus | chart | Have 5+ more **total** support than the opponent. (Joe, 2026-11-26; was 4+ from 2026-11-16, 7+ before.) |
 | Emigration | Academia | atom | Have 20+ more influence than the opponent in a district. |
 | Class Schism | De Jures | scales | Have the lowest (or tied for lowest) civil card in all 4 districts. See below. |
 
@@ -252,7 +258,7 @@ Rulebook example: Player 1 has Innovative Party + Space Academy (2 atom private)
 
 **Party.** Permanent. Order number, one political symbol, four starting cards, one guaranteed monument.
 
-**Monument.** Permanent once built. Costs 5 same-district cards. Ability + political symbol.
+**Monument.** Permanent once built. Costs 5 same-district cards, 1 fewer per card funding it (never fewer than 1). Ability + political symbol.
 
 **District policy.** Printed side A, side B, or neutral. Active policy symbols are shared.
 
@@ -335,7 +341,7 @@ Event effects by power (each district has one of each of its power's two effects
 | --- | --- | --- |
 | East | Enable network in <district> · As a free action, take a <district> card from the Market (both exclusive to the buyer) | 7–11 |
 | North | Military Victory needs +1 partisans (stacks) · Flip Pax <decree> to its other side while in effect | 10 |
-| South | Influence in <district> is reduced to support · <district> Senators are always convinced | 7–11 |
+| South | Influence in <district> is reduced to support · <district> cards now convince all <district> Senators (a revealed card of it, any value or kind, convinces all its Senators, conspiracies included; 2026-11-26) | 7–11 |
 | West | Disable all ideological icons in <district> · District support in <district> counts as zero | 2 |
 
 Implementation: `lib/game/world.ts` (effect queries), `lib/game/events.ts` (setup, buying, legacy), `lib/game/draw.ts` (event Market, election rows).

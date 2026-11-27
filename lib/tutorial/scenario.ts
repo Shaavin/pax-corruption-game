@@ -165,6 +165,7 @@ export function buildScenario(spec: ScenarioSpec): GameState {
     market,
     deck,
     availableMonuments: available.map((id) => card(id, true)),
+    funding: {},
     monumentDeck: monumentDeck.map((id) => card(id, false)),
     decrees,
     electionsOut,

@@ -13,6 +13,7 @@ import { getCard } from "@/lib/cards/catalog";
 import { CardKind } from "@/lib/cards/schema";
 import { senatorVotes } from "@/lib/game/senate";
 import { CULTURAL_LEAD, DIPLOMATIC_POWERS } from "@/lib/game/victory";
+import { CONSTRUCT_COST } from "@/lib/game/main";
 import { TugBar, tugStateText } from "./TugBar";
 import type { CardInstance } from "@/lib/game/types";
 
@@ -48,6 +49,8 @@ type SidePanelProps = {
   /** Of `electionsOut`, those revealed during the election under way. */
   electionsOngoing: number;
   monuments: CardInstance[];
+  /** Cards tucked under each available monument (Fund a monument), by its instance id. */
+  monumentFunding?: Record<string, CardInstance[]>;
   deckCount: number;
   takeableIds?: ReadonlySet<string>;
   /** "take" at income; "use" for State Enterprise (as if in hand). */
@@ -672,7 +675,7 @@ function VictoryCardsSection({ expansion, race }: { expansion: ExpansionView; ra
   );
 }
 
-function SupplySection({ monuments, deckCount, claimableIds, onClaimMonument, expansion, builtMonuments }: ZoneProps) {
+function SupplySection({ monuments, monumentFunding, deckCount, claimableIds, onClaimMonument, expansion, builtMonuments }: ZoneProps) {
   const cultural = expansion?.victories.find((entry) => entry.id === "cultural");
   return (
     <Section title="Monuments" tour="supply" aside={`${deckCount} in the deck`}>
@@ -680,7 +683,9 @@ function SupplySection({ monuments, deckCount, claimableIds, onClaimMonument, ex
         {monuments.map((entry) => {
           const catalog = resolveCard(entry.cardId);
           const claimable = claimableIds?.has(entry.instanceId) ?? false;
-          return (
+          // Fund a monument: each tucked card lowers its cost (5) by 1 for both players.
+          const funded = monumentFunding?.[entry.instanceId] ?? [];
+          const card = (
             <CardView
               key={entry.instanceId}
               name={catalog.name}
@@ -694,6 +699,19 @@ function SupplySection({ monuments, deckCount, claimableIds, onClaimMonument, ex
               selectLabel={claimable ? `Construct ${catalog.name}` : undefined}
               onSelect={claimable && onClaimMonument ? () => onClaimMonument(entry.instanceId) : undefined}
             />
+          );
+          if (funded.length === 0) return card;
+          const cost = Math.max(1, CONSTRUCT_COST - funded.length);
+          return (
+            <div key={entry.instanceId} className="relative">
+              {card}
+              <span
+                className="pointer-events-auto absolute -bottom-1.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border border-amber-300/40 bg-stone-950/90 px-1.5 text-[0.6rem] font-semibold tabular-nums text-amber-200 shadow"
+                title={`Funded with ${funded.map((tucked) => resolveCard(tucked.cardId).name).join(", ")}: it costs ${cost} to build, for either player`}
+              >
+                Costs {cost}
+              </span>
+            </div>
           );
         })}
         <div data-motion-origin="deck" className="ml-1 flex flex-col items-center gap-0.5" title={`${deckCount} cards left in the draw deck`}>

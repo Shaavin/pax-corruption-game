@@ -4,12 +4,13 @@
  */
 import { getCard } from "../cards/catalog.ts";
 import { EffectId } from "../cards/effects.ts";
-import { CardKind, type DistrictId } from "../cards/schema.ts";
+import { CardKind, District, type DistrictId } from "../cards/schema.ts";
 import { activeAlliances, alliancesInPlay, handLimit, martialLawBlocks } from "./abilities.ts";
 import { discardCards } from "./discard.ts";
 import { drawToHand, removeFromMarket } from "./draw.ts";
 import { IllegalActionError } from "./errors.ts";
 import { proceed } from "./income.ts";
+import { fundedCards, monumentCost } from "./monuments.ts";
 import { canRecruitIn, combinations, handCardsInDistrict, handLikeCards, printedDistrict, takeHandLike } from "./main.ts";
 import { construct, laneEntryTriggers, proposePolicy, recruit, seatSenator } from "./plays.ts";
 import type { Rng } from "./rng.ts";
@@ -22,8 +23,10 @@ import {
   type PlayerId,
 } from "./types.ts";
 import { isEventCard, marketTakeSources } from "./world.ts";
+import { otherPlayer } from "./zones.ts";
 
-export const ARCHITECTURE_COST = 4;
+/** Architecture Inc. (2026-11-26): its district's cards are wild for its free construction. */
+export const ARCHITECTURE_WILD = District.Shavvinne;
 
 type Ability = FreeActionAction["ability"];
 
@@ -31,7 +34,7 @@ const ABILITY_OF: Partial<Record<string, Ability>> = {
   [EffectId.DrawToHandLimitEndActionSkipIncome]: "kybernetik",
   [EffectId.InfluenceSenateThenDraw]: "foreignInc",
   [EffectId.ReplaceAllianceUnmatched]: "centuryInc",
-  [EffectId.ConstructMonumentFourMatching]: "architectureInc",
+  [EffectId.ConstructMonumentShavvinneWild]: "architectureInc",
   [EffectId.RecruitPartisansFree]: "rebelInc",
   [EffectId.ProposePolicyFree]: "capitolInc",
   [EffectId.InspectTopFiveMoveOneToTop]: "intelNetwork",
@@ -97,7 +100,8 @@ export function freeActions(state: GameState, player: PlayerId): FreeActionActio
     const source = entry.source;
     switch (entry.ability) {
       case "kybernetik":
-        if (state.players[player].hand.length < handLimit(state, player)) {
+        // "Right after main action" (Joe, 2026-11-26): no longer in place of it.
+        if (state.turn.mainActionDone && state.players[player].hand.length < handLimit(state, player)) {
           actions.push({ ...base, source, ability: "kybernetik" });
         }
         break;
@@ -126,16 +130,18 @@ export function freeActions(state: GameState, player: PlayerId): FreeActionActio
         break;
       }
       case "architectureInc":
-        for (const district of state.districtOrder) {
-          if (martialLawBlocks(state, [district, district])) continue;
-          const ids = handCardsInDistrict(state, player, district).map((card) => card.instanceId);
-          const combo = combinations(ids, ARCHITECTURE_COST)[0];
-          if (!combo) continue;
-          for (const monument of state.availableMonuments) {
-            if (printedDistrict(monument.cardId) === district) {
-              actions.push({ ...base, source, ability: "architectureInc", instanceIds: combo, monumentInstanceId: monument.instanceId });
-            }
-          }
+        // Any available monument, paid with its district's cards and Shavvinne ones (wild): one
+        // representative payment each, its own district's cards first.
+        for (const monument of state.availableMonuments) {
+          const district = printedDistrict(monument.cardId);
+          const cost = monumentCost(state, monument.instanceId);
+          const own = handCardsInDistrict(state, player, district);
+          const wild = district === ARCHITECTURE_WILD ? [] : handCardsInDistrict(state, player, ARCHITECTURE_WILD);
+          const pay = [...own, ...wild].slice(0, cost);
+          if (pay.length < cost) continue;
+          const discarded = [...pay, ...fundedCards(state, monument.instanceId)].map((card) => printedDistrict(card.cardId));
+          if (martialLawBlocks(state, discarded)) continue;
+          actions.push({ ...base, source, ability: "architectureInc", instanceIds: pay.map((card) => card.instanceId), monumentInstanceId: monument.instanceId });
         }
         break;
       case "rebelInc":
@@ -147,12 +153,11 @@ export function freeActions(state: GameState, player: PlayerId): FreeActionActio
         }
         break;
       case "capitolInc": {
-        // The strongest allowed reveal, or nothing at all when South alone convinces a majority.
-        const best = bestReveal(state, handLikeCards(state, player, { market: false }));
-        const cards = revealPasses(state, []) ? [] : best;
+        // The strongest allowed reveal.
+        const cards = bestReveal(state, handLikeCards(state, player, { market: false }));
         const cardIds = cards.map((card) => card.cardId);
         if (revealPasses(state, cardIds)) {
-          for (const target of policyTargets(state, cardIds)) {
+          for (const target of policyTargets(state, cardIds, { anyDistrict: true })) {
             actions.push({
               ...base,
               source,
@@ -200,7 +205,9 @@ export function applyFreeAction(state: GameState, action: FreeActionAction, rng:
 
   switch (action.ability) {
     case "kybernetik": {
-      // "Draw to hand limit. If you do, end your action step and skip income step this turn."
+      // "Right after main action, you may draw to hand limit. If you do, end your action step and
+      // skip income step this turn." Politics still happens.
+      if (!state.turn.mainActionDone) throw new IllegalActionError("Kybernetik Inc. comes right after your main action");
       while (state.players[player].hand.length < handLimit(state, player)) {
         if (!drawToHand(state, player, events)) break;
       }
@@ -222,11 +229,15 @@ export function applyFreeAction(state: GameState, action: FreeActionAction, rng:
       replaceAlliance(state, player, action.instanceId, action.target, events);
       break;
     case "architectureInc":
-      construct(state, player, action.instanceIds, action.monumentInstanceId, ARCHITECTURE_COST, rng, events);
+      construct(state, player, action.instanceIds, action.monumentInstanceId, rng, events, { wild: ARCHITECTURE_WILD });
       break;
-    case "rebelInc":
-      recruit(state, player, action.instanceIds, events);
+    case "rebelInc": {
+      // Joe, 2026-11-26: "get +2 partisans if you have fewer partisans": 2 when behind before
+      // recruiting, else the usual 1.
+      const behind = state.players[player].partisans < state.players[otherPlayer(player)].partisans;
+      recruit(state, player, action.instanceIds, events, behind ? 2 : 1);
       break;
+    }
     case "eastTake": {
       if (!eastTakeTargets(state, player, entry.district).includes(action.instanceId)) {
         throw new IllegalActionError("Take a non-event Market card of that district, while under your hand limit");
@@ -237,7 +248,7 @@ export function applyFreeAction(state: GameState, action: FreeActionAction, rng:
       break;
     }
     case "capitolInc":
-      proposePolicy(state, player, action.revealIds, action.discardId, action.district, action.policyId, events);
+      proposePolicy(state, player, action.revealIds, action.discardId, action.district, action.policyId, events, { anyDistrict: true });
       break;
     case "intelNetwork":
       state.pending.push({

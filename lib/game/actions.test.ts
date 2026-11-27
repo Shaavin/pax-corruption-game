@@ -23,7 +23,10 @@ import {
   type GameState,
   type PlayerId,
 } from "./index.ts";
+import { allCards, invariantIssues } from "./diagnostics.ts";
 import { playerDistrictInfluence } from "./influence.ts";
+import { monumentCost } from "./monuments.ts";
+import { emptyTurn } from "./zones.ts";
 import { revealProblem } from "./senate.ts";
 import {
   assert,
@@ -175,6 +178,73 @@ function toPolitics(state: GameState): GameState {
     built.state.phase === "action" ? apply(built.state, { type: "endAction", player: actor }, rng).state : built.state;
   assert(politics.phase === "politics", "Then Politics");
   assert(politics.players[actor].hand.length === 1, "Politics starts with a draw after constructing");
+}
+
+// --- Fund a monument (Joe, 2026-11-26) ------------------------------------------------
+{
+  const { state: start, rng } = playToTurnOne(133);
+  const actor = start.activePlayer;
+  const other = otherPlayer(actor);
+  const monument = start.availableMonuments[0]!;
+  const district = printedDistrict(monument.cardId);
+  start.deck = start.deck.filter((card) => !isKind(card, CardKind.Election));
+  const matching = takeFromDeck(start, (card) => printedDistrict(card.cardId) === district, 6);
+  const elsewhere = takeFromDeck(start, (card) => printedDistrict(card.cardId) !== district)[0]!;
+  start.players[actor].hand = [matching[0]!, elsewhere];
+  toPolitics(start);
+
+  const options = legalActions(start, actor).filter((action) => action.type === "fundMonument");
+  const funds = (card: CardInstance) =>
+    options.some((action) => action.type === "fundMonument" && action.instanceId === card.instanceId && action.monumentInstanceId === monument.instanceId);
+  assert(funds(matching[0]!), "Fund a monument is a Politics option, with a card of its district");
+  assert(!funds(elsewhere), "…not with a card of another district");
+  expectIllegal(
+    () => apply(start, { type: "fundMonument", player: actor, instanceId: elsewhere.instanceId, monumentInstanceId: monument.instanceId }, rng),
+    "Funding with a card of another district",
+  );
+  const funded = apply(start, { type: "fundMonument", player: actor, instanceId: matching[0]!.instanceId, monumentInstanceId: monument.instanceId }, rng).state;
+  const tucked = funded.funding[monument.instanceId] ?? [];
+  assert(tucked.length === 1 && tucked[0]!.faceUp, "The card is tucked under the monument, face up");
+  assert(monumentCost(funded, monument.instanceId) === 4, "…which now costs 4");
+  assert(!funded.players[actor].hand.some((card) => card.instanceId === matching[0]!.instanceId), "…and it left the hand");
+  assert(funded.phase === "income", "Funding is the Politics step's one option");
+
+  // Never down to 0: with 4 tucked it costs 1 and takes no 5th.
+  const full = structuredClone(funded);
+  full.funding[monument.instanceId]!.push(...matching.slice(1, 4).map((card) => ({ ...card, faceUp: true })));
+  assert(monumentCost(full, monument.instanceId) === 1, "Four tucked: it costs 1");
+  full.phase = "politics";
+  full.players[actor].hand = [matching[4]!];
+  assert(
+    !legalActions(full, actor).some((action) => action.type === "fundMonument" && action.monumentInstanceId === monument.instanceId),
+    "No fifth card is offered",
+  );
+  expectIllegal(
+    () => apply(full, { type: "fundMonument", player: actor, instanceId: matching[4]!.instanceId, monumentInstanceId: monument.instanceId }, rng),
+    "A fifth card would make it free",
+  );
+
+  // Not exclusive: the opponent builds it for 4, and takes the tucked card to their own pile too.
+  const theirs = structuredClone(funded);
+  theirs.phase = "action";
+  theirs.activePlayer = other;
+  theirs.turn = emptyTurn();
+  const four = matching.slice(1, 5);
+  theirs.players[other].hand = [...four];
+  const before = theirs.players[other].support[district].length;
+  assert(
+    legalActions(theirs, other).some((action) => action.type === "construct" && action.monumentInstanceId === monument.instanceId && action.instanceIds.length === 4),
+    "The opponent may build it with 4 cards",
+  );
+  expectIllegal(
+    () => apply(theirs, { type: "construct", player: other, instanceIds: [...four, matching[5]!].map((card) => card.instanceId), monumentInstanceId: monument.instanceId }, rng),
+    "Paying the old 5",
+  );
+  const built = apply(theirs, { type: "construct", player: other, instanceIds: four.map((card) => card.instanceId), monumentInstanceId: monument.instanceId }, rng).state;
+  assert(built.players[other].monuments.some((card) => card.instanceId === monument.instanceId), "They build it");
+  assert(built.players[other].support[district].length === before + 5, "…discarding their 4 and the tucked card to their own pile");
+  assert(built.funding[monument.instanceId] === undefined, "…and nothing is left tucked");
+  assert(invariantIssues(built, allCards(theirs).length).length === 0, "No card lost or doubled");
 }
 
 // --- Influence Senate ------------------------------------------------------------
@@ -385,4 +455,4 @@ function toPolitics(state: GameState): GameState {
   );
 }
 
-report("Actions ok: alliance, conspiracy, recruit precondition, construct draw, Senate, Propose Policy, declared victories, ideological, political.");
+report("Actions ok: alliance, conspiracy, recruit precondition, construct draw, Fund a monument, Senate, Propose Policy, declared victories, ideological, political.");

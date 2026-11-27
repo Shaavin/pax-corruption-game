@@ -127,7 +127,7 @@ const firstDay: Lesson = {
       target: "your-hand",
       view: "districts",
       title: "Your own Knights",
-      body: "Answer with your Order of Knights. It reads: \"Each of your Dragonara civil cards now gives you +1 influence. Conspiracy cannot be played in Dragonara.\" Play it in Dragonara.",
+      body: "Answer with your Order of Knights. It reads: \"Each of your Dragonara civil cards now gives you +2 influence. Conspiracy cannot be played in Dragonara.\" Play it in Dragonara.",
       expect: { type: "playAlliance", card: "dragonara-a-1" },
       hint: "Play your Order of Knights in Dragonara.",
       stages: {
@@ -139,7 +139,7 @@ const firstDay: Lesson = {
       target: "lane:dragonara",
       view: "districts",
       title: "Knights at work",
-      body: "Your two Dragonara civils now give 7 and 6: 13 influence to Mildred's 12. And the Lords are tied 1–1, which wins them for nobody.",
+      body: "Your two Dragonara civils now give 8 and 7: 15 influence to Mildred's 12. And the Lords are tied 1–1, which wins them for nobody.",
     },
     {
       kind: "do",
@@ -323,7 +323,7 @@ const legislative: Lesson = {
       now: true,
       target: "turn",
       title: "Politics",
-      body: "Up here, a turn has a step between Action and Income: Politics. Do one of three things: Influence Senate, Propose Policy, or Declare a victory. Or skip it. Victories (all but Civil) are only ever declared here.",
+      body: "Up here, a turn has a step between Action and Income: Politics. Do one of four things: Influence Senate, Propose Policy, Fund a monument, or Declare a victory. Or skip it. Victories (all but Civil) are only ever declared here.",
     },
     {
       kind: "explain",
@@ -482,8 +482,8 @@ const executive: Lesson = {
         // Universities 6
         smarbbit: ["smarbbit-b-16"],
       },
-      // 5 support: Mining Expats, Buddhist Traders, Heritage Society (Shavvinne); Veterans, Masons Guild (Horsard)
-      support: { shavvinne: ["shavvinne-b-16", "shavvinne-b-17", "shavvinne-b-18"], horsard: ["horsard-b-9", "horsard-b-18"] },
+      // 6 support: Mining Expats, Buddhist Traders, Heritage Society (Shavvinne); Veterans, Masons Guild (Horsard); Think Tanks (Dragonara)
+      support: { shavvinne: ["shavvinne-b-16", "shavvinne-b-17", "shavvinne-b-18"], horsard: ["horsard-b-9", "horsard-b-18"], dragonara: ["dragonara-b-13"] },
     },
     opponent: {
       party: PartyId.Conservative,
@@ -566,7 +566,7 @@ const executive: Lesson = {
       target: "decrees",
       view: "table",
       title: "The second decree",
-      body: "Now Profectus: have 4 or more total support than your opponent (every card in all your support piles). You lead 5 to 1.",
+      body: "Now Profectus: have 5 or more total support than your opponent (every card in all your support piles). You lead 6 to 1.",
       expect: { type: "activateDecree", decree: DecreeId.Profectus },
       hint: "Activate Profectus.",
     },
@@ -666,7 +666,7 @@ const untold: Lesson = {
       target: "action-cards",
       view: "districts",
       title: "Free actions",
-      body: "Rebel Inc., your Shavvinne alliance, reads: \"As a free action, you may recruit partisans.\" Free actions come on top of your one main action, each card's once per turn. It waits beside your hand.",
+      body: "Rebel Inc., your Shavvinne alliance, reads: \"As a free action, you may recruit partisans. If you use this ability, get +2 partisans if you have fewer partisans.\" You lead, so it's the usual one. Free actions come on top of your one main action, each card's once per turn. It waits beside your hand.",
     },
     {
       kind: "do",
@@ -686,7 +686,7 @@ const untold: Lesson = {
       target: "supply",
       view: "table",
       title: "Monuments",
-      body: "Permanent buildings with an ability and a political symbol. Build one as your main action by discarding 5 cards of its district from your hand. Four are available.",
+      body: "Permanent buildings with an ability and a political symbol. Build one as your main action by discarding 5 cards of its district from your hand (fewer once it's been funded: more on that soon). Four are available.",
     },
     {
       kind: "do",
@@ -725,6 +725,13 @@ const untold: Lesson = {
       hint: "Take Universities from the Market.",
     },
     {
+      kind: "explain",
+      target: "supply",
+      view: "table",
+      title: "Fund a monument",
+      body: "Vex tucked Fire Breathers under Dragon Gate. That's Fund a monument, the fourth Politics option: tuck one card of a monument's district under it, and it costs one card less to build, for either of you. Dragon Gate takes 4 Dragonara cards now, and whoever builds it takes Fire Breathers into their support pile too. It never drops below 1.",
+    },
+    {
       kind: "do",
       target: "action-cards",
       view: "districts",
@@ -756,7 +763,7 @@ const untold: Lesson = {
   ],
   script: [
     { type: "playCivil", card: "dragonara-b-2", say: "Grand Justices. The law remembers its friends." },
-    { type: "endPolitics" },
+    { type: "fundMonument", card: "dragonara-b-9", monument: MonumentId.DragonGate, say: "A gift for Dragon Gate. Whoever builds it will thank me." },
     { type: "takeMarket" },
   ],
 };

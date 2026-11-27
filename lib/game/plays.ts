@@ -7,6 +7,7 @@ import { getCard } from "../cards/catalog.ts";
 import { EffectId } from "../cards/effects.ts";
 import { CardKind, District, MonumentId, PolicyId, type DistrictId, type PolicyIdValue } from "../cards/schema.ts";
 import {
+  allianceLimit,
   conspiracyBlocked,
   hasActiveAlliance,
   marketRegulationBlocks,
@@ -16,15 +17,17 @@ import {
   policyFrozen,
 } from "./abilities.ts";
 import { discardCards, discardOwn } from "./discard.ts";
+import { constructIssue, fundedCards } from "./monuments.ts";
 import { drawToHand } from "./draw.ts";
 import { IllegalActionError, asIllegal } from "./errors.ts";
-import { canPlayAlliance, canRecruitIn, handLikeCards, printedDistrict, takeHandLike, takeSpend } from "./main.ts";
+import { allianceCount, canPlayAlliance, canRecruitIn, handLikeCards, printedDistrict, takeHandLike, takeSpend } from "./main.ts";
 import type { Rng } from "./rng.ts";
 import {
   convincedVotes,
   influenceSenate,
   policyOptions,
   proposalDistricts,
+  type ProposalOptions,
   revealPasses,
   revealProblem,
   senateTotalVotes,
@@ -69,17 +72,42 @@ export function laneEntryTriggers(state: GameState, actor: PlayerId, card: CardI
     def.kind === CardKind.Civil &&
     def.district === District.Dragonara &&
     hasActiveAlliance(state, actor, EffectId.SwapCivilAfterPlay, District.Dragonara) &&
-    swapCandidates(state, actor).mine.length > 0 &&
-    swapCandidates(state, actor).theirs.length > 0
+    swapPairs(state, actor).length > 0
   ) {
     state.pending.push({ kind: "swapCivils", player: actor });
   }
 }
 
+/**
+ * Urban Aristocrats (2026-11-26: "swap one of your played cards with an opponent's in
+ * Dragonara"): every card in each player's Dragonara lane, civil or alliance, itself included.
+ */
 export function swapCandidates(state: GameState, player: PlayerId): { mine: CardInstance[]; theirs: CardInstance[] } {
-  const civils = (owner: PlayerId) =>
-    state.players[owner].tableau[District.Dragonara].filter((card) => getCard(card.cardId).kind === CardKind.Civil);
-  return { mine: civils(player), theirs: civils(otherPlayer(player)) };
+  const lane = (owner: PlayerId) => [...state.players[owner].tableau[District.Dragonara]];
+  return { mine: lane(player), theirs: lane(otherPlayer(player)) };
+}
+
+/**
+ * Why swapping these two isn't allowed, or null. Any card for any other (Joe, 2026-11-26), as
+ * long as the result is legal: neither player may end up over their Dragonara alliance limit.
+ */
+export function swapProblem(state: GameState, player: PlayerId, mine: CardInstance, theirs: CardInstance): string | null {
+  const isAlliance = (card: CardInstance) => (getCard(card.cardId).kind === CardKind.Alliance ? 1 : 0);
+  const opponent = otherPlayer(player);
+  const lane = District.Dragonara;
+  if (allianceCount(state, player, lane) - isAlliance(mine) + isAlliance(theirs) > allianceLimit(state, player, lane)) {
+    return "You'd have more alliances in Dragonara than you may";
+  }
+  if (allianceCount(state, opponent, lane) - isAlliance(theirs) + isAlliance(mine) > allianceLimit(state, opponent, lane)) {
+    return "They'd have more alliances in Dragonara than they may";
+  }
+  return null;
+}
+
+/** Every allowed Urban Aristocrats swap: [yours, theirs]. */
+export function swapPairs(state: GameState, player: PlayerId): [CardInstance, CardInstance][] {
+  const { mine, theirs } = swapCandidates(state, player);
+  return mine.flatMap((a) => theirs.filter((b) => swapProblem(state, player, a, b) === null).map((b): [CardInstance, CardInstance] => [a, b]));
 }
 
 /** Play a civil or alliance from the hand-like zones into its printed district. */
@@ -149,7 +177,8 @@ export function playConspiracy(state: GameState, player: PlayerId, instanceId: s
 }
 
 /** Recruit partisans: discard 3 same-district cards (needs a card already in that pile). */
-export function recruit(state: GameState, player: PlayerId, instanceIds: readonly string[], events: GameEvent[]): void {
+/** Recruit partisans: discard 3 cards of a district you have support in, and gain `gain` partisans (1; Rebel Inc. 2 when behind). */
+export function recruit(state: GameState, player: PlayerId, instanceIds: readonly string[], events: GameEvent[], gain = 1): void {
   const preview = handLikeCards(state, player, { market: true }).filter((card) => instanceIds.includes(card.instanceId));
   if (martialLawBlocks(state, preview.map((card) => printedDistrict(card.cardId)))) {
     throw new IllegalActionError("Martial Law: actions may discard at most 1 Shavvinne card");
@@ -159,41 +188,48 @@ export function recruit(state: GameState, player: PlayerId, instanceIds: readonl
     throw new IllegalActionError("Recruiting needs a card already in your support pile for that district");
   }
   discardOwn(state, player, spent.cards, events);
-  state.players[player].partisans += 1;
+  state.players[player].partisans += gain;
   events.push({ type: "partisansRecruited", player, count: state.players[player].partisans });
 }
 
-/** Construct a monument by discarding `cost` cards of its district. */
+/**
+ * Construct a monument: discard its cost in cards of its district (5, less 1 per card tucked
+ * under it by Fund a monument), then discard the tucked cards too, all to the builder's support
+ * piles. `wild`: Architecture Inc., whose district's cards count as any district's.
+ */
 export function construct(
   state: GameState,
   player: PlayerId,
   instanceIds: readonly string[],
   monumentInstanceId: string,
-  cost: number,
   rng: Rng,
   events: GameEvent[],
+  options: { wild?: DistrictId } = {},
 ): void {
-  const preview = handLikeCards(state, player, { market: true }).filter((card) => instanceIds.includes(card.instanceId));
-  if (martialLawBlocks(state, preview.map((card) => printedDistrict(card.cardId)))) {
-    throw new IllegalActionError("Martial Law: actions may discard at most 1 Shavvinne card");
-  }
   const monumentIndex = state.availableMonuments.findIndex((entry) => entry.instanceId === monumentInstanceId);
   if (monumentIndex < 0) throw new IllegalActionError("That monument is not available");
   const monument = state.availableMonuments[monumentIndex]!;
-  const spent = asIllegal(() => takeSpend(state, player, instanceIds, cost), "Illegal cards spent");
-  if (printedDistrict(monument.cardId) !== spent.district) {
-    throw new IllegalActionError("Monument district must match the cards spent");
-  }
+  const issue = constructIssue(state, player, instanceIds, monumentInstanceId, options.wild);
+  if (issue) throw new IllegalActionError(issue);
+  const funded = fundedCards(state, monumentInstanceId);
+  const spent = instanceIds.map((id) => takeHandLike(state, player, id, { market: true }));
   state.availableMonuments.splice(monumentIndex, 1);
+  delete state.funding[monumentInstanceId];
   const placed = { ...monument, faceUp: true };
   state.players[player].monuments.push(placed);
-  events.push({ type: "monumentConstructed", player, instanceId: placed.instanceId, cardId: placed.cardId });
+  events.push({
+    type: "monumentConstructed",
+    player,
+    instanceId: placed.instanceId,
+    cardId: placed.cardId,
+    ...(funded.length > 0 ? { funded: funded.length } : {}),
+  });
   if (state.monumentDeck.length > 0) {
     const next = state.monumentDeck.splice(rng.nextInt(state.monumentDeck.length), 1)[0]!;
     state.availableMonuments.push({ ...next, faceUp: true });
     events.push({ type: "monumentReplenished", cardId: next.cardId });
   }
-  discardOwn(state, player, spent.cards, events);
+  discardOwn(state, player, [...spent, ...funded], events);
   state.turn.constructedMonument = true;
 }
 
@@ -212,13 +248,12 @@ export function proposePolicy(
   district: DistrictId,
   policyId: PolicyIdValue | null,
   events: GameEvent[],
+  options: ProposalOptions = {},
 ): void {
   if (new Set(revealIds).size !== revealIds.length) throw new IllegalActionError("Reveal distinct cards");
-  // Edge case (Ian, 2026-11-15): when South events alone convince a majority, the player may
-  // propose without revealing or discarding anything.
-  if (revealIds.length === 0 && !revealPasses(state, [])) {
-    throw new IllegalActionError("Reveal one or more cards");
-  }
+  // Something must be revealed: since 2026-11-26, South events convince Senators only through a
+  // revealed card of their district (the 2026-11-15 "propose with nothing revealed" edge is gone).
+  if (revealIds.length === 0) throw new IllegalActionError("Reveal one or more cards");
   const available = handLikeCards(state, player, { market: false });
   const revealed = revealIds.map((id) => {
     const card = available.find((entry) => entry.instanceId === id);
@@ -237,7 +272,7 @@ export function proposePolicy(
     throw new IllegalActionError("Those cards do not convince more than half of the Senate");
   }
   if (!state.districtOrder.includes(district)) throw new IllegalActionError("Unknown district");
-  if (!proposalDistricts(state, revealedCardIds).has(district)) {
+  if (!proposalDistricts(state, revealedCardIds, options).has(district)) {
     throw new IllegalActionError("Change a policy in a district where you convinced a Senator");
   }
   if (policyFrozen(state, district)) {

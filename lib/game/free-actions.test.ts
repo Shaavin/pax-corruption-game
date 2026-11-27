@@ -6,6 +6,7 @@ import { resolveElection } from "./election.ts";
 import { apply, legalActions } from "./engine.ts";
 import { freeActions } from "./free-actions.ts";
 import { networkDistricts } from "./network.ts";
+import { proposalDistricts } from "./senate.ts";
 import { playerDistrictInfluence } from "./influence.ts";
 import type { Action, CardInstance, GameEvent, GameState, PlayerId } from "./types.ts";
 import { assert, expectIllegal, playToTurnOne, report, stripElections } from "./test-helpers.ts";
@@ -89,17 +90,51 @@ function freeOf(state: GameState, player: PlayerId, ability: string) {
   assert(next.players[them].tableau[District.Dragonara].some((card) => card.instanceId === mineOld.instanceId), "Your 3 is now theirs");
 }
 
+// Urban Aristocrats swaps any played cards (Joe, 2026-11-26), as long as nobody ends up over
+// their alliance limit in Dragonara.
+{
+  const { state, rng, me, them } = fresh(509);
+  const urban = place(state, me, "Urban Aristocrats", District.Dragonara);
+  const mineCivil = place(state, me, "Fire Breathers", District.Dragonara);
+  const theirAlliance = place(state, them, "Kybernetik Inc.", District.Dragonara);
+  const theirCivil = place(state, them, "Technocrats", District.Dragonara);
+  const played = take(state, "Tinkers", District.Dragonara);
+  state.players[me].hand = [played];
+  const paused = run(state, { type: "playCivil", player: me, instanceId: played.instanceId }, rng).state;
+  const offered = legalActions(paused, me).filter((action) => action.type === "chooseSwap" && action.swap);
+  const offers = (a: CardInstance, b: CardInstance) =>
+    offered.some((action) => action.type === "chooseSwap" && action.swap?.mine === a.instanceId && action.swap.theirs === b.instanceId);
+  assert(offers(urban, theirAlliance), "An alliance for an alliance (Urban Aristocrats itself included)");
+  assert(offers(mineCivil, theirCivil), "A civil for a civil, as before");
+  assert(!offers(mineCivil, theirAlliance), "Not a civil for their alliance: you'd hold two alliances there");
+  assert(!offers(urban, theirCivil), "Not your alliance for their civil: they'd hold two");
+  expectIllegal(
+    () => run(paused, { type: "chooseSwap", player: me, swap: { mine: mineCivil.instanceId, theirs: theirAlliance.instanceId } }, rng),
+    "Swapping into two alliances",
+  );
+  const next = run(paused, { type: "chooseSwap", player: me, swap: { mine: urban.instanceId, theirs: theirAlliance.instanceId } }, rng).state;
+  assert(next.players[me].tableau[District.Dragonara].some((card) => card.instanceId === theirAlliance.instanceId), "Their Kybernetik Inc. is now yours");
+  assert(next.players[them].tableau[District.Dragonara].some((card) => card.instanceId === urban.instanceId), "…and your Urban Aristocrats theirs");
+}
+
 // --- Kybernetik Inc. -----------------------------------------------------------------
 {
   const { state, rng, me } = fresh(503);
   const source = place(state, me, "Kybernetik Inc.", District.Dragonara);
-  state.players[me].hand = [take(state, "Veterans", District.Horsard)];
+  const veterans = take(state, "Veterans", District.Horsard);
+  state.players[me].hand = [veterans, take(state, "Tinkers", District.Dragonara)];
   const marketBefore = state.market.length;
-  let next = run(state, { type: "freeAction", player: me, source: source.instanceId, ability: "kybernetik" }, rng).state;
-  assert(next.players[me].hand.length === 5, "Kybernetik draws to the hand limit");
-  assert(next.phase === "politics", "…ends the action step (replacing the main action)");
+  const kybernetik: Action = { type: "freeAction", player: me, source: source.instanceId, ability: "kybernetik" };
+  // "Right after main action" (Joe, 2026-11-26): no longer in place of it.
+  assert(!legalActions(state, me).some((action) => action.type === "freeAction" && action.ability === "kybernetik"), "Kybernetik isn't offered before the main action");
+  expectIllegal(() => run(state, kybernetik, rng), "Kybernetik before the main action");
+  let next = run(state, { type: "playCivil", player: me, instanceId: veterans.instanceId }, rng).state;
+  assert(next.phase === "action" && next.turn.mainActionDone, "The main action leaves the action step open");
+  next = run(next, kybernetik, rng).state;
+  assert(next.players[me].hand.length === 5, "Kybernetik then draws to the hand limit");
+  assert(next.phase === "politics", "…ends the action step, and Politics follows");
   next = run(next, { type: "endPolitics", player: me }, rng).state;
-  assert(next.activePlayer !== me, "…and skips income");
+  assert(next.activePlayer !== me, "…and income is skipped");
   assert(next.market.length === marketBefore, "No Market refill or take without income");
 }
 
@@ -153,26 +188,48 @@ function freeOf(state: GameState, player: PlayerId, ability: string) {
   const rebel = place(state, me, "Rebel Inc.", District.Shavvinne);
   // Two alliances in one lane need Model Society (limit 2), or the limit check discards one.
   state.players[me].monuments.push(monument(MonumentId.ModelSociety));
-  // Build Dragon Gate with four Dragonara cards.
+  // Build Dragon Gate (Dragonara) with three Dragonara cards and two Shavvinne ones: Architecture
+  // Inc. makes Shavvinne cards wild (Joe, 2026-11-26; it used to build with only 4 cards).
   state.availableMonuments = [monument(MonumentId.DragonGate)];
-  const four = ["Tinkers", "Engineers", "Gardeners", "Fire Breathers"].map((name) => take(state, name, District.Dragonara));
+  const three = ["Tinkers", "Engineers", "Gardeners"].map((name) => take(state, name, District.Dragonara));
+  const wild = ["TuWang Gang", "Teachers"].map((name) => take(state, name, District.Shavvinne));
   const keep = spare(state);
-  state.players[me].hand = [...four, keep];
-  let next = run(state, {
+  state.players[me].hand = [...three, ...wild, keep];
+  const build = (ids: CardInstance[]): Action => ({
     type: "freeAction",
     player: me,
     source: architect.instanceId,
     ability: "architectureInc",
-    instanceIds: four.map((card) => card.instanceId),
+    instanceIds: ids.map((card) => card.instanceId),
     monumentInstanceId: MonumentId.DragonGate,
-  }, rng).state;
-  assert(next.players[me].monuments.some((card) => card.cardId === MonumentId.DragonGate), "Architecture Inc. builds with only 4 cards");
+  });
+  expectIllegal(() => run(state, build([...three, wild[0]!]), rng), "Architecture Inc. no longer builds with 4 cards");
+  expectIllegal(() => apply(state, { type: "construct", player: me, instanceIds: [...three, ...wild].map((card) => card.instanceId), monumentInstanceId: MonumentId.DragonGate }, rng), "Shavvinne cards aren't wild for a normal build");
+  let next = run(state, build([...three, ...wild]), rng).state;
+  assert(next.players[me].monuments.some((card) => card.cardId === MonumentId.DragonGate), "Architecture Inc. builds with Shavvinne cards as wild");
+  assert(next.players[me].support[District.Shavvinne].length === 2, "…the wild cards go to their own district's pile");
   assert(!next.turn.mainActionDone, "…as a free action");
 
-  const three = ["Time Travelers", "Runes Tavern", "Dune Clans"].map((name) => take(next, name, District.Dragonara));
-  next.players[me].hand = [...three, keep];
-  next = run(next, { type: "freeAction", player: me, source: rebel.instanceId, ability: "rebelInc", instanceIds: three.map((c) => c.instanceId) }, rng).state;
-  assert(next.players[me].partisans === 1, "Rebel Inc. recruits as a free action");
+  const recruits = ["Time Travelers", "Runes Tavern", "Dune Clans"].map((name) => take(next, name, District.Dragonara));
+  next.players[me].hand = [...recruits, keep];
+  next = run(next, { type: "freeAction", player: me, source: rebel.instanceId, ability: "rebelInc", instanceIds: recruits.map((c) => c.instanceId) }, rng).state;
+  assert(next.players[me].partisans === 1, "Rebel Inc. recruits as a free action (not behind: the usual 1)");
+}
+
+// Rebel Inc. when behind (Joe, 2026-11-26: "If you're behind, get +2. Else, get +1").
+{
+  const { state, rng, me, them } = fresh(508);
+  const rebel = place(state, me, "Rebel Inc.", District.Shavvinne);
+  state.players[me].partisans = 1;
+  state.players[them].partisans = 2;
+  state.players[me].support[District.Dragonara].push(take(state, "Engineers", District.Dragonara));
+  const recruits = ["Time Travelers", "Runes Tavern", "Dune Clans"].map((name) => take(state, name, District.Dragonara));
+  state.players[me].hand = [...recruits, spare(state)];
+  const next = run(state, { type: "freeAction", player: me, source: rebel.instanceId, ability: "rebelInc", instanceIds: recruits.map((c) => c.instanceId) }, rng).state;
+  assert(next.players[me].partisans === 3, "Behind 1–2, Rebel Inc. recruits 2 partisans");
+  const plain = structuredClone(state);
+  const main = run(plain, { type: "recruit", player: me, instanceIds: recruits.map((c) => c.instanceId) }, rng).state;
+  assert(main.players[me].partisans === 2, "…a recruit without it still gets 1");
 }
 
 // --- Capitol Inc. --------------------------------------------------------------------
@@ -195,6 +252,23 @@ function freeOf(state: GameState, player: PlayerId, ability: string) {
   }, rng).state;
   assert(next.policy[District.Smarbbit] === PolicyId.SmarbbitA, "Capitol Inc. proposes a policy as a free action");
   assert(next.phase === "action", "…in the action step, before Politics");
+
+  // Joe, 2026-11-26: "you may choose any district policy as target" — here Horsard, where no
+  // Senator was convinced. A normal proposal could only change Smarbbit's.
+  assert(!proposalDistricts(state, [reveal[0]!.cardId]).has(District.Horsard), "A normal proposal can't reach Horsard");
+  const offered = freeActions(state, me).filter((action) => action.type === "freeAction" && action.ability === "capitolInc");
+  assert(offered.some((action) => "district" in action && action.district === District.Horsard), "Capitol Inc. offers Horsard's policy too");
+  const anywhere = run(state, {
+    type: "freeAction",
+    player: me,
+    source: capitol.instanceId,
+    ability: "capitolInc",
+    revealIds: [reveal[0]!.instanceId],
+    discardId: reveal[0]!.instanceId,
+    district: District.Horsard,
+    policyId: PolicyId.HorsardA,
+  }, rng).state;
+  assert(anywhere.policy[District.Horsard] === PolicyId.HorsardA, "…and changes it");
 }
 
 // --- Intel Network ---------------------------------------------------------------------
@@ -377,4 +451,4 @@ function freeOf(state: GameState, player: PlayerId, ability: string) {
   assert(next.players[me].hand.length === handLimit(state, me) + 1, "Stuck draw goes past the hand limit");
 }
 
-report("Free actions and choices ok: Currency Ballots, Urban Aristocrats, Kybernetik, Foreign Inc., Century Inc., Architecture Inc., Rebel Inc., Capitol Inc., Intel Network, People's Press, Space Academy, network (Planet Next, Consultative Office), State Enterprise, Diet of Saints, main-action ruling (no dead ends, stuck draw).");
+report("Free actions and choices ok: Currency Ballots, Urban Aristocrats (any played cards), Kybernetik (after the main action), Foreign Inc., Century Inc., Architecture Inc. (Shavvinne wild), Rebel Inc. (+2 when behind), Capitol Inc. (any district's policy), Intel Network, People's Press, Space Academy, network (Planet Next, Consultative Office), State Enterprise, Diet of Saints, main-action ruling (no dead ends, stuck draw).");

@@ -149,7 +149,8 @@ for (const [path, weights] of [
   for (const entry of cases) worst = Math.max(worst, Math.abs(netLogit(weights, { sparse: entry.sparse, dense: Float32Array.from(entry.dense) }) - entry.logit));
   assert(cases.length >= 8 && worst < 1e-3, `${path}: TypeScript matches PyTorch on ${cases.length} positions (worst difference ${worst})`);
 
-  const state = midGame(5, 60);
+  // A game still in progress (rule changes move when a fixed deal ends).
+  const state = [60, 40, 25].map((moves) => midGame(5, moves)).find((position) => !position.victory)!;
   const chances = [winChance(weights, state, 0), winChance(weights, state, 1)];
   assert(chances.every((chance) => chance > 0 && chance < 1), `${path}: win chances are probabilities`);
 }

@@ -3,7 +3,7 @@ import { CardKind, type DistrictId, type PolicyIdValue } from "../cards/schema.t
 import { policyFrozen } from "./abilities.ts";
 import { discardCards } from "./discard.ts";
 import type { CardInstance, GameEvent, GameState, PlayerId } from "./types.ts";
-import { senateAlwaysConvinced } from "./world.ts";
+import { southConvinces } from "./world.ts";
 
 export const SENATE_SIZE = 5;
 
@@ -24,12 +24,21 @@ export function senateVotesNeeded(state: GameState): number {
 
 /**
  * Does any revealed card convince this Senator?
+ * - A South event for its district (Joe, 2026-11-26): any revealed card of that district
+ *   convinces it, whatever its value or kind, conspiracy Senators included. Nothing is
+ *   convinced without a reveal (the old South "always convinced" is gone).
  * - Civil: a revealed civil of the same district with a higher value.
  * - Alliance: a revealed alliance of the same district.
  * - Conspiracy: never.
  */
-export function senatorConvinced(senatorCardId: string, revealedCardIds: readonly string[]): boolean {
+export function senatorConvinced(state: GameState, senatorCardId: string, revealedCardIds: readonly string[]): boolean {
   const senator = getCard(senatorCardId);
+  if ("district" in senator && southConvinces(state, senator.district)) {
+    return revealedCardIds.some((id) => {
+      const card = getCard(id);
+      return "district" in card && card.district === senator.district;
+    });
+  }
   if (senator.kind === CardKind.Civil) {
     return revealedCardIds.some((id) => {
       const card = getCard(id);
@@ -49,9 +58,9 @@ export function senatorConvinced(senatorCardId: string, revealedCardIds: readonl
   return false;
 }
 
-/** Senate indexes one revealed card convinces by itself (South's always-convinced aside). */
+/** Senate indexes one revealed card convinces by itself. */
 export function senatorsConvincedBy(state: GameState, cardId: string): number[] {
-  return state.senate.flatMap((senator, index) => (senatorConvinced(senator.cardId, [cardId]) ? [index] : []));
+  return state.senate.flatMap((senator, index) => (senatorConvinced(state, senator.cardId, [cardId]) ? [index] : []));
 }
 
 /**
@@ -75,14 +84,26 @@ export function revealProblem(state: GameState, revealedCardIds: readonly string
 
 /**
  * The strongest allowed reveal from `cards`: per district, the highest civil that convinces
- * someone (it covers every lower one) and one alliance that does. Convinces the most votes.
+ * someone (it covers every lower one) and one alliance that does. Where a South event makes
+ * any card of the district convince all its Senators, one card of it does: the one cheapest to
+ * give up (a conspiracy, else the lowest civil, else an alliance). Convinces the most votes.
  */
 export function bestReveal<T extends { cardId: string }>(state: GameState, cards: readonly T[]): T[] {
   const best = new Map<string, T>();
+  const worth = (card: T) => {
+    const def = getCard(card.cardId);
+    return def.kind === CardKind.Conspiracy ? 0 : def.kind === CardKind.Civil ? def.influence : 100;
+  };
   for (const card of cards) {
     const def = getCard(card.cardId);
+    if (!("district" in def) || senatorsConvincedBy(state, card.cardId).length === 0) continue;
+    if (southConvinces(state, def.district)) {
+      const key = `${def.district}:south`;
+      const current = best.get(key);
+      if (!current || worth(card) < worth(current)) best.set(key, card);
+      continue;
+    }
     if (def.kind !== CardKind.Civil && def.kind !== CardKind.Alliance) continue;
-    if (senatorsConvincedBy(state, card.cardId).length === 0) continue;
     const key = `${def.district}:${def.kind}`;
     const current = best.get(key);
     const currentDef = current ? getCard(current.cardId) : null;
@@ -95,20 +116,7 @@ export function bestReveal<T extends { cardId: string }>(state: GameState, cards
 
 /** Senate indexes (left → right) the revealed cards would convince. */
 export function convincedSenators(state: GameState, revealedCardIds: readonly string[]): number[] {
-  return state.senate.flatMap((card, index) =>
-    senatorConvinced(card.cardId, revealedCardIds) || autoConvinced(state, card.cardId) ? [index] : [],
-  );
-}
-
-/**
- * South "<district> cards in Senate are always convinced" (expansion): civil and alliance
- * Senators only. Conspiracy Senators are never convinced, South or not (Ian, 2026-11-15;
- * reverses the 2026-11-13 "conspiracies included" ruling).
- */
-function autoConvinced(state: GameState, cardId: string): boolean {
-  const def = getCard(cardId);
-  if (def.kind === CardKind.Conspiracy) return false;
-  return "district" in def && senateAlwaysConvinced(state, def.district);
+  return state.senate.flatMap((card, index) => (senatorConvinced(state, card.cardId, revealedCardIds) ? [index] : []));
 }
 
 export function convincedVotes(state: GameState, revealedCardIds: readonly string[]): number {
@@ -128,13 +136,21 @@ export function policyOptions(state: GameState, district: DistrictId): (PolicyId
   return POLICIES.filter((policy) => policy.district === district).map((policy) => policy.id);
 }
 
+/** How a proposal may choose its target. `anyDistrict`: Capitol Inc.'s free proposal, any district's policy. */
+export type ProposalOptions = { anyDistrict?: boolean };
+
 /**
- * Districts whose policy a proposal may change: the districts of the Senators it convinces,
- * whether a revealed card convinced them or a South event did (Joe, 2026-11-15; refines the
- * 2026-11-14 "district of a convincing revealed card" ruling). Conspiracy Senators are never
- * convinced, so they never open a district.
+ * Districts whose policy a proposal may change: the districts of the Senators it convinces
+ * (Joe, 2026-11-15; refines the 2026-11-14 "district of a convincing revealed card" ruling).
+ * Conspiracy Senators are convinced only through a South event, and then open their district.
  */
-export function proposalDistricts(state: GameState, revealedCardIds: readonly string[]): Set<DistrictId> {
+export function proposalDistricts(
+  state: GameState,
+  revealedCardIds: readonly string[],
+  options: ProposalOptions = {},
+): Set<DistrictId> {
+  // Capitol Inc. (2026-11-26): "you may choose any district policy as target."
+  if (options.anyDistrict) return new Set(state.districtOrder);
   const districts = new Set<DistrictId>();
   for (const index of convincedSenators(state, revealedCardIds)) {
     const def = getCard(state.senate[index]!.cardId);
@@ -147,8 +163,9 @@ export function proposalDistricts(state: GameState, revealedCardIds: readonly st
 export function policyTargets(
   state: GameState,
   revealedCardIds: readonly string[],
+  options: ProposalOptions = {},
 ): { district: DistrictId; policyId: PolicyIdValue | null }[] {
-  const open = proposalDistricts(state, revealedCardIds);
+  const open = proposalDistricts(state, revealedCardIds, options);
   return state.districtOrder
     .filter((district) => open.has(district) && !policyFrozen(state, district))
     .flatMap((district) =>

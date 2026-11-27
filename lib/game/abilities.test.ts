@@ -218,7 +218,7 @@ function fresh(seed: number) {
   place(state, me, "Order of Knights", District.Dragonara);
   place(state, me, "Tinkers", District.Dragonara); // 5
   place(state, me, "Engineers", District.Dragonara); // 5
-  assert(playerDistrictInfluence(state, me, District.Dragonara).total === 12, "Order of Knights: +1 per civil");
+  assert(playerDistrictInfluence(state, me, District.Dragonara).total === 14, "Order of Knights: +2 per civil (Joe, 2026-11-26)");
   const plot = take(state, "Broken Chains", District.Dragonara);
   state.players[them].hand = [plot];
   assert(playBlockReason(state, plot.cardId) !== null, "Order of Knights blocks conspiracies there");
@@ -227,7 +227,7 @@ function fresh(seed: number) {
   place(state, them, "District Governor", District.Dragonara);
   const knights = alliancesInPlay(state).find((a) => a.owner === me)!;
   assert(isSilenced(state, knights), "Opponent's Governor silences your Knights");
-  assert(playerDistrictInfluence(state, me, District.Dragonara).total === 10, "…so no +1s");
+  assert(playerDistrictInfluence(state, me, District.Dragonara).total === 10, "…so no +2s");
   assert(playBlockReason(state, plot.cardId) === null, "…and conspiracies are allowed again");
   assert(policyFrozen(state, District.Dragonara), "A live Governor freezes the district's policy");
 

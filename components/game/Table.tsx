@@ -191,6 +191,7 @@ function TableView({
     race: model.race,
     builtMonuments: { you: model.you.monuments.length, opponent: model.opponent.monuments.length },
     monuments: model.availableMonuments,
+    monumentFunding: model.monumentFunding,
     deckCount: model.deckCount,
     takeableIds: interaction?.takeableMarketIds,
     marketMode: interaction?.marketMode,

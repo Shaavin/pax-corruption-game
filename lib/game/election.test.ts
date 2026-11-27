@@ -251,7 +251,7 @@ function runElection(state: GameState, rng: Rng): GameState {
   assert(!meetsDecree(state, 1, DecreeId.DeJures), "Player 2 now fails d2 (5 against 4)");
 }
 
-// --- Profectus: 4+ more total support (Joe's updated card, 2026-11-16) ---------------------
+// --- Profectus: 5+ more total support (Joe's updated cards: 7+ to 4+ on 2026-11-16, 5+ on 2026-11-26) ---
 {
   const { state } = playToTurnOne(262);
   const [d1, d2] = state.districtOrder as [DistrictId, DistrictId];
@@ -263,7 +263,9 @@ function runElection(state: GameState, rng: Rng): GameState {
   state.players[1].support[d1] = pile(1);
   assert(!meetsDecree(state, 0, DecreeId.Profectus), "A lead of 3 isn't enough");
   state.players[0].support[d2].push(...pile(1));
-  assert(meetsDecree(state, 0, DecreeId.Profectus), "A lead of 4 across districts meets Profectus");
+  assert(!meetsDecree(state, 0, DecreeId.Profectus), "Nor is a lead of 4");
+  state.players[0].support[d1].push(...pile(1));
+  assert(meetsDecree(state, 0, DecreeId.Profectus), "A lead of 5 across districts meets Profectus");
   assert(!meetsDecree(state, 1, DecreeId.Profectus), "…and the trailing player doesn't");
 }
 

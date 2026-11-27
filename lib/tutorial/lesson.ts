@@ -18,6 +18,8 @@ export type Expect =
   | { type: "playCivil" | "playAlliance" | "playConspiracy" | "influenceSenate" | "takeMarket"; card?: string }
   | { type: "recruit"; district?: DistrictId }
   | { type: "construct"; monument?: MonumentIdValue }
+  /** Fund a monument: `card` tucked under `monument`. */
+  | { type: "fundMonument"; card?: string; monument?: MonumentIdValue }
   | { type: "proposePolicy"; district?: DistrictId; policy?: PolicyIdValue | null }
   | { type: "declareVictory"; victory?: VictoryKindId }
   | { type: "activateDecree"; decree?: DecreeIdValue }
@@ -165,6 +167,11 @@ export function matches(expect: Expect, action: Action): boolean {
     case "construct": {
       const monument = expect.type === "construct" ? expect.monument : undefined;
       return monument === undefined || action.monumentInstanceId === monument;
+    }
+    case "fundMonument": {
+      if (expect.type !== "fundMonument") return false;
+      if (expect.monument !== undefined && action.monumentInstanceId !== expect.monument) return false;
+      return sameCard(action.instanceId, expect.card);
     }
     case "proposePolicy": {
       if (expect.type !== "proposePolicy") return false;

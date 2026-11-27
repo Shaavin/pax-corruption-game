@@ -6,7 +6,7 @@ import { decreeFlipped, supportCount } from "./world.ts";
 import { otherPlayer } from "./zones.ts";
 
 /** Profectus: total support lead needed (card updated by Joe, 2026-11-16; was 7). */
-export const PROFECTUS_SUPPORT_LEAD = 4;
+export const PROFECTUS_SUPPORT_LEAD = 5;
 export const ACADEMIA_INFLUENCE_LEAD = 20;
 
 export function initialDecrees(): DecreeState[] {

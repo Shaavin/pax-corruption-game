@@ -136,7 +136,7 @@ export function martialLawBlocks(state: GameState, printedDistricts: readonly Di
 export function conspiracyBlocked(state: GameState, district: DistrictId): boolean {
   return activeAlliances(state).some(
     (alliance) =>
-      alliance.effectIds.includes(EffectId.CivilPlusOneBlockConspiracy) && alliance.printed === district,
+      alliance.effectIds.includes(EffectId.CivilPlusTwoBlockConspiracy) && alliance.printed === district,
   );
 }
 

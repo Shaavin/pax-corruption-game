@@ -212,6 +212,12 @@ export type GameState = {
   market: CardInstance[];
   deck: CardInstance[];
   availableMonuments: CardInstance[];
+  /**
+   * Fund a monument (Joe, 2026-11-26): cards tucked under each available monument, by its
+   * instance id. Face up. Each lowers that monument's cost by 1 for both players (never below 1);
+   * whoever builds it discards them with their own cards.
+   */
+  funding: Record<string, CardInstance[]>;
   monumentDeck: CardInstance[];
   decrees: DecreeState[];
   electionsOut: CardInstance[];
@@ -285,6 +291,14 @@ export type InfluenceSenateAction = {
   type: "influenceSenate";
   player: PlayerId;
   instanceId: string;
+};
+
+/** Politics: tuck a card of a monument's district under that available monument (Fund a monument). */
+export type FundMonumentAction = {
+  type: "fundMonument";
+  player: PlayerId;
+  instanceId: string;
+  monumentInstanceId: string;
 };
 
 /** Politics: reveal cards to convince a Senate majority, discard one, change a policy. */
@@ -414,6 +428,7 @@ export type Action =
   | EndActionAction
   | InfluenceSenateAction
   | ProposePolicyAction
+  | FundMonumentAction
   | DeclareVictoryAction
   | EndPoliticsAction
   | PassIncomeAction
@@ -492,6 +507,19 @@ export type GameEvent =
       player: PlayerId;
       instanceId: string;
       cardId: string;
+      /** Cards that had been tucked under it (Fund a monument), discarded with the builder's. */
+      funded?: number;
+    }
+  | {
+      type: "monumentFunded";
+      player: PlayerId;
+      /** The tucked card. */
+      instanceId: string;
+      cardId: string;
+      monumentInstanceId: string;
+      monumentCardId: string;
+      /** What the monument costs now. */
+      cost: number;
     }
   | { type: "monumentReplenished"; cardId: string }
   | { type: "politicsStarted"; player: PlayerId }

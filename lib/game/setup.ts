@@ -164,6 +164,7 @@ export function createGame(rng: Rng, options: GameOptions): GameState {
     market: [],
     deck: [],
     availableMonuments: [],
+    funding: {},
     monumentDeck: [],
     decrees: initialDecrees(),
     electionsOut: [],

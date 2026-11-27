@@ -42,6 +42,11 @@
  * Passing the last policy was what a player one copy from Ideological Victory seldom could do.
  * The opponent's is counted from what can be seen of their cards: those they took face up, and
  * their network.
+ *
+ * Fund a monument (`pax-features-7`, 2026-11-26): the cards tucked under each monument while it's
+ * up for building (each lowers its cost of 5 by 1, for either player), the cheapest one's cost,
+ * and how many cards each seat is short of a monument it could build (the opponent's counted
+ * from what can be seen).
  */
 import { getCard, MAIN_DECK, MONUMENTS, PARTIES, POLICIES } from "../cards/catalog.ts";
 import { EVENTS, ExpansionVictory, isEventId, WORLD_POWERS } from "../cards/expansion.ts";
@@ -53,13 +58,14 @@ import { playerDistrictInfluence } from "./influence.ts";
 import { victoryRace } from "./progress.ts";
 import { Phase, type CardInstance, type GameState, type PlayerId } from "./types.ts";
 import { DRAW_PLANS } from "./setup.ts";
-import { handLikeCards } from "./main.ts";
+import { CONSTRUCT_COST, handLikeCards, printedDistrict } from "./main.ts";
+import { fundedCards, monumentCost } from "./monuments.ts";
 import { bestReveal, convincedVotes, proposalDistricts, senateVotesNeeded } from "./senate.ts";
 import { IDEOLOGICAL_COUNT, privateSymbols, totalSymbols } from "./victory.ts";
 import { iconsDisabled, militaryLeadBonus, relationLeads, supportCount, victoryActive } from "./world.ts";
 import { otherPlayer } from "./zones.ts";
 
-export const FEATURE_VERSION = "pax-features-6";
+export const FEATURE_VERSION = "pax-features-7";
 
 /** Victories Legacy & Diplomacy can leave inactive. */
 const SWITCHABLE = ["military", "popularity", "ideological", "cultural", "diplomatic"];
@@ -140,6 +146,8 @@ const DENSE_NAMES = (() => {
     names.push(`propose:votes${whose}`, `propose:passes${whose}`);
     for (const district of DISTRICTS) names.push(`propose:${district}:opens${whose}`);
   }
+  for (const monument of MONUMENTS) names.push(`monument:${monument.id}:funded`);
+  names.push("monument:cheapestCost", "monument:shortMine", "monument:shortTheirsSeen");
   return names;
 })();
 
@@ -433,6 +441,31 @@ function fillDense(state: GameState, seat: PlayerId, dense: Float32Array, counts
     push(share >= 1 ? 1 : 0);
     for (const district of DISTRICTS) push(opens.has(district) ? 1 : 0);
   }
+  // Fund a monument: what's tucked under each, the cheapest cost, and how short each seat is.
+  for (const monument of MONUMENTS) {
+    const up = state.availableMonuments.find((entry) => entry.cardId === monument.id);
+    push(up ? fundedCards(state, up.instanceId).length / 4 : 0);
+  }
+  const theirsSeen = [...opponent.hand.filter((card) => card.faceUp), ...opponent.network];
+  const ownCards = handLikeCards(state, seat, { market: true });
+  let cheapest = CONSTRUCT_COST;
+  let shortMine = CONSTRUCT_COST;
+  let shortTheirs = CONSTRUCT_COST;
+  for (const monument of state.availableMonuments) {
+    const cost = monumentCost(state, monument.instanceId);
+    const district = printedDistrict(monument.cardId);
+    const of = (cards: CardInstance[]) =>
+      cards.filter((card) => {
+        const def = getCard(card.cardId);
+        return "district" in def && def.district === district;
+      }).length;
+    cheapest = Math.min(cheapest, cost);
+    shortMine = Math.min(shortMine, Math.max(0, cost - of(ownCards)));
+    shortTheirs = Math.min(shortTheirs, Math.max(0, cost - of(theirsSeen)));
+  }
+  push(cheapest / CONSTRUCT_COST);
+  push(shortMine / CONSTRUCT_COST);
+  push(shortTheirs / CONSTRUCT_COST);
   if (at !== DENSE_COUNT) throw new Error(`Encoded ${at} dense features, expected ${DENSE_COUNT}`);
 }
 

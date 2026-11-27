@@ -45,7 +45,7 @@ export function playerDistrictInfluence(
   const seat = state.players[player];
   const tableau = seat.tableau[district];
   const secularism = district === District.Shavvinne && policyActive(state, PolicyId.ShavvinneB);
-  const knights = hasActiveAlliance(state, player, EffectId.CivilPlusOneBlockConspiracy, district);
+  const knights = hasActiveAlliance(state, player, EffectId.CivilPlusTwoBlockConspiracy, district);
 
   let civil = 0;
   let bonus = 0;
@@ -56,8 +56,8 @@ export function playerDistrictInfluence(
     if (card.kind !== CardKind.Civil) continue;
     played += 1;
     civil += secularism && card.influence <= 5 ? card.influence * 2 : card.influence;
-    // Order of Knights: "Each of your <district> civil cards now gives you +1 influence."
-    if (knights && card.district === district) bonus += 1;
+    // Order of Knights: "Each of your <district> civil cards now gives you +2 influence."
+    if (knights && card.district === district) bonus += 2;
   }
   // Economic Reform: "Each played card in Horsard, even alliance, gains +3 influence."
   if (district === District.Horsard && policyActive(state, PolicyId.HorsardA)) bonus += 3 * played;

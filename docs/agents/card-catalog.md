@@ -14,6 +14,8 @@ Marketing site: [pax-corruption-marketing.vercel.app](https://pax-corruption-mar
 
 When text in `lib/cards` disagrees with the TTS faces, the TTS faces win.
 
+**Balance batch (2026-11-26, Joe via Ian).** Screenshots of 15 faces override the TTS save for these cards: all four Order of Knights (+2), Kybernetik Inc., Urban Aristocrats, Architecture Inc., Rebel Inc., Capitol Inc., both sides of Profectus (5+), and the South events Thunder Bail-out, Pari Passu, Podium Baptism, and Silenced Hill ("<district> cards now convince all <district> Senators"). Changed faces got new file names (`-v2`, Profectus `-v3`); the old images were removed. With them came a new Politics option, [Fund a monument](game-rules.md#fund-a-monument). What the new texts mean in play was ruled the same day: [open-questions.md](open-questions.md#2026-11-26-joe-via-ian-balance-batch-and-fund-a-monument).
+
 **Card updates (2026-11-18, Joe via Ian).** Screenshots of 12 revised faces override the TTS save for these cards until the save is updated: Space Academy (was Space Agency; id `space-agency` unchanged), Roman Basilica, Planet Next, Consultative Office, Divine Inquisitors, Innovative Party, the East events Magic Realms / Private Islands / Rocky Bunkers / Unaccounted Pop., and both sides of the Cultural victory. Their images are `-v2` files (a changed face gets a new file name; see `app/sw.js`).
 
 ### TTS deck map
@@ -128,10 +130,10 @@ Current printed text. Every alliance also prints `OR — It counts 2x many votes
 
 | Id | Name | Text |
 | --- | --- | --- |
-| `dragonara-a-1` | Order of Knights | Each of your Dragonara civil cards now gives you +1 influence. Conspiracy cannot be played in Dragonara. |
-| `dragonara-a-2` | Kybernetik Inc. ✱ | As a free action, you may draw to hand limit. If you do, **end your action step** and skip income step this turn. |
+| `dragonara-a-1` | Order of Knights | Each of your Dragonara civil cards now gives you **+2** influence. Conspiracy cannot be played in Dragonara. (2026-11-26; was +1.) |
+| `dragonara-a-2` | Kybernetik Inc. ✱ | **Right after main action**, you may draw to hand limit. If you do, **end your action step** and skip income step this turn. (2026-11-26; was "As a free action".) |
 | `dragonara-a-3`, `-a-4` | District Governor ✱ | This card silences opponent's alliances in Dragonara. The policy in Dragonara cannot be targeted by **policy proposal**. |
-| `dragonara-a-5` | Urban Aristocrats | After playing a civil card in Dragonara, you may swap one of your civil cards with an opponent's in Dragonara. |
+| `dragonara-a-5` | Urban Aristocrats | After playing a civil card in Dragonara, you may swap one of your **played cards** with an opponent's in Dragonara. (2026-11-26; was "civil cards".) |
 | `dragonara-a-6` | State Enterprise ✱ | You treat Dragonara **civil** cards in market as if they are in your hand when you do your main or free actions. |
 | `horsard-a-1`, `-a-2` | Order of Knights | (Horsard version of the above) |
 | `horsard-a-3` | Foreign Inc. ✱ | As a free action, you may once **influence Senate** with a Horsard card, then draw a card. |
@@ -139,13 +141,13 @@ Current printed text. Every alliance also prints `OR — It counts 2x many votes
 | `horsard-a-5` | **Century Inc.** ✱ (was Century Club) | As a free action, **play an alliance** to replace your own or opponent's alliance, even when districts are unmatched. |
 | `horsard-a-6` | Financial Bankers (2 handshakes) | This card counts as 2 alliances during elections. This ability cannot be silenced. |
 | `shavvinne-a-1` | Order of Knights | (Shavvinne version) |
-| `shavvinne-a-2` | Architecture Inc. ✱ | As a free action, you may **construct a monument with only 4 cards of the same matching color**. |
+| `shavvinne-a-2` | Architecture Inc. ✱ | As a free action, you may **construct a monument**. If you use this ability, **Shavvinne cards are considered wild**. (2026-11-26; was "with only 4 cards of the same matching color".) |
 | `shavvinne-a-3` | Foreign Inc. ✱ | (Shavvinne version of Foreign Inc.) |
-| `shavvinne-a-4` | Rebel Inc. | As a free action, you may recruit partisans. |
+| `shavvinne-a-4` | Rebel Inc. | As a free action, you may recruit partisans. If you use this ability, **get +2 partisans if you have fewer partisans**. (2026-11-26.) |
 | `shavvinne-a-5` | Diet of Saints | You always have higher influence in Shavvinne. Discard ALL civil cards in Shavvinne after an election. |
 | `shavvinne-a-6` | Divine Inquisitors ✱ | You win Shavvinne during elections **if opponent also has an alliance card in Shavvinne**. (Revised 2026-11-18; was "if this is the only alliance card in the district".) Beats the opponent's Diet of Saints (ruled 2026-11-22). |
 | `smarbbit-a-1`, `-a-3` | Foreign Inc. ✱ | (Smarbbit version of Foreign Inc.) |
-| `smarbbit-a-2` | Capitol Inc. ✱ | As a free action, you may **propose new policy**. |
+| `smarbbit-a-2` | Capitol Inc. ✱ | As a free action, you may **propose new policy**. If you use this ability, you may choose **any district policy** as target. (2026-11-26.) |
 | `smarbbit-a-4` | People's Press | When drawing from deck, you may now draw from your Smarbbit support pile instead. |
 | `smarbbit-a-5` | District Governor ✱ | (Smarbbit version) |
 | `smarbbit-a-6` | Project Habitat | Conspiracy no longer discards your already played civil cards in Smarbbit. |
@@ -171,7 +173,7 @@ Unchanged. Each district has 18 civil cards valued 3–9. `lib/cards/deck.ts` (`
 | Id (suggested) | Inactive | Active | Symbol | Condition |
 | --- | --- | --- | --- | --- |
 | `decree-imperium` | Unruly Clans | Imperium | crown | Have more partisans than opponent does. |
-| `decree-profectus` | Turmoil Land | Profectus | chart | Have 4+ more total support than opponent does. (Updated by Joe, 2026-11-16; was 7+. New faces: `public/cards/decrees/turmoil-land-v2.png` and `profectus-v2.png`; the TTS save still has the old ones.) |
+| `decree-profectus` | Turmoil Land | Profectus | chart | Have 5+ more total support than opponent does. (Joe, 2026-11-26; 4+ from 2026-11-16, 7+ before. Faces: `public/cards/decrees/turmoil-land-v3.png` and `profectus-v3.png`; the TTS save still has older ones.) |
 | `decree-academia` | Emigration | Academia | atom | Have 20+ more influence than opponent in a district. |
 | `decree-de-jures` | Class Schism | De Jures | scales | Have the lowest (or tie for lowest) civil card in all 4 districts. |
 
