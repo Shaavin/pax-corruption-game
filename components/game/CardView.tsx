@@ -56,6 +56,11 @@ type CardViewProps = {
   className?: string;
   selected?: boolean;
   dimmed?: boolean;
+  /**
+   * Can't be chosen right now (a hand or network card in this step): stays in full color, so its
+   * district can still be read for planning, a little darker and marked with a small badge.
+   */
+  unavailable?: boolean;
   playable?: boolean;
   selectLabel?: string;
   onSelect?: () => void;
@@ -83,6 +88,7 @@ export function CardView({
   className = "",
   selected = false,
   dimmed = false,
+  unavailable = false,
   playable = false,
   selectLabel,
   onSelect,
@@ -132,7 +138,7 @@ export function CardView({
       alt={label}
       fill
       sizes={SIZES[size]}
-      className={dimmed ? "object-cover opacity-55 grayscale" : "object-cover"}
+      className={dimmed ? "object-cover opacity-55 grayscale" : unavailable ? "object-cover brightness-[0.8]" : "object-cover"}
       unoptimized={src.endsWith(".svg")}
       draggable={false}
     />
@@ -204,6 +210,7 @@ export function CardView({
     return (
       <div className={frameClass} role="img" aria-label={label} {...motion}>
         {image}
+        {unavailable ? <UnavailableMark /> : null}
       </div>
     );
   }
@@ -256,6 +263,22 @@ export function CardView({
       onBlur={canPeek ? hidePeek : undefined}
     >
       {image}
+      {unavailable ? <UnavailableMark /> : null}
     </button>
+  );
+}
+
+/** "Not now": a small no-entry badge on a card that can't be chosen in this step. */
+function UnavailableMark() {
+  return (
+    <span
+      aria-hidden
+      className="pointer-events-none absolute top-[2.5%] left-1/2 flex aspect-square w-[15%] -translate-x-1/2 items-center justify-center rounded-full bg-stone-950/80 text-stone-200 ring-1 ring-white/35"
+    >
+      <svg viewBox="0 0 24 24" className="h-[70%] w-[70%]" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round">
+        <circle cx="12" cy="12" r="8" />
+        <path d="M6.5 17.5l11-11" />
+      </svg>
+    </span>
   );
 }

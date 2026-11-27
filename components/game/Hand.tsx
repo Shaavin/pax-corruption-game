@@ -117,7 +117,7 @@ export function Hand({
               size="hand"
               playable={playable || selectable}
               selected={selected}
-              dimmed={Boolean(selectableIds) && !selectable}
+              unavailable={Boolean(selectableIds) && !selectable}
               cardId={entry.cardId}
               motionKey={entry.instanceId}
               peekDelay={600}

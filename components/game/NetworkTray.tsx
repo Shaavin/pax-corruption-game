@@ -83,7 +83,7 @@ export function NetworkTray({
                   motionKey={entry.instanceId}
                   playable={playable || selectable}
                   selected={selected}
-                  dimmed={Boolean(selectableIds) && !selectable}
+                  unavailable={Boolean(selectableIds) && !selectable}
                   selectLabel={selectable ? `${selected ? "Deselect" : "Choose"} ${catalog.name} (in your network)` : undefined}
                   onSelect={selectable && onSelect ? () => onSelect(entry.instanceId) : undefined}
                   blockedReason={selectable ? undefined : blockedReasons?.get(entry.instanceId)}
