@@ -87,10 +87,10 @@ const STEP_DEFS: StepDef[] = [
     view: "districts",
     desktop: {
       title: "Special actions",
-      body: "Recruit, Construct, Propose policy, and free actions appear here when available. Hover a dimmed one to see why.",
+      body: "Recruit, Build monument, free actions, and in Politics Influence Senate, Fund a monument, and Propose policy appear here when available. Hover a dimmed one to see why.",
     },
     phone: {
-      body: "Recruit, Construct, Propose policy, and free actions appear above your hand. Tap a dimmed one to see why.",
+      body: "Recruit, Build monument, free actions, and in Politics Influence Senate, Fund a monument, and Propose policy appear above your hand. Tap a dimmed one to see why.",
     },
   },
   {

@@ -704,6 +704,67 @@ export function HotseatSession(props: HotseatSessionProps) {
       onClick: modeCard("propose", null, () => startMode("propose")),
     });
   }
+  // Politics moves as cards beside the hand (2026-11-27): seat a Senator and fund a monument
+  // with a card picked in the hand; the proposal's policy choice while proposing.
+  if (inPolitics && !spendKind && offered("influenceSenate")) {
+    const name = seatArmed ? getCard(selectedCard.cardId).name : null;
+    actionCards.push({
+      id: "senate",
+      kind: "senate",
+      title: name ? `Seat ${name}` : "Influence Senate",
+      detail: name
+        ? `Seat ${name} on the left of the Senate; the rightmost Senator goes to your support pile`
+        : "Seat a card from your hand in the Senate; the rightmost Senator goes to your support pile",
+      blockedReason: name ? null : "pick a card in your hand to seat it",
+      active: Boolean(name),
+      onClick: () => seatArmed && dispatch({ type: "influenceSenate", player: viewer, instanceId: selectedCard.instanceId }),
+    });
+  }
+  if (inPolitics && !spendKind && offered("fundMonument")) {
+    const funds = selectedCard
+      ? legal.filter((action) => action.type === "fundMonument" && action.instanceId === selectedCard.instanceId)
+      : [];
+    for (const action of funds) {
+      if (action.type !== "fundMonument") continue;
+      const monument = getCard(state.availableMonuments.find((entry) => entry.instanceId === action.monumentInstanceId)!.cardId);
+      const cost = monumentCost(state, action.monumentInstanceId);
+      actionCards.push({
+        id: `fund-${action.monumentInstanceId}`,
+        kind: "fund",
+        title: `Fund ${monument.name}`,
+        detail: `Tuck ${getCard(selectedCard!.cardId).name} under ${monument.name}: it then costs ${cost - 1} for either player to build`,
+        active: true,
+        onClick: () => dispatch(action),
+      });
+    }
+    if (funds.length === 0) {
+      actionCards.push({
+        id: "fund",
+        kind: "fund",
+        title: "Fund a monument",
+        detail: "Tuck a card of a monument's district under it: it costs 1 fewer for either player to build",
+        blockedReason: selectedCard
+          ? `${getCard(selectedCard.cardId).name} can't fund a monument now (none of its district takes funding)`
+          : "pick a card of a monument's district in your hand",
+        onClick: () => undefined,
+      });
+    }
+  }
+  // While proposing: the policy choice, once the reveal convinces a majority (or to look ahead).
+  if (spendKind === "propose" && !proposeTarget) {
+    // Capitol Inc.'s free proposal (the only one made `via` a source) may target any district.
+    const passing = revealPassing && policyTargets(state, revealedCardIds, { anyDistrict: via !== null }).length > 0;
+    actionCards.push({
+      id: "propose-choose",
+      kind: "propose",
+      title: passing ? "Choose a policy" : "See policies",
+      detail: passing
+        ? "Pick the district policy to change, then a revealed card to discard"
+        : "Every district's policy and the changes a passing proposal could make",
+      active: passing,
+      onClick: () => setChoosingPolicy(true),
+    });
+  }
   if (inPolitics) {
     for (const victory of declarable) {
       actionCards.push({
@@ -753,18 +814,6 @@ export function HotseatSession(props: HotseatSessionProps) {
             : dispatch({ type: "recruit", player: viewer, instanceIds: selectedHandIds }),
       });
     }
-    if (spendKind === "propose" && !proposeTarget) {
-      // Capitol Inc.'s free proposal (the only one made `via` a source) may target any district.
-      const passing = revealPassing && policyTargets(state, revealedCardIds, { anyDistrict: via !== null }).length > 0;
-      extraActions.push({
-        label: passing ? "Choose a policy" : "See policies",
-        tone: passing ? undefined : "neutral",
-        title: passing
-          ? "Pick the district policy to change, then a revealed card to discard"
-          : "Every district's policy and the changes a passing proposal could make",
-        onClick: () => setChoosingPolicy(true),
-      });
-    }
   } else if (inAction) {
     for (const action of backToHand) {
       extraActions.push({
@@ -782,26 +831,6 @@ export function HotseatSession(props: HotseatSessionProps) {
       });
     }
   } else if (inPolitics) {
-    if (seatArmed) {
-      extraActions.push({
-        label: "Seat in the Senate",
-        title: "The rightmost Senator is discarded to your support pile",
-        onClick: () => dispatch({ type: "influenceSenate", player: viewer, instanceId: selectedCard.instanceId }),
-      });
-    }
-    // Fund a monument: tuck the selected card under a monument of its district.
-    if (!spendKind && selectedCard) {
-      for (const action of legal) {
-        if (action.type !== "fundMonument" || action.instanceId !== selectedCard.instanceId) continue;
-        const monument = getCard(state.availableMonuments.find((entry) => entry.instanceId === action.monumentInstanceId)!.cardId);
-        const cost = monumentCost(state, action.monumentInstanceId);
-        extraActions.push({
-          label: `Fund ${monument.name}`,
-          title: `Tuck this card under ${monument.name}: it then costs ${cost - 1} for either player to build`,
-          onClick: () => dispatch(action),
-        });
-      }
-    }
     for (const action of backToHand) {
       extraActions.push({
         label: "Back to hand",

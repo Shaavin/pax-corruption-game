@@ -4,7 +4,7 @@ import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
 import { useNotice } from "./notice";
 import { usePeek, type PeekCard } from "./peek";
 
-export type ActionCardKind = "recruit" | "construct" | "propose" | "declare" | "free";
+export type ActionCardKind = "recruit" | "construct" | "propose" | "senate" | "fund" | "declare" | "free";
 
 /** A special action shown as a card beside the hand (recruit, construct, free actions…). */
 export type ActionCardSpec = {
@@ -27,6 +27,8 @@ const KIND: Record<ActionCardKind, { tag: string | null; accent: string; icon: R
   recruit: { tag: null, accent: "#f0857a", icon: <FlagIcon /> },
   construct: { tag: null, accent: "#c6a56c", icon: <ColumnsIcon /> },
   propose: { tag: null, accent: "#8cc4ec", icon: <ScrollIcon /> },
+  senate: { tag: null, accent: "#b9a6e8", icon: <SeatIcon /> },
+  fund: { tag: null, accent: "#e0b45c", icon: <CoinIcon /> },
   declare: { tag: "Victory", accent: "#f5c76b", icon: <CrownIcon /> },
   free: { tag: "Free action", accent: "#6ee7a8", icon: <BoltIcon /> },
 };
@@ -196,6 +198,24 @@ function ScrollIcon() {
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <path d="M7 4h11v13a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3v-1h11v1a3 3 0 0 0 3 3" fill="currentColor" fillOpacity="0.2" />
       <path d="M7 4a2 2 0 0 0-2 2v10M10 8h5M10 12h5" />
+    </svg>
+  );
+}
+
+function SeatIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M7 4h10v8H7z" fill="currentColor" fillOpacity="0.25" />
+      <path d="M5 12h14v3H5zM7 15v5M17 15v5" />
+    </svg>
+  );
+}
+
+function CoinIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <ellipse cx="12" cy="7" rx="7" ry="3" fill="currentColor" fillOpacity="0.25" />
+      <path d="M5 7v5c0 1.7 3.1 3 7 3s7-1.3 7-3V7M5 12v5c0 1.7 3.1 3 7 3s7-1.3 7-3v-5" />
     </svg>
   );
 }

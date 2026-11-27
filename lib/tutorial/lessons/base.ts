@@ -363,7 +363,7 @@ const legislative: Lesson = {
           body: "Select Order of Knights and TuWang Gang in your hand to reveal them. The Senators they convince light up, and the vote count shows above the Senate.",
           target: "your-hand",
         },
-        "propose-passing": { body: "4 of 7 votes: a majority. Now press Choose a policy in the turn panel.", target: "turn" },
+        "propose-passing": { body: "4 of 7 votes: a majority. Now pick Choose a policy, beside your hand.", target: "action-cards" },
         "propose-choosing": {
           body: "You may change a district where you convinced a Senator. Choose Economic Reform, in Horsard. It's the change this lesson is about, so the others are closed.",
         },
@@ -427,11 +427,11 @@ const legislative: Lesson = {
       target: "senate",
       view: "table",
       title: "Influence Senate",
-      body: "Your turn to seat a Senator. Select a card in your hand (Fire Breathers is easy to spare) and choose Seat in the Senate. The rightmost Senator, Financial Bankers, joins your Horsard support pile.",
+      body: "Your turn to seat a Senator. Select a card in your hand (Fire Breathers is easy to spare), then choose the Seat card beside your hand. The rightmost Senator, Financial Bankers, joins your Horsard support pile.",
       expect: { type: "influenceSenate" },
       hint: "Seat any card from your hand in the Senate.",
       stages: {
-        "seat-armed": { body: "Now choose Seat in the Senate in the turn panel.", target: "turn" },
+        "seat-armed": { body: "Now choose the Seat card beside your hand.", target: "action-cards" },
       },
     },
     {
