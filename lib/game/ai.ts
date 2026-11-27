@@ -119,7 +119,7 @@ export const AI_LEVELS: readonly { id: AiLevel; name: string; blurb: string; per
   {
     id: "ninth",
     name: "Expert",
-    blurb: "Has played this republic's rise and fall thousands and thousands of times, and remembers every ending.",
+    blurb: "Has played this republic's rise and fall, and remembers every ending.",
     persona: {
       name: "Time Traveller Ty",
       tagline: "Has seen how this ends. Every way it ends.",
