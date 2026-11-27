@@ -75,10 +75,10 @@ const STEP_DEFS: StepDef[] = [
     target: "turn",
     desktop: {
       title: "Your turn",
-      body: "Action: one main action, plus any free actions. Politics: seat a Senator, propose a policy, or declare a victory. Income: take a Market card, then draw if under your hand limit.",
+      body: "Action: one main action, plus any free actions. Politics: seat a Senator, propose a policy, fund a monument, or declare a victory. Income: take a Market card, then draw if under your hand limit.",
     },
     expansion: {
-      body: "Action: one main action, plus any free actions. Politics: seat a Senator, propose a policy, or declare a victory. Income: take a Market card or buy an event, then draw if under your hand limit.",
+      body: "Action: one main action, plus any free actions. Politics: seat a Senator, propose a policy, fund a monument, or declare a victory. Income: take a Market card or buy an event, then draw if under your hand limit.",
     },
   },
   {
@@ -181,10 +181,10 @@ const STEP_DEFS: StepDef[] = [
     view: "table",
     desktop: {
       title: "Monuments",
-      body: "Discard 5 cards of a monument's district to build it and keep its ability.",
+      body: "Discard 5 cards of a monument's district to build it and keep its ability. In Politics you may fund one instead: tuck a card of its district under it, and it costs 1 fewer for either player.",
     },
     expansion: {
-      body: "Discard 5 cards of a monument's district to build it and keep its ability. Lead by 2 monuments for Cultural Victory, once it's active.",
+      body: "Discard 5 cards of a monument's district to build it and keep its ability; funding one in Politics makes it 1 cheaper for either player. Lead by 2 monuments for Cultural Victory, once it's active.",
     },
   },
   {

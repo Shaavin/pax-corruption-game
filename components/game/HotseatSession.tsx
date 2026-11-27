@@ -657,7 +657,7 @@ export function HotseatSession(props: HotseatSessionProps) {
       id: "construct",
       kind: "construct",
       title: "Build monument",
-      detail: "Discard 5 cards of one district to build its monument",
+      detail: "Discard 5 cards of a monument's district to build it (1 fewer per card funding it)",
       blockedReason: spendKind === "construct" && !via ? null : constructReason,
       active: spendKind === "construct" && !via,
       onClick: modeCard("construct", null, () => startMode("construct")),

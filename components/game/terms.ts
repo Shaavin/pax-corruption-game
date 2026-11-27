@@ -68,7 +68,16 @@ export const TERMS: Term[] = [
       "A card in your hand that your opponent can see, because you took it face up (from the Market, for example) or it sits in a face-up zone. Cards you draw from the deck stay secret.",
   },
   { term: "Hand limit", meaning: "Usually 5. Going over is fine; it only stops you taking or drawing cards at Income." },
-  { term: "Monument", meaning: "Built by discarding 5 cards of its district. Its ability is yours for the rest of the game." },
+  {
+    term: "Monument",
+    meaning:
+      "Built by discarding 5 cards of its district, 1 fewer for each card funding it. Its ability is yours for the rest of the game.",
+  },
+  {
+    term: "Fund a monument",
+    meaning:
+      "A Politics option: tuck one card of a monument's district under it. Each tucked card makes it 1 card cheaper to build, for either player (never below 1). Whoever builds it takes the tucked cards into their support pile.",
+  },
 ];
 
 export const EXPANSION_TERMS: Term[] = [

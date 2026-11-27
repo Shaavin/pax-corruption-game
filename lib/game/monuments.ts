@@ -7,7 +7,8 @@
  */
 import type { DistrictId } from "../cards/schema.ts";
 import { martialLawBlocks } from "./abilities.ts";
-import { CONSTRUCT_COST, handLikeCards, printedDistrict, takeHandLike } from "./main.ts";
+import { getCard } from "../cards/catalog.ts";
+import { CONSTRUCT_COST, handCardsInDistrict, handLikeCards, printedDistrict, takeHandLike } from "./main.ts";
 import type { CardInstance, FundMonumentAction, GameEvent, GameState, PlayerId } from "./types.ts";
 import { IllegalActionError } from "./errors.ts";
 
@@ -53,6 +54,23 @@ export function constructIssue(
     return "Martial Law: actions may discard at most 1 Shavvinne card";
   }
   return null;
+}
+
+/**
+ * Why `player` can't build any monument as a main action, or null: some available monument has
+ * at least its cost (5, less 1 per card funding it) in cards of its district in their hand.
+ */
+export function constructBlockReason(state: GameState, player: PlayerId): string | null {
+  if (state.availableMonuments.length === 0) return "No monument is available to build";
+  let closest: { name: string; cost: number; have: number } | null = null;
+  for (const monument of state.availableMonuments) {
+    const cost = monumentCost(state, monument.instanceId);
+    const have = handCardsInDistrict(state, player, printedDistrict(monument.cardId)).length;
+    if (have >= cost) return null;
+    if (!closest || cost - have < closest.cost - closest.have) closest = { name: getCard(monument.cardId).name, cost, have };
+  }
+  const { name, cost, have } = closest!;
+  return `${name} takes ${cost} cards of its district (5, less 1 per card funding it); you have ${have}`;
 }
 
 /** Whether another card may be tucked under it (not when that would make it free). */

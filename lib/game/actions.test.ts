@@ -25,7 +25,7 @@ import {
 } from "./index.ts";
 import { allCards, invariantIssues } from "./diagnostics.ts";
 import { playerDistrictInfluence } from "./influence.ts";
-import { monumentCost } from "./monuments.ts";
+import { constructBlockReason, monumentCost } from "./monuments.ts";
 import { emptyTurn } from "./zones.ts";
 import { revealProblem } from "./senate.ts";
 import {
@@ -236,6 +236,11 @@ function toPolitics(state: GameState): GameState {
     legalActions(theirs, other).some((action) => action.type === "construct" && action.monumentInstanceId === monument.instanceId && action.instanceIds.length === 4),
     "The opponent may build it with 4 cards",
   );
+  // Bug report (2026-11-27): the Build monument button asked for 5 cards whatever the funding.
+  assert(constructBlockReason(theirs, other) === null, "…and Build monument isn't blocked with 4 cards for a 4-card monument");
+  const three = structuredClone(theirs);
+  three.players[other].hand = four.slice(0, 3);
+  assert((constructBlockReason(three, other) ?? "").includes("4"), "With 3 cards it says the monument takes 4");
   expectIllegal(
     () => apply(theirs, { type: "construct", player: other, instanceIds: [...four, matching[5]!].map((card) => card.instanceId), monumentInstanceId: monument.instanceId }, rng),
     "Paying the old 5",

@@ -186,16 +186,3 @@ export function recruitBlockReason(state: GameState, player: PlayerId): string |
   return "Needs a card in your support pile for that district";
 }
 
-export function constructBlockReason(state: GameState, player: PlayerId): string | null {
-  const match = DISTRICTS.some((district) => {
-    if (handCardsInDistrict(state, player, district).length < CONSTRUCT_COST) return false;
-    return state.availableMonuments.some(
-      (entry) => printedDistrict(entry.cardId) === district,
-    );
-  });
-  if (match) return null;
-  if (!sameDistrictCount(state, player, CONSTRUCT_COST)) {
-    return `Discard ${CONSTRUCT_COST} cards of the same district from hand`;
-  }
-  return "Need an available monument of that district";
-}
