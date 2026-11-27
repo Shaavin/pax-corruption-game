@@ -150,55 +150,84 @@ export function isAiLevel(value: unknown): value is AiLevel {
   return value === "easy" || value === "normal" || value === "hard" || value === "ninth";
 }
 
-/**
- * The Ninth judges positions with the learned evaluator (ai-net.ts), once it's loaded: the
- * browser fetches the weights, tools read them from disk. In Legacy & Diplomacy games it uses its
- * expansion specialist if it has one, else the main evaluator if that learned the expansion (its
- * header says). Without a fitting evaluator it plays as Hard.
- */
-let ninthEvaluate: Evaluator | null = null;
-/** Whether its main evaluator learned from Legacy & Diplomacy games. */
-let ninthKnowsExpansion = false;
-/** Its Legacy & Diplomacy specialist, if it has one. */
-let ninthExpansionEvaluate: Evaluator | null = null;
-/** The Ninth's agenda nudge by default (see `setNinthEvaluator`). */
+/** The Ninth's agenda nudge by default (see `NinthOptions.lean`). */
 const NINTH_LEAN = 0;
-/**
- * How strongly The Ninth's agenda nudges its evaluator (in the evaluator's units, 100 per logit):
- * enough to choose between plans that are close, so its games take different roads, never
- * enough to pass up a clearly better one.
- */
-let ninthLean = NINTH_LEAN;
 /**
  * Whether The Ninth predicts the opponent's reply with its evaluator (else with Hard's score) by
  * default: it sees more of what the opponent can do with its turn, an Ideological proposal above
  * all, at the cost of a few wins against Hard and a little more thinking time.
  */
 const NINTH_REPLY = true;
-let ninthReply = NINTH_REPLY;
 /** How wide The Ninth searches (by default as Hard does). */
 const NINTH_WIDTH: SearchWidth = { beam: 6, depth: 8, candidates: 4, samples: 3 };
-let ninthWidth: SearchWidth = NINTH_WIDTH;
+
+/** How The Ninth plays, besides its main evaluator. */
+export type NinthOptions = {
+  /** Its Legacy & Diplomacy specialist, played in those games in place of the main evaluator. */
+  expansion?: Net | null;
+  /**
+   * How strongly its agenda nudges its evaluator (in the evaluator's units, 100 per logit):
+   * enough to choose between plans that are close, so its games take different roads, never
+   * enough to pass up a clearly better one. Off by default.
+   */
+  lean?: number;
+  /** Predict the opponent's reply with its evaluator (default `NINTH_REPLY`), else with Hard's score. */
+  reply?: boolean;
+  /** How wide it searches. */
+  width?: Partial<SearchWidth>;
+};
+
+/**
+ * One Ninth. It judges positions with the learned evaluator (ai-net.ts), once it's loaded: the
+ * browser fetches the weights, tools read them from disk. In Legacy & Diplomacy games it uses its
+ * expansion specialist if it has one, else the main evaluator if that learned the expansion (its
+ * header says). Without a fitting evaluator it plays as Hard.
+ */
+type Ninth = {
+  evaluate: Evaluator | null;
+  /** Whether its main evaluator learned from Legacy & Diplomacy games. */
+  knowsExpansion: boolean;
+  expansionEvaluate: Evaluator | null;
+  lean: number;
+  reply: boolean;
+  width: SearchWidth;
+};
+
+function makeNinth(net: Net | null, options: NinthOptions): Ninth {
+  if (options.expansion && !options.expansion.header.expansion) throw new Error("The expansion evaluator didn't learn Legacy & Diplomacy games");
+  return {
+    evaluate: net ? netEvaluator(net) : null,
+    knowsExpansion: Boolean(net?.header.expansion),
+    expansionEvaluate: options.expansion ? netEvaluator(options.expansion) : null,
+    lean: options.lean ?? NINTH_LEAN,
+    reply: options.reply ?? NINTH_REPLY,
+    width: { ...NINTH_WIDTH, ...options.width },
+  };
+}
+
+/** The game's Ninth (`chooseAiAction(…, "ninth", …)`). */
+let ninth = makeNinth(null, {});
 
 /**
  * Set The Ninth's evaluators: `net` for every game it learned (its header says whether that
  * includes Legacy & Diplomacy), and `options.expansion` for Legacy & Diplomacy games in its place.
  */
-export function setNinthEvaluator(
-  net: Net | null,
-  options: { expansion?: Net | null; lean?: number; reply?: boolean; width?: Partial<SearchWidth> } = {},
-): void {
-  ninthEvaluate = net ? netEvaluator(net) : null;
-  ninthKnowsExpansion = Boolean(net?.header.expansion);
-  if (options.expansion && !options.expansion.header.expansion) throw new Error("The expansion evaluator didn't learn Legacy & Diplomacy games");
-  ninthExpansionEvaluate = options.expansion ? netEvaluator(options.expansion) : null;
-  ninthLean = options.lean ?? NINTH_LEAN;
-  ninthReply = options.reply ?? NINTH_REPLY;
-  ninthWidth = { ...NINTH_WIDTH, ...options.width };
+export function setNinthEvaluator(net: Net | null, options: NinthOptions = {}): void {
+  ninth = makeNinth(net, options);
 }
 
 export function ninthEvaluatorLoaded(): boolean {
-  return ninthEvaluate !== null;
+  return ninth.evaluate !== null;
+}
+
+/**
+ * A Ninth of its own, apart from the game's: it plays as `chooseAiAction(…, "ninth", …)` would
+ * after `setNinthEvaluator(net, options)`. For tools that match two evaluators, or two ways of
+ * searching, against each other.
+ */
+export function ninthPlayer(net: Net, options: NinthOptions = {}): (state: GameState, seat: PlayerId, rng: Rng) => Action | null {
+  const own = makeNinth(net, options);
+  return (state, seat, rng) => choose(state, seat, "ninth", rng, undefined, own);
 }
 
 /** Which seat the computer plays, and how well. */
@@ -219,6 +248,10 @@ function aiOptions(state: GameState, seat: PlayerId): Action[] {
  * `weights` overrides how it judges positions (for tuning).
  */
 export function chooseAiAction(state: GameState, seat: PlayerId, level: AiLevel, rng: Rng, weights?: Weights): Action | null {
+  return choose(state, seat, level, rng, weights, ninth);
+}
+
+function choose(state: GameState, seat: PlayerId, level: AiLevel, rng: Rng, weights: Weights | undefined, nine: Ninth): Action | null {
   if (state.victory || currentActor(state) !== seat) return null;
   const options = aiOptions(state, seat);
   if (options.length === 0) return null;
@@ -228,13 +261,11 @@ export function chooseAiAction(state: GameState, seat: PlayerId, level: AiLevel,
   const win = options.find((action) => action.type === "declareVictory");
   if (win) return win;
 
-  const ninthJudge = !state.expansion ? ninthEvaluate : (ninthExpansionEvaluate ?? (ninthKnowsExpansion ? ninthEvaluate : null));
-  if (level === "ninth" && ninthJudge && !weights) {
-    const judge = ninthJudge;
+  const judge = !state.expansion ? nine.evaluate : (nine.expansionEvaluate ?? (nine.knowsExpansion ? nine.evaluate : null));
+  if (level === "ninth" && judge && !weights) {
     const agenda = aiAgenda(state, seat, level);
-    const lean = ninthLean;
-    const evaluate = lean > 0 ? leanEvaluator(judge, agenda, lean) : judge;
-    return planTurn(state, seat, rng, evaluate, true, ninthReply ? judge : positionScore, ninthWidth) ?? options[0]!;
+    const evaluate = nine.lean > 0 ? leanEvaluator(judge, agenda, nine.lean) : judge;
+    return planTurn(state, seat, rng, evaluate, true, nine.reply ? judge : positionScore, nine.width) ?? options[0]!;
   }
   const w = weights ?? weightsFor(state, seat, level);
   if (level === "easy") {

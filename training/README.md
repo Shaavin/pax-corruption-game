@@ -39,8 +39,11 @@ training/.venv/Scripts/python -m pip install numpy
    enough to generate the next round's games). Either takes `@<agenda>[=lean]` to lean the
    evaluator toward one agenda (`netquick:<weights.bin>@ideology`; lean in the evaluator's units,
    100 per logit, default 100): a strong player taking a road the evaluator rarely tries, and a
-   strong opponent defending against it. `--explore` is the chance of a random move, so games
-   differ. `--expansion` plays Legacy & Diplomacy (`--foreign`: with Foreign Influence).
+   strong opponent defending against it. `ninth:<weights.bin>` plays as The Ninth does in the
+   game (its whole search, replies judged by its evaluator): several times slower than
+   `netquick:`, but its games are played as well as it can (for Legacy & Diplomacy, give the
+   expansion network). `--explore` is the chance of a random move, so games differ.
+   `--expansion` plays Legacy & Diplomacy (`--foreign`: with Foreign Influence).
 
    Mix the players. Games against `quick:<agenda>` opponents show every road to victory and the
    defence against it: without them the evaluator only learns the roads its own games take (the
@@ -80,6 +83,10 @@ training/.venv/Scripts/python -m pip install numpy
    positions N times per epoch (a shard counts as expansion when most of its games are), and
    each epoch also prints validation on expansion games alone.
 
+   `--aux-weight W` also teaches a training-only head how each game ends (who wins, and by
+   which victory), from the results, read from the records each shard was encoded from: it
+   shapes the hidden layers and isn't exported. Round 7 tried 0.5: no better than without.
+
 4. **Measure.** Against Hard, a few hundred games (run several `--from` ranges in parallel):
 
    ```sh
@@ -87,7 +94,9 @@ training/.venv/Scripts/python -m pip install numpy
    ```
 
    `ninth:<weights.bin>` plays as The Ninth does in the game (`+noreply` predicts the opponent's
-   reply with Hard's score instead of the evaluator, as before 2026-11-26). Also measure against the Ideology
+   reply with Hard's score instead of the evaluator, as before 2026-11-26). Two `ninth:` players
+   can meet: head to head against the shipped pair is the measure that matters most (Hard is a
+   weaker, narrower opponent than a strong player). Also measure against the Ideology
    specialist (`netquick:<weights.bin>@ideology=600`: does it see an Ideological Victory coming?
    Hard seldom wins that way, so it barely tests that) and with `--expansion`. A few hundred games
    tell apart only differences of 5 points or more: compare on the same deals (`--from`).

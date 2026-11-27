@@ -11,16 +11,17 @@
  * takes @<agenda>[=strength] to lean toward an agenda (netquick:<weights.bin>@ideology=600);
  * ninth:<weights.bin>[@lean][+exp=<weights.bin>][+noreply] (The Ninth as in the game: that
  * evaluator, nudged by its agenda; +exp: its Legacy & Diplomacy specialist; +noreply: the
- * opponent's reply predicted with Hard's score, as before 2026-11-26). The
- * first is reported on. Seats alternate game by game, and the deals are fixed by `--from`
- * (default 1), so two runs with the same games compare like with like. Several runs with
- * different `--from` can go in parallel. `--log` prints each game's result.
+ * opponent's reply predicted with Hard's score, as before 2026-11-26). Two ninth: players can
+ * meet (two evaluators, or two ways of searching). The first is reported on. Seats alternate
+ * game by game, and the deals are fixed by `--from` (default 1), so two runs with the same games
+ * compare like with like. Several runs with different `--from` can go in parallel. `--log`
+ * prints each game's result.
  */
 import { readFileSync } from "node:fs";
 import { focusWeights, type AgendaId } from "../lib/game/ai-agenda.ts";
 import { loadNet, netEvaluator } from "../lib/game/ai-net.ts";
 import { CLASSIC } from "../lib/game/ai-score.ts";
-import { aiAgenda, chooseAiAction, isAiLevel, leanFromSpec, planMove, positionScore, setNinthEvaluator } from "../lib/game/ai.ts";
+import { aiAgenda, chooseAiAction, isAiLevel, leanFromSpec, ninthPlayer, planMove, positionScore } from "../lib/game/ai.ts";
 import type { Rng } from "../lib/game/rng.ts";
 import type { Action, GameState } from "../lib/game/types.ts";
 import { currentActor } from "../lib/game/engine.ts";
@@ -53,13 +54,13 @@ function mover(spec: string): Mover {
     const wide = /\+wide=(\d+)x(\d+)/.exec(spec);
     const specialist = /\+exp=([^+]+)/.exec(spec);
     const [path, lean] = spec.slice(6).replace(/\+.*$/, "").split("@");
-    setNinthEvaluator(loadNet(readFileSync(path!)), {
+    // Each one is a Ninth of its own, so two can play each other.
+    return ninthPlayer(loadNet(readFileSync(path!)), {
       expansion: specialist ? loadNet(readFileSync(specialist[1]!)) : null,
       ...(lean === undefined ? {} : { lean: Number(lean) }),
       reply,
       ...(wide ? { width: { candidates: Number(wide[1]), samples: Number(wide[2]) } } : {}),
     });
-    return (state, seat, rng) => chooseAiAction(state, seat, "ninth", rng);
   }
   if (spec === "quick") return (state, seat, rng) => planMove(state, seat, rng, positionScore, false);
   // net:<weights.bin>@<agenda>[=strength]: leaning toward an agenda, as in scripts/ai-selfplay.ts.
@@ -69,7 +70,9 @@ function mover(spec: string): Mover {
 }
 const moveA = mover(a);
 const moveB = mover(b);
-const label = (spec: string) => (spec.includes(":") ? `${spec.slice(0, spec.indexOf(":"))}(${spec.replace(/\+.*$/, "").split(/[\/:]/).pop()})` : spec);
+const short = (spec: string) => (spec.includes(":") ? `${spec.slice(0, spec.indexOf(":"))}(${spec.replace(/\+.*$/, "").split(/[\/:]/).pop()})` : spec);
+// Two players that look alike (the same weights, searching two ways) keep their options in the name.
+const label = (spec: string) => (short(a) === short(b) && a !== b ? `${short(spec)}${spec.match(/\+.*$/)?.[0] ?? ""}` : short(spec));
 const games = Number(args.find((arg) => /^\d+$/.test(arg) && args[args.indexOf(arg) - 1] !== "--from") ?? 20);
 const expansion = args.includes("--expansion");
 const from = Number(args[args.indexOf("--from") + 1] ?? 1) || 1;

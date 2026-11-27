@@ -15,6 +15,7 @@ import argparse
 import glob
 import json
 import os
+import re
 import struct
 import time
 
@@ -23,8 +24,29 @@ import torch
 from torch import nn
 
 
-def load(dirs):
-    """All shards in the given directories, as one padded dataset."""
+KINDS = ["civil", "political", "military", "popularity", "ideological", "cultural", "diplomatic"]
+
+
+def victory_kinds(records_path, games):
+    """Each position's game's victory kind (an index into KINDS, -1 if the records aren't there)."""
+    kinds = np.full(len(games), -1, dtype=np.int64)
+    if not records_path or not os.path.exists(records_path):
+        return kinds
+    of_game = {}
+    pattern = re.compile(r'"game":(\d+).*?"kind":"(\w+)"')
+    with open(records_path, encoding="utf8") as f:
+        for line in f:
+            m = pattern.search(line[:2000])
+            if m and m.group(2) in KINDS:
+                of_game[int(m.group(1))] = KINDS.index(m.group(2))
+    for g in np.unique(games):
+        if int(g) in of_game:
+            kinds[games == g] = of_game[int(g)]
+    return kinds
+
+
+def load(dirs, kinds=False):
+    """All shards in the given directories, as one padded dataset (with `kinds`, also each position's victory kind)."""
     parts, meta = [], None
     for directory in dirs:
         for summary_path in sorted(glob.glob(os.path.join(directory, "*.json"))):
@@ -38,14 +60,16 @@ def load(dirs):
             meta["expansionGames"] += expansion_games
             base = summary_path[: -len(".json")]
             off = np.fromfile(base + ".off", dtype=np.uint32).astype(np.int64)
+            games = np.fromfile(base + ".game", dtype=np.uint32).astype(np.int64)
             parts.append(
                 dict(
+                    kind=victory_kinds(summary.get("records"), games) if kinds else None,
                     idx=np.fromfile(base + ".idx", dtype=np.uint16),
                     off=off,
                     # Half precision in memory (features are small numbers); batches go back to float32.
                     dense=np.fromfile(base + ".dense", dtype=np.float32).reshape(-1, meta["denseCount"]).astype(np.float16),
                     y=np.fromfile(base + ".y", dtype=np.uint8).astype(np.float32),
-                    game=np.fromfile(base + ".game", dtype=np.uint32).astype(np.int64) + len(parts) * 10_000_000,
+                    game=games + len(parts) * 10_000_000,
                     # Shards come from one setting each; mostly-expansion shards count as expansion.
                     expansion=np.full(len(off) - 1, expansion_games * 2 > summary["games"]),
                 )
@@ -63,7 +87,7 @@ def load(dirs):
         mask = column[None, :] < counts[:, None]
         padded[mask] = p["idx"].astype(padded.dtype)
         rows.append(padded)
-    return (
+    data = (
         meta,
         np.concatenate(rows),
         np.concatenate([p["dense"] for p in parts]),
@@ -71,24 +95,29 @@ def load(dirs):
         np.concatenate([p["game"] for p in parts]),
         np.concatenate([p["expansion"] for p in parts]),
     )
+    return data + (np.concatenate([p["kind"] for p in parts]),) if kinds else data
 
 
 class Evaluator(nn.Module):
-    def __init__(self, sparse, dense, h1, h2, dropout=0.0):
+    def __init__(self, sparse, dense, h1, h2, dropout=0.0, aux=0):
         super().__init__()
         self.drop = nn.Dropout(dropout)
         self.sparse = nn.EmbeddingBag(sparse + 1, h1, mode="sum", padding_idx=sparse)
         self.dense = nn.Linear(dense, h1)
         self.second = nn.Linear(h1, h2)
         self.out = nn.Linear(h2, 1)
+        # Training only (not exported): how the game ends, `aux` ways (who wins, and by what).
+        self.aux = nn.Linear(h2, aux) if aux else None
         nn.init.normal_(self.sparse.weight, std=0.02)
         with torch.no_grad():
             self.sparse.weight[sparse].zero_()
 
-    def forward(self, idx, dense):
+    def hidden(self, idx, dense):
         x = self.drop(torch.relu(self.sparse(idx) + self.dense(dense)))
-        x = torch.relu(self.second(x))
-        return self.out(x).squeeze(-1)
+        return torch.relu(self.second(x))
+
+    def forward(self, idx, dense):
+        return self.out(self.hidden(idx, dense)).squeeze(-1)
 
 
 def read_weights(path, meta):
@@ -186,12 +215,18 @@ def main():
     parser.add_argument("--bootstrap", help="a previous evaluator: train on TD(lambda) targets from its view instead of results alone")
     parser.add_argument("--lam", type=float, default=0.7, help="TD(lambda): how much the result reaches back (1 = results alone)")
     parser.add_argument("--expansion-weight", type=int, default=1, help="show Legacy & Diplomacy positions this many times per epoch (they are the minority); 0 leaves them out")
+    parser.add_argument("--aux-weight", type=float, default=0.0, help="also learn how each game ends (who wins, and by which victory), from results, with this weight: shapes the hidden layers; not exported")
     parser.add_argument("--seed", type=int, default=1)
     args = parser.parse_args()
     torch.manual_seed(args.seed)
     torch.set_num_threads(max(1, os.cpu_count() // 2))
 
-    meta, idx, dense, y, game, expansion = load(args.data)
+    loaded = load(args.data, kinds=args.aux_weight > 0)
+    meta, idx, dense, y, game, expansion = loaded[:6]
+    # The auxiliary head's classes: the seat wins by KINDS[k] (k), or loses to it (len(KINDS) + k).
+    aux_class = np.where(loaded[6] < 0, -1, loaded[6] + np.where(y > 0.5, 0, len(KINDS))) if args.aux_weight > 0 else None
+    if aux_class is not None:
+        print(f"how games end, known for {(aux_class >= 0).mean():.3f} of positions (weight {args.aux_weight})")
     # Held-out positions are always scored against what happened.
     result = y.copy()
     if args.bootstrap:
@@ -209,7 +244,8 @@ def main():
     epoch_ids = np.concatenate([train] + [train[expansion[train]]] * max(0, args.expansion_weight - 1))
     val_expansion = val[expansion[val]]
     h1, h2 = args.hidden
-    model = Evaluator(meta["sparseCount"], meta["denseCount"], h1, h2, args.dropout)
+    model = Evaluator(meta["sparseCount"], meta["denseCount"], h1, h2, args.dropout, aux=2 * len(KINDS) if aux_class is not None else 0)
+    aux_loss = nn.CrossEntropyLoss(ignore_index=-1)
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.wd)
     schedule = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs * (len(epoch_ids) // args.batch + 1))
     loss_fn = nn.BCEWithLogitsLoss()
@@ -240,12 +276,20 @@ def main():
     for epoch in range(args.epochs):
         started = time.time()
         order = rng.permutation(epoch_ids)
-        running = 0.0
+        running = running_aux = 0.0
         for start in range(0, len(order), args.batch):
-            i, d, t = batch(order[start : start + args.batch])
-            loss = loss_fn(model(i, d), t)
+            ids = order[start : start + args.batch]
+            i, d, t = batch(ids)
+            if model.aux is not None:
+                h = model.hidden(i, d)
+                loss = loss_fn(model.out(h).squeeze(-1), t)
+                extra = aux_loss(model.aux(h), torch.from_numpy(aux_class[ids]))
+                running_aux += extra.item() * len(t)
+                loss_all = loss + args.aux_weight * extra
+            else:
+                loss = loss_all = loss_fn(model(i, d), t)
             optimizer.zero_grad()
-            loss.backward()
+            loss_all.backward()
             optimizer.step()
             schedule.step()
             running += loss.item() * len(t)
@@ -254,6 +298,8 @@ def main():
             best = (val_loss, epoch + 1, {k: v.detach().clone() for k, v in model.state_dict().items()})
         entry = {"epoch": epoch + 1, "train": running / len(order), "val": val_loss, "accuracy": val_acc, "brier": val_brier}
         line = f"epoch {epoch + 1}: train {running / len(order):.4f}  val {val_loss:.4f}  accuracy {val_acc:.3f}  brier {val_brier:.4f}"
+        if model.aux is not None:
+            line += f"  how games end {running_aux / len(order):.4f}"
         if len(val_expansion):
             # (Only when there are expansion games: the header is JSON, which has no NaN.)
             entry["valExpansion"], entry["accuracyExpansion"], _ = evaluate(val_expansion)
@@ -264,6 +310,10 @@ def main():
     model.load_state_dict(best[2])
     print(f"keeping epoch {best[1]} (validation loss {best[0]:.4f})")
     notes = {"data": args.data, "positions": int(len(y)), "games": int(len(np.unique(game))), "epochs": args.epochs, "expansionWeight": args.expansion_weight, "kept": history[best[1] - 1], "date": time.strftime("%Y-%m-%d")}
+    if args.bootstrap:
+        notes.update(bootstrap=os.path.basename(args.bootstrap), lam=args.lam)
+    if args.aux_weight:
+        notes["auxWeight"] = args.aux_weight
     count = export(model, meta, h1, h2, args.out, notes)
     # Parity cases for the TypeScript forward pass.
     model.eval()
