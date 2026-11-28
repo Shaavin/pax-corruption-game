@@ -12,7 +12,7 @@ export function Portrait({
   src: string;
   color: string;
   size?: "xs" | "sm" | "md" | "lg";
-  /** Hover text (where the painting is credited). */
+  /** Hover text (the character's name). */
   title?: string;
 }) {
   const dimension = { xs: "h-6 w-6", sm: "h-8 w-8", md: "h-11 w-11", lg: "h-16 w-16" }[size];

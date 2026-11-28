@@ -41,9 +41,8 @@ export type AiPersona = {
   tagline: string;
   /** "… is thinking" lines, rotated move by move. */
   thinking: readonly string[];
-  /** Their portrait (public/art/cast, made by scripts/make-cast-art.py) and where it's from. */
+  /** Their portrait (public/art/cast, made by scripts/make-cast-art.py). */
   portrait: string;
-  portraitCredit: string;
   /** Their color, for the portrait's ring outside a game (in a game the seat's color rings it). */
   color: string;
   /** Lines they speak at turning points (only Time Traveller Ty speaks), one picked per moment. */
@@ -74,7 +73,6 @@ export const AI_LEVELS: readonly { id: AiLevel; name: string; blurb: string; per
         "Mayor Mildred is cutting a ribbon somewhere…",
       ],
       portrait: "/art/cast/mildred.webp",
-      portraitCredit: "Portrait made with Gemini.",
       color: "#d9a441",
     },
   },
@@ -93,7 +91,6 @@ export const AI_LEVELS: readonly { id: AiLevel; name: string; blurb: string; per
         "Chancellor Crane is weighing the options…",
       ],
       portrait: "/art/cast/crane.webp",
-      portraitCredit: "Portrait made with Gemini.",
       color: "#6f9fc8",
     },
   },
@@ -112,7 +109,6 @@ export const AI_LEVELS: readonly { id: AiLevel; name: string; blurb: string; per
         "Grand Vizier Vex is rearranging the ballots…",
       ],
       portrait: "/art/cast/vex.webp",
-      portraitCredit: "Portrait made with Gemini.",
       color: "#a66bd3",
     },
   },
@@ -131,7 +127,6 @@ export const AI_LEVELS: readonly { id: AiLevel; name: string; blurb: string; per
         "Time Traveller Ty is consulting the histories…",
       ],
       portrait: "/art/cast/ty.webp",
-      portraitCredit: "Portrait made with Gemini.",
       color: "#3cb9c6",
       voice: {
         reveal: ["I have seen this republic rise. I have seen it fall.", "Ah. This timeline.", "I know how your party's story ends."],

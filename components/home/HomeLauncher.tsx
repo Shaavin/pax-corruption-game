@@ -156,7 +156,7 @@ export function HomeLauncher({ onlineOnly = false }: { onlineOnly?: boolean } = 
                 >
                   <input type="radio" name="ai" value={level.id} defaultChecked={level.id === "normal"} className="peer sr-only" />
                   <span className="mt-0.5">
-                    <Portrait src={level.persona.portrait} color={level.persona.color} title={level.persona.portraitCredit} />
+                    <Portrait src={level.persona.portrait} color={level.persona.color} title={level.persona.name} />
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="flex flex-wrap items-baseline gap-x-2">
