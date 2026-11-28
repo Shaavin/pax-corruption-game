@@ -45,57 +45,87 @@ def victory_kinds(records_path, games):
     return kinds
 
 
-def load(dirs, kinds=False):
-    """All shards in the given directories, as one padded dataset (with `kinds`, also each position's victory kind)."""
-    parts, meta = [], None
+def shards(dirs):
+    """Every shard in the given directories (its summary and file stem), checking they share one layout."""
+    found, meta = [], None
     for directory in dirs:
         for summary_path in sorted(glob.glob(os.path.join(directory, "*.json"))):
             summary = json.load(open(summary_path))
-            expansion_games = summary.get("expansionGames", 0)
             if meta is None:
                 meta = {k: summary[k] for k in ("featureVersion", "sparseCount", "denseCount")}
                 meta["expansionGames"] = 0
             elif any(meta[k] != summary[k] for k in ("featureVersion", "sparseCount", "denseCount")):
                 raise SystemExit(f"{summary_path}: another feature layout than {meta}")
-            meta["expansionGames"] += expansion_games
-            base = summary_path[: -len(".json")]
-            off = np.fromfile(base + ".off", dtype=np.uint32).astype(np.int64)
-            games = np.fromfile(base + ".game", dtype=np.uint32).astype(np.int64)
-            parts.append(
-                dict(
-                    kind=victory_kinds(summary.get("records"), games) if kinds else None,
-                    idx=np.fromfile(base + ".idx", dtype=np.uint16),
-                    off=off,
-                    # Half precision in memory (features are small numbers); batches go back to float32.
-                    dense=np.fromfile(base + ".dense", dtype=np.float32).reshape(-1, meta["denseCount"]).astype(np.float16),
-                    y=np.fromfile(base + ".y", dtype=np.uint8).astype(np.float32),
-                    game=games + len(parts) * 10_000_000,
-                    # Shards come from one setting each; mostly-expansion shards count as expansion.
-                    expansion=np.full(len(off) - 1, expansion_games * 2 > summary["games"]),
-                )
-            )
-    if not parts:
+            meta["expansionGames"] += summary.get("expansionGames", 0)
+            found.append((summary, summary_path[: -len(".json")]))
+    if not found:
         raise SystemExit("No shards found")
-    # Pad each position's sparse indices to the longest, with an index past the end (a zero row).
-    width = max(int(np.diff(p["off"]).max()) for p in parts)
+    return meta, found
+
+
+def load(dirs, kinds=False, keep=1.0, bootstrap=None, lam=0.7, seed=1):
+    """
+    All shards in the given directories, as one padded dataset: (meta, idx, dense, target, result,
+    game, expansion[, kind]). `result` is each position's seat's result; `target` is what it
+    learns: the result, or with a `bootstrap` evaluator its TD(lambda) target (computed on whole
+    games, before any position is left out). `keep` < 1 keeps that share of the positions (at
+    random): positions of one game are much alike, so more games with fewer positions each teach
+    more in the same memory. Arrays are filled shard by shard, never held twice.
+    """
+    meta, found = shards(dirs)
+    # First pass: sizes and which positions to keep.
+    width, masks = 0, []
+    for number, (_, base) in enumerate(found):
+        counts = np.diff(np.fromfile(base + ".off", dtype=np.uint32).astype(np.int64))
+        width = max(width, int(counts.max()) if len(counts) else 0)
+        if keep < 1:
+            masks.append(np.random.default_rng(seed * 1_000_003 + number).random(len(counts)) < keep)
+        else:
+            masks.append(np.ones(len(counts), dtype=bool))
+    total = int(sum(int(m.sum()) for m in masks))
     pad = meta["sparseCount"]
-    rows = []
-    for p in parts:
-        counts = np.diff(p["off"])
-        padded = np.full((len(counts), width), pad, dtype=np.int16 if pad < 32767 else np.int32)
-        column = np.arange(width)
-        mask = column[None, :] < counts[:, None]
-        padded[mask] = p["idx"].astype(padded.dtype)
-        rows.append(padded)
-    data = (
-        meta,
-        np.concatenate(rows),
-        np.concatenate([p["dense"] for p in parts]),
-        np.concatenate([p["y"] for p in parts]),
-        np.concatenate([p["game"] for p in parts]),
-        np.concatenate([p["expansion"] for p in parts]),
-    )
-    return data + (np.concatenate([p["kind"] for p in parts]),) if kinds else data
+    idx = np.full((total, width), pad, dtype=np.int16 if pad < 32767 else np.int32)
+    dense = np.empty((total, meta["denseCount"]), dtype=np.float16)
+    target = np.empty(total, dtype=np.float32)
+    result = np.empty(total, dtype=np.float32)
+    game = np.empty(total, dtype=np.int64)
+    expansion = np.empty(total, dtype=bool)
+    kind = np.empty(total, dtype=np.int64) if kinds else None
+    model = read_weights(bootstrap, meta) if bootstrap else None
+    gap = right = 0.0
+    at = 0
+    for number, ((summary, base), mask) in enumerate(zip(found, masks)):
+        off = np.fromfile(base + ".off", dtype=np.uint32).astype(np.int64)
+        counts = np.diff(off)
+        games = np.fromfile(base + ".game", dtype=np.uint32).astype(np.int64)
+        flat = np.fromfile(base + ".idx", dtype=np.uint16)
+        padded = np.full((len(counts), width), pad, dtype=idx.dtype)
+        padded[np.arange(width)[None, :] < counts[:, None]] = flat.astype(idx.dtype)
+        # Half precision in memory (features are small numbers); batches go back to float32.
+        part_dense = np.fromfile(base + ".dense", dtype=np.float32).reshape(-1, meta["denseCount"]).astype(np.float16)
+        y = np.fromfile(base + ".y", dtype=np.uint8).astype(np.float32)
+        t = y
+        if model is not None:
+            t, chance = td_targets(model, padded, part_dense, y, games, lam)
+            gap += float(np.abs(t - y).sum())
+            right += float(((chance > 0.5) == (y > 0.5)).sum())
+        n = int(mask.sum())
+        idx[at : at + n] = padded[mask]
+        dense[at : at + n] = part_dense[mask]
+        target[at : at + n] = t[mask]
+        result[at : at + n] = y[mask]
+        game[at : at + n] = games[mask] + number * 10_000_000
+        # Shards come from one setting each; mostly-expansion shards count as expansion.
+        expansion[at : at + n] = summary.get("expansionGames", 0) * 2 > summary["games"]
+        if kind is not None:
+            kind[at : at + n] = victory_kinds(summary.get("records"), games)[mask]
+        at += n
+        del padded, part_dense, flat
+    if model is not None:
+        positions = sum(len(m) for m in masks)
+        print(f"TD({lam}) targets from {bootstrap}: mean |target - result| {gap / positions:.3f}; its accuracy on results {right / positions:.3f}")
+    data = (meta, idx, dense, target, result, game, expansion)
+    return data + (kind,) if kinds else data
 
 
 class Evaluator(nn.Module):
@@ -165,7 +195,7 @@ def td_targets(model, idx, dense, y, game, lam):
                 for s in range(0, len(y), 8192)
             ]
         )
-    target = y.copy()
+    target = y.astype(np.float32)
     starts = np.flatnonzero(np.r_[True, game[1:] != game[:-1]])
     ends = np.r_[starts[1:], len(y)]
     for start, end in zip(starts, ends):
@@ -216,23 +246,20 @@ def main():
     parser.add_argument("--lam", type=float, default=0.7, help="TD(lambda): how much the result reaches back (1 = results alone)")
     parser.add_argument("--expansion-weight", type=int, default=1, help="show Legacy & Diplomacy positions this many times per epoch (they are the minority); 0 leaves them out")
     parser.add_argument("--aux-weight", type=float, default=0.0, help="also learn how each game ends (who wins, and by which victory), from results, with this weight: shapes the hidden layers; not exported")
+    parser.add_argument("--keep", type=float, default=1.0, help="keep this share of each shard's positions (at random), to fit more games in memory")
     parser.add_argument("--seed", type=int, default=1)
     args = parser.parse_args()
     torch.manual_seed(args.seed)
     torch.set_num_threads(max(1, os.cpu_count() // 2))
 
-    loaded = load(args.data, kinds=args.aux_weight > 0)
-    meta, idx, dense, y, game, expansion = loaded[:6]
+    loaded = load(args.data, kinds=args.aux_weight > 0, keep=args.keep, bootstrap=args.bootstrap, lam=args.lam, seed=args.seed)
+    # `y` is what it learns (TD targets with --bootstrap); held-out positions are always scored
+    # against `result`, what happened.
+    meta, idx, dense, y, result, game, expansion = loaded[:7]
     # The auxiliary head's classes: the seat wins by KINDS[k] (k), or loses to it (len(KINDS) + k).
-    aux_class = np.where(loaded[6] < 0, -1, loaded[6] + np.where(y > 0.5, 0, len(KINDS))) if args.aux_weight > 0 else None
+    aux_class = np.where(loaded[7] < 0, -1, loaded[7] + np.where(result > 0.5, 0, len(KINDS))) if args.aux_weight > 0 else None
     if aux_class is not None:
         print(f"how games end, known for {(aux_class >= 0).mean():.3f} of positions (weight {args.aux_weight})")
-    # Held-out positions are always scored against what happened.
-    result = y.copy()
-    if args.bootstrap:
-        target, chance = td_targets(read_weights(args.bootstrap, meta), idx, dense, y, game, args.lam)
-        print(f"TD({args.lam}) targets from {args.bootstrap}: mean |target - result| {np.abs(target - y).mean():.3f}; its accuracy on results {((chance > 0.5) == (y > 0.5)).mean():.3f}")
-        y = target.astype(np.float32)
     held = (game * 2654435761 % 1000) < args.val * 1000
     train, val = np.where(~held)[0], np.where(held)[0]
     print(f"{len(y)} positions ({len(train)} train, {len(val)} validation) from {len(np.unique(game))} games; {meta}")
@@ -314,6 +341,8 @@ def main():
         notes.update(bootstrap=os.path.basename(args.bootstrap), lam=args.lam)
     if args.aux_weight:
         notes["auxWeight"] = args.aux_weight
+    if args.keep < 1:
+        notes["keep"] = args.keep
     count = export(model, meta, h1, h2, args.out, notes)
     # Parity cases for the TypeScript forward pass.
     model.eval()

@@ -83,6 +83,10 @@ training/.venv/Scripts/python -m pip install numpy
    positions N times per epoch (a shard counts as expansion when most of its games are), and
    each epoch also prints validation on expansion games alone.
 
+   Memory holds about 700 bytes per position (50 positions a game). `--keep F` keeps that share of
+   each game's positions, at random, after the TD targets are made from whole games: positions of
+   one game are much alike, so more games with fewer positions each teach more in the same memory.
+
    `--aux-weight W` also teaches a training-only head how each game ends (who wins, and by
    which victory), from the results, read from the records each shard was encoded from: it
    shapes the hidden layers and isn't exported. Round 7 tried 0.5: no better than without.
